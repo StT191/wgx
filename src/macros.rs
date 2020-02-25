@@ -11,6 +11,55 @@
 /// each with the given `shader_location` and `format`.
 /// Offsets are calculated automatically.
 
+
+#[macro_export]
+macro_rules! binding {
+    ($loc:expr, $stage:ident, UniformBuffer) => {
+        wgpu::BindGroupLayoutBinding {
+            binding: $loc,
+            visibility: wgpu::ShaderStage::$stage,
+            ty: wgpu::BindingType::UniformBuffer { dynamic: false },
+        }
+    };
+    ($loc:expr, $stage:ident, SampledTexture) => {
+        wgpu::BindGroupLayoutBinding {
+            binding: $loc,
+            visibility: wgpu::ShaderStage::$stage,
+            ty: wgpu::BindingType::SampledTexture {
+                multisampled: false,
+                dimension: wgpu::TextureViewDimension::D2,
+            },
+        }
+    };
+    ($loc:expr, $stage:ident, Sampler) => {
+        wgpu::BindGroupLayoutBinding {
+            binding: $loc,
+            visibility: wgpu::ShaderStage::$stage,
+            ty: wgpu::BindingType::Sampler,
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! bind {
+    ($loc:expr, Buffer, $value:expr, $range:expr) => {
+        wgpu::Binding {
+            binding: $loc,
+            resource: wgpu::BindingResource::Buffer {
+                buffer: $value,
+                range: $range,
+            },
+        }
+    };
+    ($loc:expr, $ty:ident, $value:expr) => {
+        wgpu::Binding {
+            binding: $loc,
+            resource: wgpu::BindingResource::$ty($value),
+        }
+    };
+}
+
+
 #[macro_export]
 macro_rules! vertex_desc {
     ($($loc:expr => $fmt:ident),*) => {

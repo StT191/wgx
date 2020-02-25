@@ -12,3 +12,4 @@ doctest = false
 wgpu = "0.4"
 winit = "0.20"
 glsl-to-spirv = "0.1"
+zerocopy = "0.2"

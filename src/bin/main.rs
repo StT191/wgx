@@ -22,41 +22,65 @@ fn main() {
     let mut gx = Gx::new(&window);
 
 
-    // pipeline
-    let layout = gx.binding(&[]);
+    // global params
+    let layout = gx.binding(&[
+        binding!(0, FRAGMENT, SampledTexture),
+        binding!(1, FRAGMENT, Sampler)
+    ]);
 
-    let render_pipeline = gx.render_pipeline(
-        &gx.load_glsl("shaders/main.vert", ShaderType::Vertex),
-        &gx.load_glsl("shaders/main.frag", ShaderType::Fragment),
-        vertex_desc![0 => Float2],
+    let vs = gx.load_glsl("shaders/main.vert", ShaderType::Vertex);
+    let fs = gx.load_glsl("shaders/main.frag", ShaderType::Fragment);
+
+    let vertex_desc = vertex_desc![0 => Float3, 1 => Float2];
+
+
+    // first render
+
+    let pipeline = gx.render_pipeline(
+        false, &vs, &fs,
+        vertex_desc, PrimitiveTopology::TriangleList,
         &layout
     );
 
 
-    // vertex data
-    let data = [
-        (-0.25, -0.5), (-0.5, -0.5), (-0.5, 0.5),
-        (0.25, -0.5), (0.5, -0.5), (0.5, 0.5),
+    let texture = gx.texture(2, 1, TextureUsage::all());
+
+    gx.with_encoder(|mut encoder, gx| {
+        let buff = gx.buffer_from_data::<(u8, u8, u8, u8)>(BufferUsage::COPY_SRC, &[
+            (255, 0, 0, 0), (0, 0, 255, 0)
+        ]);
+        buffer_to_texture(encoder, &buff, (2, 1, 0), &texture, (0.0, 0.0, 2, 1));
+    });
+
+    const N:usize = 6;
+
+    // dings
+    let data:[((f32, f32, f32), (f32, f32)); N] = [
+        ((-0.25, -0.5, 0.2), (0.0, 1.0)),
+        ((-0.5, -0.5, 0.2), (0.0, 1.0)),
+        ((-0.5, 0.5, 0.2), (0.0, 1.0)),
+
+        ((0.25, -0.5, 0.3), (0.0, 1.0)),
+        ((0.5, -0.5, 0.3), (1.0, 1.0)),
+        ((-1.0, 0.5, 0.3), (1.0, 1.0)),
     ];
 
-    let vertices1 = gx.vertex_mapped::<(f32, f32)>(3).fill_from_slice(&data[0..3]);
-    let vertices2 = gx.vertex_mapped::<(f32, f32)>(3).fill_from_slice(&data[3..6]);
+    let vertices = gx.buffer_from_data(BufferUsage::VERTEX, &data[0..N]);
 
+    let texture_view = texture.create_default_view();
+    let sampler = gx.sampler();
 
-    // bind data
-    let bound = gx.bind(&layout, &[]);
+    let bound = gx.bind(&layout, &[
+        bind!(0, TextureView, &texture_view),
+        bind!(1, Sampler, &sampler),
+    ]);
 
-
-
-    // frames
-    let frame_time = Duration::from_nanos(1_000_000_000 / 60);
-    let mut time = Instant::now();
 
 
     // event loop
     event_loop.run(move |event, _, control_flow| {
 
-        *control_flow = ControlFlow::Poll;
+        *control_flow = ControlFlow::Wait;
 
         match event {
             Event::WindowEvent {event: WindowEvent::CloseRequested, ..} => {
@@ -68,21 +92,11 @@ fn main() {
             },
 
             Event::RedrawRequested(_) => {
-                gx.draw_frame(
-                    wgpu::Color::GREEN,
-                    &[
-                        (&render_pipeline, &vertices1, 0..3, &bound),
-                        (&render_pipeline, &vertices2, 0..3, &bound),
-                    ],
-                );
-            },
-
-            Event::MainEventsCleared => {
-                let elapsed = time.elapsed();
-                if elapsed < frame_time {
-                    std::thread::sleep(frame_time - elapsed);
-                }
-                time = Instant::now();
+                gx.with_encoder_frame(|mut encoder, frame| {
+                    pass_render(encoder, &frame.view, wgpu::Color::GREEN,
+                        &[(&pipeline, &vertices, 0..N as u32, &bound)],
+                    );
+                });
             },
 
             _ => {}
