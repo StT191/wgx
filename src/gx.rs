@@ -254,7 +254,7 @@ impl Gx {
 
     // render_pipeline
     pub fn render_pipeline(
-        &self, use_texture_format:bool, depth_testing:bool,
+        &self, use_texture_format:bool, depth_testing:bool, alpha_blend:bool,
         vs_module:&wgpu::ShaderModule, fs_module:&wgpu::ShaderModule,
         vertex_layout:wgpu::VertexBufferDescriptor, topology:wgpu::PrimitiveTopology,
         bind_group_layout:&wgpu::BindGroupLayout,
@@ -290,8 +290,15 @@ impl Gx {
 
             color_states: &[wgpu::ColorStateDescriptor {
                 format: if use_texture_format { TEXTURE_FORMAT } else { OUTPUT_FORMAT },
-                color_blend: wgpu::BlendDescriptor::REPLACE,
+
+                color_blend: if alpha_blend { wgpu::BlendDescriptor {
+                    src_factor: wgpu::BlendFactor::SrcAlpha,
+                    dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                    operation: wgpu::BlendOperation::Add
+                }} else { wgpu::BlendDescriptor::REPLACE },
+
                 alpha_blend: wgpu::BlendDescriptor::REPLACE,
+
                 write_mask: wgpu::ColorWrite::ALL,
             }],
 

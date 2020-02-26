@@ -39,7 +39,7 @@ fn main() {
     // first render
 
     let pipeline = gx.render_pipeline(
-        false, DEPTH_TESTING, &vs, &fs,
+        false, DEPTH_TESTING, true, &vs, &fs,
         vertex_desc, PrimitiveTopology::TriangleList,
         &layout
     );
@@ -49,12 +49,12 @@ fn main() {
 
     gx.with_encoder(|mut encoder, gx| {
         let buff = gx.buffer_from_data::<(u8, u8, u8, u8)>(BufferUsage::COPY_SRC, &[
-            (255, 0, 0, 127), (0, 0, 255, 255)
+            (255, 0, 0, 230), (0, 0, 255, 230)
         ]);
         buffer_to_texture(encoder, &buff, (2, 1, 0), &texture, (0.0, 0.0, 0, 2, 1));
     });
 
-    const N:usize = 6;
+    const N:usize = 9;
 
     // dings
     let data:[((f32, f32, f32), (f32, f32)); N] = [
@@ -62,9 +62,13 @@ fn main() {
         ((-0.5, -0.5, 0.2), (0.0, 1.0)),
         ((-0.5, 0.5, 0.2), (0.0, 1.0)),
 
-        ((0.25, -0.5, 0.3), (0.0, 1.0)),
-        ((0.5, -0.5, 0.3), (1.0, 1.0)),
-        ((-1.0, 0.5, 0.3), (1.0, 1.0)),
+        ((0.25, -0.5, 0.35), (0.0, 1.0)),
+        ((0.5, -0.5, 0.35), (1.0, 1.0)),
+        ((-1.0, 0.5, 0.1), (1.0, 1.0)),
+
+        ((-0.75, -0.5, 0.1), (0.0, 1.0)),
+        ((-1.0, -0.5, 0.1), (1.0, 1.0)),
+        ((-0.3, 0.5, 0.1), (1.0, 1.0)),
     ];
 
     let vertices = gx.buffer_from_data(BufferUsage::VERTEX, &data[0..N]);
