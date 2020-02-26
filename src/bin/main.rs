@@ -14,12 +14,14 @@ use wgfx::*;
 // main
 fn main() {
 
+    const DEPTH_TESTING:bool = true;
+
     let event_loop = EventLoop::new();
 
     let window = Window::new(&event_loop).unwrap();
     window.set_title("WgFx");
 
-    let mut gx = Gx::new(&window);
+    let mut gx = Gx::new(&window, DEPTH_TESTING);
 
 
     // global params
@@ -37,19 +39,19 @@ fn main() {
     // first render
 
     let pipeline = gx.render_pipeline(
-        false, &vs, &fs,
+        false, DEPTH_TESTING, &vs, &fs,
         vertex_desc, PrimitiveTopology::TriangleList,
         &layout
     );
 
 
-    let texture = gx.texture(2, 1, TextureUsage::all());
+    let texture = gx.texture(2, 1, 1, TextureUsage::COPY_DST | TextureUsage::SAMPLED, false);
 
     gx.with_encoder(|mut encoder, gx| {
         let buff = gx.buffer_from_data::<(u8, u8, u8, u8)>(BufferUsage::COPY_SRC, &[
-            (255, 0, 0, 0), (0, 0, 255, 0)
+            (255, 0, 0, 127), (0, 0, 255, 255)
         ]);
-        buffer_to_texture(encoder, &buff, (2, 1, 0), &texture, (0.0, 0.0, 2, 1));
+        buffer_to_texture(encoder, &buff, (2, 1, 0), &texture, (0.0, 0.0, 0, 2, 1));
     });
 
     const N:usize = 6;
@@ -88,12 +90,13 @@ fn main() {
             },
 
             Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
-                gx.resize(size.width, size.height);
+                gx.resize(size.width, size.height, DEPTH_TESTING);
             },
 
             Event::RedrawRequested(_) => {
-                gx.with_encoder_frame(|mut encoder, frame| {
-                    pass_render(encoder, &frame.view, wgpu::Color::GREEN,
+                gx.with_encoder_frame(|mut encoder, frame, deph_view| {
+                    pass_render(encoder, &frame.view, deph_view,
+                        wgpu::Color::GREEN,
                         &[(&pipeline, &vertices, 0..N as u32, &bound)],
                     );
                 });
