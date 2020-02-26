@@ -4,6 +4,7 @@ use glsl_to_spirv::ShaderType;
 
 use zerocopy::{FromBytes, AsBytes};
 
+
 // some settings constants
 pub const OUTPUT_FORMAT:wgpu::TextureFormat = wgpu::TextureFormat::Bgra8UnormSrgb;
 // pub const TEXTURE_FORMAT:wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
@@ -11,6 +12,7 @@ pub const TEXTURE_FORMAT:wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
 pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
 
+// Color
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, FromBytes, AsBytes)]
 #[repr(C)]
 pub struct Color (pub u8, pub u8, pub u8, pub u8);
@@ -20,17 +22,23 @@ impl<T: Into<u8>> From<(T, T, T, T)> for Color{
 }
 
 
+// TextureFormat enum
+#[derive(Debug)]
+pub enum TexOpt { Output, Texture, Depth }
+
+
 pub fn pass_render(
     encoder:&mut wgpu::CommandEncoder,
     attachment:&wgpu::TextureView,
     depth_attachment:Option<&wgpu::TextureView>,
+    mssa_attachment:Option<&wgpu::TextureView>, // antialiasing multisampled texture_attachment
     color:wgpu::Color,
     draws:&[(&wgpu::RenderPipeline, &wgpu::Buffer, std::ops::Range<u32>, &wgpu::BindGroup)]
 ) {
     let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
         color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {
-            attachment,
-            resolve_target: None,
+            attachment: if let Some(aaatt) = mssa_attachment { aaatt } else { attachment },
+            resolve_target: if mssa_attachment.is_some() { Some(attachment) } else { None },
             load_op: wgpu::LoadOp::Clear,
             store_op: wgpu::StoreOp::Store,
             clear_color: color,
@@ -98,15 +106,19 @@ pub struct Gx {
     queue: wgpu::Queue,
     sc_desc: wgpu::SwapChainDescriptor,
     swap_chain: wgpu::SwapChain,
+    pub depth_testing: bool, // changing needs call to update
     depth_texture: Option<wgpu::Texture>,
     depth_texture_view: Option<wgpu::TextureView>,
+    pub msaa: u32, // antialiasing // changing needs call to update
+    msaa_texture: Option<wgpu::Texture>,
+    msaa_texture_view: Option<wgpu::TextureView>,
 }
 
 
 impl Gx {
 
     // initialize
-    pub fn new(window:&winit::window::Window, deph_testing:bool) -> Self {
+    pub fn new(window:&winit::window::Window, depth_testing:bool, msaa:u32) -> Self {
 
         let surface = wgpu::Surface::create(window);
 
@@ -138,11 +150,12 @@ impl Gx {
 
         let mut new = Self {
             surface, device, sc_desc, swap_chain, queue,
-            depth_texture: None, depth_texture_view: None
+            depth_testing, depth_texture: None, depth_texture_view: None,
+            msaa, msaa_texture: None, msaa_texture_view: None,
         };
 
-        if deph_testing {
-            new.resize(size.width, size.height, true)
+        if depth_testing || msaa > 1 {
+            new.update(size.width, size.height)
         }
 
         new
@@ -150,16 +163,23 @@ impl Gx {
 
     // main methods
 
-    pub fn resize(&mut self, width:u32, height:u32, deph_testing:bool) {
+    pub fn update(&mut self, width:u32, height:u32) {
         self.sc_desc.width = width;
         self.sc_desc.height = height;
         self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
 
-        if deph_testing {
-            let depth_texture = self.texture(width, height, 1, wgpu::TextureUsage::OUTPUT_ATTACHMENT, true);
+        if self.depth_testing {
+            let depth_texture = self.texture(width, height, 1, self.msaa, wgpu::TextureUsage::OUTPUT_ATTACHMENT, TexOpt::Depth);
 
             self.depth_texture_view = Some(depth_texture.create_default_view());
             self.depth_texture = Some(depth_texture);
+        }
+
+        if self.msaa > 1 {
+            let msaa_texture = self.texture(width, height, 1, self.msaa, wgpu::TextureUsage::OUTPUT_ATTACHMENT, TexOpt::Output);
+
+            self.msaa_texture_view = Some(msaa_texture.create_default_view());
+            self.msaa_texture = Some(msaa_texture);
         }
     }
 
@@ -177,12 +197,15 @@ impl Gx {
 
 
     pub fn with_encoder_frame<'a, F>(&mut self, mut handler: F)
-        where F: 'a + FnMut(&mut wgpu::CommandEncoder, &wgpu::SwapChainOutput, Option<&wgpu::TextureView>)
+        where F: 'a + FnMut(
+            &mut wgpu::CommandEncoder, &wgpu::SwapChainOutput,
+            Option<&wgpu::TextureView>, Option<&wgpu::TextureView>
+        )
     {
         let frame = self.swap_chain.get_next_texture();
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { todo: 0 });
 
-        handler(&mut encoder, &frame, self.depth_texture_view.as_ref());
+        handler(&mut encoder, &frame, self.depth_texture_view.as_ref(), self.msaa_texture_view.as_ref());
 
         self.queue.submit(&[encoder.finish()]);
     }
@@ -209,17 +232,21 @@ impl Gx {
     }
 
     pub fn texture(&self,
-        width:u32, height:u32, array_layer_count:u32,
-        usage:wgpu::TextureUsage, is_deph_texture:bool
+        width:u32, height:u32, array_layer_count:u32, sample_count:u32,
+        usage:wgpu::TextureUsage, format:TexOpt
     ) -> wgpu::Texture {
         self.device.create_texture(&wgpu::TextureDescriptor {
             size: wgpu::Extent3d {width, height, depth: 1},
             array_layer_count,
             mip_level_count: 1,
-            sample_count: 1,
+            sample_count,
             dimension: wgpu::TextureDimension::D2,
-            format: if is_deph_texture { DEPTH_FORMAT } else { TEXTURE_FORMAT },
-            usage,
+            format: match format {
+                TexOpt::Output => OUTPUT_FORMAT,
+                TexOpt::Texture => TEXTURE_FORMAT,
+                TexOpt::Depth => DEPTH_FORMAT
+            },
+            usage
         })
     }
 
@@ -254,7 +281,7 @@ impl Gx {
 
     // render_pipeline
     pub fn render_pipeline(
-        &self, use_texture_format:bool, depth_testing:bool, alpha_blend:bool,
+        &self, use_texture_format:bool, depth_testing:bool, alpha_blend:bool, msaa:u32,
         vs_module:&wgpu::ShaderModule, fs_module:&wgpu::ShaderModule,
         vertex_layout:wgpu::VertexBufferDescriptor, topology:wgpu::PrimitiveTopology,
         bind_group_layout:&wgpu::BindGroupLayout,
@@ -314,7 +341,7 @@ impl Gx {
 
             index_format: wgpu::IndexFormat::Uint16,
             vertex_buffers: &[vertex_layout],
-            sample_count: 1,
+            sample_count: msaa,
             sample_mask: !0,
             alpha_to_coverage_enabled: false,
         })

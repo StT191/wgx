@@ -15,13 +15,15 @@ use wgfx::*;
 fn main() {
 
     const DEPTH_TESTING:bool = true;
+    const ALPHA_BLENDING:bool = true;
+    const MSAA:u32 = 8;
 
     let event_loop = EventLoop::new();
 
     let window = Window::new(&event_loop).unwrap();
     window.set_title("WgFx");
 
-    let mut gx = Gx::new(&window, DEPTH_TESTING);
+    let mut gx = Gx::new(&window, DEPTH_TESTING, MSAA);
 
 
     // global params
@@ -39,13 +41,13 @@ fn main() {
     // first render
 
     let pipeline = gx.render_pipeline(
-        false, DEPTH_TESTING, true, &vs, &fs,
+        false, DEPTH_TESTING, ALPHA_BLENDING, MSAA, &vs, &fs,
         vertex_desc, PrimitiveTopology::TriangleList,
         &layout
     );
 
 
-    let texture = gx.texture(2, 1, 1, TextureUsage::COPY_DST | TextureUsage::SAMPLED, false);
+    let texture = gx.texture(2, 1, 1, 1, TextureUsage::COPY_DST | TextureUsage::SAMPLED, TexOpt::Texture);
 
     gx.with_encoder(|mut encoder, gx| {
         let buff = gx.buffer_from_data::<(u8, u8, u8, u8)>(BufferUsage::COPY_SRC, &[
@@ -94,12 +96,12 @@ fn main() {
             },
 
             Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
-                gx.resize(size.width, size.height, DEPTH_TESTING);
+                gx.update(size.width, size.height);
             },
 
             Event::RedrawRequested(_) => {
-                gx.with_encoder_frame(|mut encoder, frame, deph_view| {
-                    pass_render(encoder, &frame.view, deph_view,
+                gx.with_encoder_frame(|mut encoder, frame, deph_view, msaa| {
+                    pass_render(encoder, &frame.view, deph_view, msaa,
                         wgpu::Color::GREEN,
                         &[(&pipeline, &vertices, 0..N as u32, &bound)],
                     );
