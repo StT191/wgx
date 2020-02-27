@@ -1,7 +1,6 @@
 
-
 use glsl_to_spirv::ShaderType;
-
+use std::io::{Read, Seek};
 use zerocopy::{FromBytes, AsBytes};
 
 
@@ -224,11 +223,13 @@ impl Gx {
         self.device.create_buffer_mapped::<T>(data.len(), usage).fill_from_slice(data)
     }
 
-    pub fn load_glsl(&self, path:&str, ty:ShaderType) -> wgpu::ShaderModule {
-        let code = std::fs::read_to_string(path).unwrap();
-        let shader_spirv = glsl_to_spirv::compile(&code, ty).unwrap();
+    pub fn load_spirv<R:Read+Seek>(&self, shader_spirv:R) -> wgpu::ShaderModule {
         let shader = wgpu::read_spirv(shader_spirv).unwrap();
         self.device.create_shader_module(&shader)
+    }
+
+    pub fn load_glsl(&self, code:&str, ty:ShaderType) -> wgpu::ShaderModule {
+        self.load_spirv(glsl_to_spirv::compile(&code, ty).unwrap())
     }
 
     pub fn texture(&self,

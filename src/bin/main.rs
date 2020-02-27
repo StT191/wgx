@@ -1,7 +1,7 @@
 #![allow(unused)]
 
 // imports
-use std::time::{Duration, Instant};
+use std::{time::{Duration, Instant}, fs::read_to_string};
 
 use winit::{
     event_loop::{ControlFlow, EventLoop},
@@ -32,8 +32,8 @@ fn main() {
         binding!(1, FRAGMENT, Sampler)
     ]);
 
-    let vs = gx.load_glsl("shaders/main.vert", ShaderType::Vertex);
-    let fs = gx.load_glsl("shaders/main.frag", ShaderType::Fragment);
+    let vs = gx.load_glsl(&read_to_string("shaders/main.vert").unwrap(), ShaderType::Vertex);
+    let fs = gx.load_glsl(&read_to_string("shaders/main.frag").unwrap(), ShaderType::Fragment);
 
     let vertex_desc = vertex_desc![0 => Float3, 1 => Float2];
 
