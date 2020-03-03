@@ -1,7 +1,6 @@
 
 use glsl_to_spirv::ShaderType;
-use std::io::{Read, Seek};
-use zerocopy::{FromBytes, AsBytes};
+use std::{io::{Read, Seek}, mem::size_of, ptr};
 
 
 // some settings constants
@@ -9,16 +8,6 @@ pub const OUTPUT_FORMAT:wgpu::TextureFormat = wgpu::TextureFormat::Bgra8UnormSrg
 // pub const TEXTURE_FORMAT:wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 pub const TEXTURE_FORMAT:wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
 pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
-
-
-// Color
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, FromBytes, AsBytes)]
-#[repr(C)]
-pub struct Color (pub u8, pub u8, pub u8, pub u8);
-
-impl<T: Into<u8>> From<(T, T, T, T)> for Color{
-    fn from(data:(T, T, T, T)) -> Self { Self(data.0.into(), data.1.into(), data.2.into(), data.3.into()) }
-}
 
 
 // TextureFormat enum
@@ -65,17 +54,27 @@ pub fn pass_render(
 }
 
 
+pub fn buffer_to_buffer(
+    encoder:&mut wgpu::CommandEncoder,
+    src_buffer:&wgpu::Buffer, src_offset:wgpu::BufferAddress,
+    dst_buffer:&wgpu::Buffer, dst_offset:wgpu::BufferAddress,
+    size:wgpu::BufferAddress,
+) {
+    encoder.copy_buffer_to_buffer(src_buffer, src_offset, dst_buffer, dst_offset, size);
+}
+
+
 pub fn buffer_to_texture(
     encoder:&mut wgpu::CommandEncoder,
     buffer:&wgpu::Buffer, (bf_w, bf_h, offset):(u32, u32, u64),
-    texture:&wgpu::Texture, (x, y, array_layer, w, h):(f32, f32, u32, u32, u32)
+    texture:&wgpu::Texture, (x, y, array_layer, w, h):(u32, u32, u32, u32, u32)
 ) {
     encoder.copy_buffer_to_texture(
         wgpu::BufferCopyView {
             buffer, offset, row_pitch: 4 * bf_w, image_height: bf_h,
         },
         wgpu::TextureCopyView {
-            texture, mip_level: 0, array_layer, origin: wgpu::Origin3d { x, y, z: 0.0, }
+            texture, mip_level: 0, array_layer, origin: wgpu::Origin3d { x, y, z: 0, }
         },
         wgpu::Extent3d {width: w, height: h, depth: 1},
     );
@@ -83,12 +82,12 @@ pub fn buffer_to_texture(
 
 pub fn texture_to_buffer(
     encoder:&mut wgpu::CommandEncoder,
-    texture:&wgpu::Texture, (x, y, array_layer, w, h):(f32, f32, u32, u32, u32),
+    texture:&wgpu::Texture, (x, y, array_layer, w, h):(u32, u32, u32, u32, u32),
     buffer:&wgpu::Buffer, (bf_w, bf_h, offset):(u32, u32, u64)
 ) {
     encoder.copy_texture_to_buffer(
         wgpu::TextureCopyView {
-            texture, mip_level: 0, array_layer, origin: wgpu::Origin3d { x, y, z: 0.0, }
+            texture, mip_level: 0, array_layer, origin: wgpu::Origin3d { x, y, z: 0, }
         },
         wgpu::BufferCopyView {
             buffer, offset, row_pitch: 4 * bf_w, image_height: bf_h,
@@ -124,8 +123,8 @@ impl Gx {
         let adapter = wgpu::Adapter::request(
             &wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::Default,
-                backends: wgpu::BackendBit::PRIMARY,
             },
+            wgpu::BackendBit::PRIMARY
         ).unwrap();
 
         let (device, queue) = adapter.request_device(&wgpu::DeviceDescriptor {
@@ -184,8 +183,8 @@ impl Gx {
 
     // encoding, rendering
 
-    pub fn with_encoder<'a, F>(&mut self, mut handler: F)
-        where F: 'a + FnMut(&mut wgpu::CommandEncoder, &mut Gx)
+    pub fn with_encoder<'a, F>(&mut self, handler: F)
+        where F: 'a + FnOnce(&mut wgpu::CommandEncoder, &mut Gx)
     {
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { todo: 0 });
 
@@ -195,18 +194,20 @@ impl Gx {
     }
 
 
-    pub fn with_encoder_frame<'a, F>(&mut self, mut handler: F)
-        where F: 'a + FnMut(
+    pub fn with_encoder_frame<'a, F>(&mut self, handler: F) -> Result<(), ()>
+        where F: 'a + FnOnce(
             &mut wgpu::CommandEncoder, &wgpu::SwapChainOutput,
             Option<&wgpu::TextureView>, Option<&wgpu::TextureView>
         )
     {
-        let frame = self.swap_chain.get_next_texture();
+        let frame = self.swap_chain.get_next_texture()?;
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { todo: 0 });
 
         handler(&mut encoder, &frame, self.depth_texture_view.as_ref(), self.msaa_texture_view.as_ref());
 
         self.queue.submit(&[encoder.finish()]);
+
+        Ok(())
     }
 
     // creation methods
@@ -215,12 +216,20 @@ impl Gx {
         self.device.create_buffer(&wgpu::BufferDescriptor {usage, size})
     }
 
-    pub fn buffer_mapped<T:'static+Copy>(&self, usage:wgpu::BufferUsage, size:usize) -> wgpu::CreateBufferMapped<T> {
-        self.device.create_buffer_mapped::<T>(size, usage)
+    pub fn buffer_mapped(&self, usage:wgpu::BufferUsage, size:usize) -> wgpu::CreateBufferMapped {
+        self.device.create_buffer_mapped(size, usage)
     }
 
-    pub fn buffer_from_data<T:'static+Copy>(&self, usage:wgpu::BufferUsage, data:&[T]) -> wgpu::Buffer {
-        self.device.create_buffer_mapped::<T>(data.len(), usage).fill_from_slice(data)
+    pub fn buffer_from_data<T:Sized+Copy>(&self, usage:wgpu::BufferUsage, data:&[T]) -> wgpu::Buffer {
+
+        let size = data.len() * size_of::<T>();
+        let buffer_mapped = self.device.create_buffer_mapped(size, usage);
+
+        unsafe {
+            ptr::copy_nonoverlapping(data.as_ptr() as *const u8, buffer_mapped.data.as_mut_ptr(), size);
+        }
+
+        buffer_mapped.finish()
     }
 
     pub fn load_spirv<R:Read+Seek>(&self, shader_spirv:R) -> wgpu::ShaderModule {
