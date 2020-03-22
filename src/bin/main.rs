@@ -62,10 +62,11 @@ fn main() {
 
 
     // read usw
-    let t_t = 280;
+    /*let t_t = 296;
 
     let b0 = gx.buffer(BufferUsage::COPY_DST | BufferUsage::COPY_SRC, 4);
     let buff = gx.buffer(BufferUsage::COPY_DST | BufferUsage::MAP_READ, 4 * t_t);
+
 
     let then = Instant::now();
 
@@ -77,13 +78,12 @@ fn main() {
     });
 
     let xyz = block_on(buff.map_read(0, 4 * t_t));
-
     println!("{:?}", then.elapsed());
 
     if let Ok(res) = xyz {
         // println!("{:?}", res.as_slice());
         panic!("{:?}", "no");
-    }
+    }*/
 
 
 
@@ -130,13 +130,28 @@ fn main() {
                 gx.update(size.width, size.height);
             },
 
+            Event::WindowEvent {
+                event:WindowEvent::KeyboardInput{ input: winit::event::KeyboardInput {
+                    virtual_keycode:Some(winit::event::VirtualKeyCode::R), ..
+                }, ..}, ..
+            } => {
+                window.request_redraw();
+            },
+
             Event::RedrawRequested(_) => {
+
+                let then = Instant::now();
+
                 gx.with_encoder_frame(|encoder, frame, deph_view, msaa| {
                     pass_render(encoder, &frame.view, deph_view, msaa,
                         wgpu::Color::GREEN,
-                        &[(&pipeline, &vertices, 0..N as u32, &bound)],
+                        &[
+                            (&pipeline, &vertices, 0..N as u32, &bound),
+                        ],
                     );
                 });
+
+                println!("{:?}", then.elapsed());
             },
 
             _ => {}

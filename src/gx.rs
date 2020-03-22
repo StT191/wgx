@@ -1,5 +1,6 @@
 
 use glsl_to_spirv::ShaderType;
+use futures::executor::block_on;
 use std::{io::{Read, Seek}, mem::size_of, ptr};
 
 
@@ -47,7 +48,7 @@ pub fn pass_render(
 
         rpass.set_pipeline(render_pipeline);
         rpass.set_bind_group(0, bind_group, &[]);
-        rpass.set_vertex_buffers(0, &[(vertices, 0)]);
+        rpass.set_vertex_buffer(0, vertices, 0, 0);
 
         rpass.draw(range.clone(), 0..1);
     }
@@ -71,7 +72,7 @@ pub fn buffer_to_texture(
 ) {
     encoder.copy_buffer_to_texture(
         wgpu::BufferCopyView {
-            buffer, offset, row_pitch: 4 * bf_w, image_height: bf_h,
+            buffer, offset, bytes_per_row: 4 * bf_w, rows_per_image: bf_h,
         },
         wgpu::TextureCopyView {
             texture, mip_level: 0, array_layer, origin: wgpu::Origin3d { x, y, z: 0, }
@@ -90,7 +91,7 @@ pub fn texture_to_buffer(
             texture, mip_level: 0, array_layer, origin: wgpu::Origin3d { x, y, z: 0, }
         },
         wgpu::BufferCopyView {
-            buffer, offset, row_pitch: 4 * bf_w, image_height: bf_h,
+            buffer, offset, bytes_per_row: 4 * bf_w, rows_per_image: bf_h,
         },
         wgpu::Extent3d {width: w, height: h, depth: 1},
     );
@@ -120,19 +121,19 @@ impl Gx {
 
         let surface = wgpu::Surface::create(window);
 
-        let adapter = wgpu::Adapter::request(
+        let adapter = block_on(wgpu::Adapter::request(
             &wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::Default,
             },
             wgpu::BackendBit::PRIMARY
-        ).unwrap();
+        )).unwrap();
 
-        let (device, queue) = adapter.request_device(&wgpu::DeviceDescriptor {
+        let (device, queue) = block_on(adapter.request_device(&wgpu::DeviceDescriptor {
             extensions: wgpu::Extensions {
                 anisotropic_filtering: false,
             },
             limits: wgpu::Limits::default(),
-        });
+        }));
 
         let size = window.inner_size();
 
@@ -141,7 +142,7 @@ impl Gx {
             format: OUTPUT_FORMAT,
             width: size.width,
             height: size.height,
-            present_mode: wgpu::PresentMode::Vsync,
+            present_mode: wgpu::PresentMode::Mailbox,
         };
 
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
@@ -270,13 +271,13 @@ impl Gx {
             mipmap_filter: wgpu::FilterMode::Linear,
             lod_min_clamp: -100.0,
             lod_max_clamp: 100.0,
-            compare_function: wgpu::CompareFunction::Always,
+            compare: Some(&wgpu::CompareFunction::Always),
         })
     }
 
 
     // bind group
-    pub fn binding(&self, bindings: &[wgpu::BindGroupLayoutBinding]) -> wgpu::BindGroupLayout {
+    pub fn binding(&self, bindings: &[wgpu::BindGroupLayoutEntry]) -> wgpu::BindGroupLayout {
         self.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             bindings
         })

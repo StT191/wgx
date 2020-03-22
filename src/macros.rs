@@ -1,28 +1,15 @@
-//! Convenience macros
-
-/// Macro to produce an array of [`VertexAttributeDescriptor`]
-///
-/// Output has type: `[VertexAttributeDescriptor; _]`. Usage is as follows:
-/// ```
-/// # use wgpu::vertex_attr_array;
-/// let attrs = vertex_attr_array![0 => Float2, 1 => Float, 2 => Ushort4];
-/// ```
-/// This example specifies a list of three [`VertexAttributeDescriptor`],
-/// each with the given `shader_location` and `format`.
-/// Offsets are calculated automatically.
-
 
 #[macro_export]
 macro_rules! binding {
     ($loc:expr, $stage:ident, UniformBuffer) => {
-        wgpu::BindGroupLayoutBinding {
+        wgpu::BindGroupLayoutEntry {
             binding: $loc,
             visibility: wgpu::ShaderStage::$stage,
             ty: wgpu::BindingType::UniformBuffer { dynamic: false },
         }
     };
     ($loc:expr, $stage:ident, SampledTexture) => {
-        wgpu::BindGroupLayoutBinding {
+        wgpu::BindGroupLayoutEntry {
             binding: $loc,
             visibility: wgpu::ShaderStage::$stage,
             ty: wgpu::BindingType::SampledTexture {
@@ -32,10 +19,10 @@ macro_rules! binding {
         }
     };
     ($loc:expr, $stage:ident, Sampler) => {
-        wgpu::BindGroupLayoutBinding {
+        wgpu::BindGroupLayoutEntry {
             binding: $loc,
             visibility: wgpu::ShaderStage::$stage,
-            ty: wgpu::BindingType::Sampler,
+            ty: wgpu::BindingType::Sampler { comparison: true },
         }
     };
 }
@@ -64,15 +51,15 @@ macro_rules! bind {
 macro_rules! vertex_desc {
     ($($loc:expr => $fmt:ident),*) => {
         wgpu::VertexBufferDescriptor {
-            stride: ($($crate::vertex_format_size!($fmt) + )* 0) as wgpu::BufferAddress,
+            stride: ($(wgpu::vertex_format_size!($fmt) + )* 0) as wgpu::BufferAddress,
             step_mode: wgpu::InputStepMode::Vertex,
-            attributes: &$crate::vertex_attr_array!([] ; 0; $($loc => $fmt ,)*),
+            attributes: &wgpu::vertex_attr_array!([] ; 0; $($loc => $fmt ,)*),
         }
     };
 }
 
 
-#[macro_export]
+/*#[macro_export]
 macro_rules! vertex_attr_array {
     ($($loc:expr => $fmt:ident),*) => {
         $crate::vertex_attr_array!([] ; 0; $($loc => $fmt ,)*)
@@ -126,15 +113,4 @@ macro_rules! vertex_format_size {
     (Int2) => { 8 };
     (Int3) => { 12 };
     (Int4) => { 16 };
-}
-
-#[test]
-fn test_vertex_attr_array() {
-    let attrs = vertex_attr_array![0 => Float2, 3 => Ushort4];
-    // VertexAttributeDescriptor does not support PartialEq, so we cannot test directly
-    assert_eq!(attrs.len(), 2);
-    assert_eq!(attrs[0].offset, 0);
-    assert_eq!(attrs[0].shader_location, 0);
-    assert_eq!(attrs[1].offset, std::mem::size_of::<(f32, f32)>() as u64);
-    assert_eq!(attrs[1].shader_location, 3);
-}
+}*/
