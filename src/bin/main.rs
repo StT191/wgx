@@ -30,27 +30,25 @@ fn main() {
     let mut gx = Gx::new(&window, DEPTH_TESTING, MSAA);
 
 
-    // global params
-    let layout = gx.binding(&[
-        binding!(0, FRAGMENT, SampledTexture),
-        binding!(1, FRAGMENT, Sampler)
-    ]);
-
+    // global pipeline
     let vs = gx.load_glsl(&read_to_string("shaders/main.vert").unwrap(), ShaderType::Vertex);
     let fs = gx.load_glsl(&read_to_string("shaders/main.frag").unwrap(), ShaderType::Fragment);
 
     let vertex_desc = vertex_desc![0 => Float3, 1 => Float2];
 
-
-    // first render
+    let layout = gx.binding(&[
+        binding!(0, FRAGMENT, SampledTexture),
+        binding!(1, FRAGMENT, Sampler)
+    ]);
 
     let pipeline = gx.render_pipeline(
         false, DEPTH_TESTING, ALPHA_BLENDING, MSAA, &vs, &fs,
-        vertex_desc, PrimitiveTopology::TriangleList,
-        &layout
+        vertex_desc, PrimitiveTopology::TriangleList, &layout
     );
 
+    // first render
 
+    // colors
     let texture = gx.texture(2, 1, 1, 1, TextureUsage::COPY_DST | TextureUsage::COPY_SRC  | TextureUsage::SAMPLED, TexOpt::Texture);
 
     gx.with_encoder(|encoder, gx| {
@@ -91,6 +89,7 @@ fn main() {
     const N:usize = 9;
 
     let data:[((f32, f32, f32), (f32, f32)); N] = [
+
         ((-0.25, -0.5, 0.2), (0.0, 1.0)),
         ((-0.5, -0.5, 0.2), (0.0, 1.0)),
         ((-0.5, 0.5, 0.2), (0.0, 1.0)),
@@ -109,7 +108,7 @@ fn main() {
     let texture_view = texture.create_default_view();
     let sampler = gx.sampler();
 
-    let bound = gx.bind(&layout, &[
+    let texture_bound = gx.bind(&layout, &[
         bind!(0, TextureView, &texture_view),
         bind!(1, Sampler, &sampler),
     ]);
@@ -131,9 +130,11 @@ fn main() {
             },
 
             Event::WindowEvent {
-                event:WindowEvent::KeyboardInput{ input: winit::event::KeyboardInput {
-                    virtual_keycode:Some(winit::event::VirtualKeyCode::R), ..
-                }, ..}, ..
+                event:WindowEvent::KeyboardInput{
+                    input: winit::event::KeyboardInput {
+                        virtual_keycode:Some(winit::event::VirtualKeyCode::R), ..
+                    }, ..
+                }, ..
             } => {
                 window.request_redraw();
             },
@@ -146,7 +147,16 @@ fn main() {
                     pass_render(encoder, &frame.view, deph_view, msaa,
                         wgpu::Color::GREEN,
                         &[
-                            (&pipeline, &vertices, 0..N as u32, &bound),
+                            (&pipeline, &texture_bound, &vertices, 0..N as u32),
+                            (&pipeline, &texture_bound, &vertices, 0..N as u32),
+                            (&pipeline, &texture_bound, &vertices, 0..N as u32),
+                            (&pipeline, &texture_bound, &vertices, 0..N as u32),
+                            (&pipeline, &texture_bound, &vertices, 0..N as u32),
+                            (&pipeline, &texture_bound, &vertices, 0..N as u32),
+                            (&pipeline, &texture_bound, &vertices, 0..N as u32),
+                            (&pipeline, &texture_bound, &vertices, 0..N as u32),
+                            (&pipeline, &texture_bound, &vertices, 0..N as u32),
+                            (&pipeline, &texture_bound, &vertices, 0..N as u32),
                         ],
                     );
                 });

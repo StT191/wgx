@@ -22,7 +22,7 @@ pub fn pass_render(
     depth_attachment:Option<&wgpu::TextureView>,
     mssa_attachment:Option<&wgpu::TextureView>, // antialiasing multisampled texture_attachment
     color:wgpu::Color,
-    draws:&[(&wgpu::RenderPipeline, &wgpu::Buffer, std::ops::Range<u32>, &wgpu::BindGroup)]
+    draws:&[(&wgpu::RenderPipeline, &wgpu::BindGroup, &wgpu::Buffer, std::ops::Range<u32>)]
 ) {
     let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
         color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {
@@ -44,11 +44,26 @@ pub fn pass_render(
         })} else { None },
     });
 
-    for (render_pipeline, vertices, range, bind_group) in draws {
+    let mut l_render_pipeline = None;
+    let mut l_bind_group = None;
+    let mut l_vertices = None;
 
-        rpass.set_pipeline(render_pipeline);
-        rpass.set_bind_group(0, bind_group, &[]);
-        rpass.set_vertex_buffer(0, vertices, 0, 0);
+    for (render_pipeline, bind_group, vertices, range) in draws {
+
+        if l_render_pipeline != Some(render_pipeline) {
+            rpass.set_pipeline(render_pipeline);
+            l_render_pipeline = Some(render_pipeline);
+        }
+
+        if l_bind_group != Some(bind_group) {
+            rpass.set_bind_group(0, bind_group, &[]);
+            l_bind_group = Some(bind_group);
+        }
+
+        if l_vertices != Some(vertices) {
+            rpass.set_vertex_buffer(0, vertices, 0, 0);
+            l_vertices = Some(vertices);
+        }
 
         rpass.draw(range.clone(), 0..1);
     }
@@ -124,6 +139,7 @@ impl Gx {
         let adapter = block_on(wgpu::Adapter::request(
             &wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::Default,
+                compatible_surface: Some(&surface)
             },
             wgpu::BackendBit::PRIMARY
         )).unwrap();
@@ -187,7 +203,7 @@ impl Gx {
     pub fn with_encoder<'a, F>(&mut self, handler: F)
         where F: 'a + FnOnce(&mut wgpu::CommandEncoder, &mut Gx)
     {
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { todo: 0 });
+        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
         handler(&mut encoder, self);
 
@@ -195,14 +211,14 @@ impl Gx {
     }
 
 
-    pub fn with_encoder_frame<'a, F>(&mut self, handler: F) -> Result<(), ()>
+    pub fn with_encoder_frame<'a, F>(&mut self, handler: F) -> Result<(), wgpu::TimeOut>
         where F: 'a + FnOnce(
             &mut wgpu::CommandEncoder, &wgpu::SwapChainOutput,
             Option<&wgpu::TextureView>, Option<&wgpu::TextureView>
         )
     {
         let frame = self.swap_chain.get_next_texture()?;
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { todo: 0 });
+        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
         handler(&mut encoder, &frame, self.depth_texture_view.as_ref(), self.msaa_texture_view.as_ref());
 
@@ -214,17 +230,17 @@ impl Gx {
     // creation methods
 
     pub fn buffer(&self, usage:wgpu::BufferUsage, size:u64) -> wgpu::Buffer {
-        self.device.create_buffer(&wgpu::BufferDescriptor {usage, size})
+        self.device.create_buffer(&wgpu::BufferDescriptor {usage, size, label: None})
     }
 
-    pub fn buffer_mapped(&self, usage:wgpu::BufferUsage, size:usize) -> wgpu::CreateBufferMapped {
-        self.device.create_buffer_mapped(size, usage)
+    pub fn buffer_mapped(&self, usage:wgpu::BufferUsage, size:u64) -> wgpu::CreateBufferMapped {
+        self.device.create_buffer_mapped(&wgpu::BufferDescriptor {usage, size, label: None})
     }
 
     pub fn buffer_from_data<T:Sized+Copy>(&self, usage:wgpu::BufferUsage, data:&[T]) -> wgpu::Buffer {
 
         let size = data.len() * size_of::<T>();
-        let buffer_mapped = self.device.create_buffer_mapped(size, usage);
+        let buffer_mapped = self.buffer_mapped(usage, size as u64);
 
         unsafe {
             ptr::copy_nonoverlapping(data.as_ptr() as *const u8, buffer_mapped.data.as_mut_ptr(), size);
@@ -257,7 +273,8 @@ impl Gx {
                 TexOpt::Texture => TEXTURE_FORMAT,
                 TexOpt::Depth => DEPTH_FORMAT
             },
-            usage
+            usage,
+            label: None,
         })
     }
 
@@ -271,7 +288,7 @@ impl Gx {
             mipmap_filter: wgpu::FilterMode::Linear,
             lod_min_clamp: -100.0,
             lod_max_clamp: 100.0,
-            compare: Some(&wgpu::CompareFunction::Always),
+            compare: wgpu::CompareFunction::Always,
         })
     }
 
@@ -279,13 +296,13 @@ impl Gx {
     // bind group
     pub fn binding(&self, bindings: &[wgpu::BindGroupLayoutEntry]) -> wgpu::BindGroupLayout {
         self.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            bindings
+            bindings, label: None
         })
     }
 
     pub fn bind(&self, layout:&wgpu::BindGroupLayout, bindings: &[wgpu::Binding]) -> wgpu::BindGroup {
         self.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout, bindings,
+            layout, bindings, label: None
         })
     }
 
@@ -350,8 +367,11 @@ impl Gx {
                 stencil_write_mask: 0,
             }) } else { None },
 
-            index_format: wgpu::IndexFormat::Uint16,
-            vertex_buffers: &[vertex_layout],
+            vertex_state: wgpu::VertexStateDescriptor {
+                index_format: wgpu::IndexFormat::Uint16,
+                vertex_buffers: &[vertex_layout]
+            },
+
             sample_count: msaa,
             sample_mask: !0,
             alpha_to_coverage_enabled: false,

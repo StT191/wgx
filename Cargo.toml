@@ -9,7 +9,7 @@ name = "wgfx"
 doctest = false
 
 [dependencies]
-wgpu = { git = "https://github.com/gfx-rs/wgpu-rs", branch = "master", rev="#04db8c97" }
+wgpu = "0.5"
 winit = "0.22"
 futures = "0.3"
 glsl-to-spirv = "0.1"
