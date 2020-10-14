@@ -8,6 +8,10 @@ pub use wgpu::{
 };
 
 
+// pub mod as_byte_slice;
+pub mod byte_slice;
+
+
 mod macros;
 pub use macros::*;
 
@@ -18,6 +22,8 @@ pub use gx::*; // all wgpu handling
 
 mod color;
 pub use color::*;
+
+
 
 
 /*mod refs;

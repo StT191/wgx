@@ -17,6 +17,7 @@ macro_rules! binding {
                 multisampled: false,
                 dimension: wgpu::TextureViewDimension::D2,
             },
+            count: None,
         }
     };
     ($loc:expr, $stage:ident, Sampler) => {
@@ -24,6 +25,7 @@ macro_rules! binding {
             binding: $loc,
             visibility: wgpu::ShaderStage::$stage,
             ty: wgpu::BindingType::Sampler { comparison: true },
+            count: None,
         }
     };
 }
@@ -40,7 +42,7 @@ macro_rules! bind {
         }
     };
     ($loc:expr, $ty:ident, $value:expr) => {
-        wgpu::Binding {
+        wgpu::BindGroupEntry {
             binding: $loc,
             resource: wgpu::BindingResource::$ty($value),
         }
@@ -52,9 +54,10 @@ macro_rules! bind {
 macro_rules! vertex_desc {
     ($($loc:expr => $fmt:ident),*) => {
         wgpu::VertexBufferDescriptor {
-            stride: ($(wgpu::vertex_format_size!($fmt) + )* 0) as wgpu::BufferAddress,
+            stride: ($(wgpu::VertexFormat::$fmt.size() + )* 0) as wgpu::BufferAddress,
             step_mode: wgpu::InputStepMode::Vertex,
             attributes: &wgpu::vertex_attr_array!([] ; 0; $($loc => $fmt ,)*),
         }
     };
 }
+
