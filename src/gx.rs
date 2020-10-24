@@ -1,11 +1,13 @@
 
 use glsl_to_spirv::ShaderType;
 use futures::executor::block_on;
-use std::io::{Read, Seek};
+use std::{io::{Read, Seek}, ops::Range};
+// use core::num::NonZeroU8;
 
 use wgpu::util::DeviceExt;
-
 use crate::byte_slice::AsByteSlice;
+use crate::Color;
+
 
 
 // some settings constants
@@ -19,64 +21,18 @@ pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 #[derive(Debug)]
 pub enum TexOpt { Output, Texture, Depth }
 
-
-pub fn pass_render(
-    encoder:&mut wgpu::CommandEncoder,
-    attachment:&wgpu::TextureView,
-    depth_attachment:Option<&wgpu::TextureView>,
-    mssa_attachment:Option<&wgpu::TextureView>, // antialiasing multisampled texture_attachment
-    color:wgpu::Color,
-    draws:&[(&wgpu::RenderPipeline, &wgpu::BindGroup, wgpu::BufferSlice, std::ops::Range<u32>)]
-) {
-    let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-        color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {
-            attachment: if let Some(ms_at) = mssa_attachment { ms_at } else { attachment },
-            resolve_target: if mssa_attachment.is_some() { Some(attachment) } else { None },
-            ops: wgpu::Operations {
-                load: wgpu::LoadOp::Clear(color),
-                store: true
-            }
-        }],
-        depth_stencil_attachment: if let Some(depth_attachment) = depth_attachment {
-          Some(wgpu::RenderPassDepthStencilAttachmentDescriptor {
-            attachment: depth_attachment,
-            depth_ops: Some(wgpu::Operations {
-                load: wgpu::LoadOp::Clear(1.0),
-                store: true
-            }),
-            stencil_ops: None,
-            /*stencil_ops: Some(wgpu::Operations {
-                load: wgpu::LoadOp::Clear(0),
-                store: true
-            }),*/
-        })} else { None },
-    });
-
-    /*let mut l_render_pipeline = None;
-    let mut l_bind_group = None;
-    let mut l_vertices = None;*/
-
-    for (render_pipeline, bind_group, vertices, range) in draws {
-
-        // if l_render_pipeline != Some(render_pipeline) {
-        rpass.set_pipeline(render_pipeline);
-            /*l_render_pipeline = Some(render_pipeline);
-        }*/
-
-        // if l_bind_group != Some(bind_group) {
-        rpass.set_bind_group(0, bind_group, &[]);
-            /*l_bind_group = Some(bind_group);
-        }*/
-
-        // if l_vertices != Some(vertices) {
-        rpass.set_vertex_buffer(0, *vertices);
-            /*l_vertices = Some(vertices);
-        }*/
-
-        rpass.draw(range.clone(), 0..1);
+impl TexOpt {
+    fn select(format:Self) -> wgpu::TextureFormat {
+        match format {
+            TexOpt::Output => OUTPUT_FORMAT,
+            TexOpt::Texture => TEXTURE_FORMAT,
+            TexOpt::Depth => DEPTH_FORMAT,
+        }
     }
 }
 
+
+// some helper functions
 
 pub fn buffer_to_buffer(
     encoder:&mut wgpu::CommandEncoder,
@@ -87,7 +43,6 @@ pub fn buffer_to_buffer(
     encoder.copy_buffer_to_buffer(src_buffer, src_offset, dst_buffer, dst_offset, size);
 }
 
-
 pub fn buffer_to_texture(
     encoder:&mut wgpu::CommandEncoder,
     buffer:&wgpu::Buffer, (bf_w, bf_h, offset):(u32, u32, u64),
@@ -95,19 +50,12 @@ pub fn buffer_to_texture(
 ) {
     encoder.copy_buffer_to_texture(
         wgpu::BufferCopyViewBase {
-            buffer,
-            layout: wgpu::TextureDataLayout {
-                offset, bytes_per_row: 4 * bf_w, rows_per_image: bf_h,
-            }
+            buffer, layout: wgpu::TextureDataLayout { offset, bytes_per_row: 4 * bf_w, rows_per_image: bf_h }
         },
-        wgpu::TextureCopyViewBase {
-            texture, mip_level: 0, origin: wgpu::Origin3d { x, y, z: 0, }
-        },
+        wgpu::TextureCopyViewBase { texture, mip_level: 0, origin: wgpu::Origin3d { x, y, z: 0, } },
         wgpu::Extent3d {width: w, height: h, depth: 1},
     );
 }
-
-
 
 pub fn texture_to_buffer(
     encoder:&mut wgpu::CommandEncoder,
@@ -115,25 +63,34 @@ pub fn texture_to_buffer(
     buffer:&wgpu::Buffer, (bf_w, bf_h, offset):(u32, u32, u64)
 ) {
     encoder.copy_texture_to_buffer(
-        wgpu::TextureCopyViewBase {
-            texture, mip_level: 0, origin: wgpu::Origin3d { x, y, z: 0, }
-        },
+        wgpu::TextureCopyViewBase { texture, mip_level: 0, origin: wgpu::Origin3d { x, y, z: 0, } },
         wgpu::BufferCopyViewBase {
-            buffer,
-            layout:  wgpu::TextureDataLayout {
-                offset, bytes_per_row: 4 * bf_w, rows_per_image: bf_h,
-            }
+            buffer, layout:  wgpu::TextureDataLayout { offset, bytes_per_row: 4 * bf_w, rows_per_image: bf_h }
         },
         wgpu::Extent3d {width: w, height: h, depth: 1},
     );
 }
 
 
+// wgpu extensions
+pub trait DefaultView<T> {
+    fn create_default_view(&self) -> T;
+}
+
+impl DefaultView<wgpu::TextureView> for wgpu::Texture {
+    fn create_default_view(&self) -> wgpu::TextureView {
+        self.create_view(&wgpu::TextureViewDescriptor::default())
+    }
+}
+
+
+
+// gx
 
 pub struct Gx {
     // instance: wgpu::Instance,
     surface: wgpu::Surface,
-    pub device: wgpu::Device,
+    device: wgpu::Device,
     queue: wgpu::Queue,
 
     sc_desc: wgpu::SwapChainDescriptor,
@@ -152,6 +109,7 @@ pub struct Gx {
 impl Gx {
 
     // initialize
+
     pub fn new(window:&winit::window::Window, depth_testing:bool, msaa:u32) -> Self {
 
         let instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
@@ -197,7 +155,54 @@ impl Gx {
         gx
     }
 
-    // main methods
+
+    // texture
+
+    pub fn texture(&self,
+        width:u32, height:u32, sample_count:u32, usage:wgpu::TextureUsage, format:TexOpt,
+    ) -> wgpu::Texture {
+        self.device.create_texture(&wgpu::TextureDescriptor {
+            usage, label: None, mip_level_count: 1, sample_count, dimension: wgpu::TextureDimension::D2,
+            size: wgpu::Extent3d {width, height, depth: 1},
+            format: TexOpt::select(format),
+        })
+    }
+
+    pub fn depth_texture(&self, width:u32, height:u32, msaa:u32) -> wgpu::Texture {
+        self.texture(width, height, msaa, wgpu::TextureUsage::OUTPUT_ATTACHMENT, TexOpt::Depth)
+    }
+
+    pub fn msaa_texture(&self, width:u32, height:u32, msaa:u32, format:TexOpt) -> wgpu::Texture {
+        self.texture(width, height, msaa, wgpu::TextureUsage::OUTPUT_ATTACHMENT, format)
+    }
+
+    pub fn sampler(&self) -> wgpu::Sampler {
+        self.device.create_sampler(&wgpu::SamplerDescriptor {
+            label: None,
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::FilterMode::Linear,
+            lod_min_clamp: -100.0,
+            lod_max_clamp: 100.0,
+            compare: None, // Some(wgpu::CompareFunction::LessEqual),
+            anisotropy_clamp: None, // NonZeroU8::new(16),
+        })
+    }
+
+    pub fn write_texture<T: AsByteSlice<U>, U>(&self, texture:&wgpu::Texture, (x, y, w, h):(u32, u32, u32, u32), data:T) {
+        self.queue.write_texture(
+            wgpu::TextureCopyViewBase { texture, mip_level: 0, origin: wgpu::Origin3d { x, y, z: 0 } },
+            data.as_byte_slice(),
+            wgpu::TextureDataLayout { offset: 0, bytes_per_row: 4 * w, rows_per_image: h },
+            wgpu::Extent3d { width: w, height: h, depth: 1 },
+        )
+    }
+
+
+    // update
 
     pub fn update(&mut self, width:u32, height:u32) {
         self.sc_desc.width = width;
@@ -205,112 +210,33 @@ impl Gx {
         self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
 
         if self.depth_testing {
-            let depth_texture = self.texture(
-                width, height, self.msaa, wgpu::TextureUsage::OUTPUT_ATTACHMENT,
-                TexOpt::Depth, Some("DEPTH TEXTURE")
-            );
-
-            self.depth_texture_view = Some(depth_texture.create_view(&wgpu::TextureViewDescriptor::default()/*&wgpu::TextureViewDescriptor {
-                label: Some("DEPTH TEXTURE"),
-                format: Some(DEPTH_FORMAT),
-                dimension: Some(wgpu::TextureViewDimension::D2),
-                aspect: wgpu::TextureAspect::DepthOnly,
-                base_mip_level: 0,
-                level_count: None,
-                base_array_layer: 0,
-                array_layer_count: None,
-            }*/));
-
+            let depth_texture = self.depth_texture(width, height, self.msaa);
+            self.depth_texture_view = Some(depth_texture.create_default_view());
             self.depth_texture = Some(depth_texture);
         }
 
         if self.msaa > 1 {
-            let msaa_texture = self.texture(
-                width, height, self.msaa, wgpu::TextureUsage::OUTPUT_ATTACHMENT,
-                TexOpt::Output, Some("MSSA TEXTURE")
-            );
-
-            self.msaa_texture_view = Some(msaa_texture.create_view(&wgpu::TextureViewDescriptor::default()/*&wgpu::TextureViewDescriptor {
-                label: Some("MSSA TEXTURE"),
-                format: Some(TEXTURE_FORMAT),
-                dimension: Some(wgpu::TextureViewDimension::D2),
-                aspect: wgpu::TextureAspect::StencilOnly, // All
-                base_mip_level: 0,
-                level_count: None,
-                base_array_layer: 0,
-                array_layer_count: None,
-            }*/));
-
+            let msaa_texture = self.msaa_texture(width, height, self.msaa, TexOpt::Output);
+            self.msaa_texture_view = Some(msaa_texture.create_default_view());
             self.msaa_texture = Some(msaa_texture);
         }
     }
 
-    // encoding, rendering
 
-    pub fn with_encoder<'a, F>(&mut self, handler: F)
-        where F: 'a + FnOnce(&mut wgpu::CommandEncoder, &mut Gx)
-    {
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-
-        handler(&mut encoder, self);
-
-        self.queue.submit(Some(encoder.finish()));
-    }
-
-
-    pub fn with_encoder_frame<'a, F>(&mut self, handler: F) -> Result<(), wgpu::SwapChainError>
-        where F: 'a + FnOnce(
-            &mut wgpu::CommandEncoder, &wgpu::SwapChainFrame,
-            Option<&wgpu::TextureView>, Option<&wgpu::TextureView>
-        )
-    {
-        let frame = self.swap_chain.get_current_frame()?;
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-
-        handler(&mut encoder, &frame, self.depth_texture_view.as_ref(), self.msaa_texture_view.as_ref());
-
-        self.queue.submit(Some(encoder.finish()));
-
-        Ok(())
-    }
-
-
-    pub fn pass_render(&mut self, color:wgpu::Color,
-        draws:&[(&wgpu::RenderPipeline, &wgpu::BindGroup, wgpu::BufferSlice, std::ops::Range<u32>)]
-    ) -> Result<(), wgpu::SwapChainError>
-    {
-        self.with_encoder_frame(|encoder, frame, deph_view, msaa| {
-            pass_render(encoder, &frame.output.view, deph_view, msaa, color, draws);
-        })
-    }
-
-    // creation methods
+    // buffer
 
     pub fn buffer(&self, usage:wgpu::BufferUsage, size:u64, mapped_at_creation:bool) -> wgpu::Buffer {
         self.device.create_buffer(&wgpu::BufferDescriptor {usage, size, mapped_at_creation, label: None})
     }
-
-    /*pub fn buffer_mapped(&self, usage:wgpu::BufferUsage, size:u64) -> wgpu::CreateBufferMapped {
-        self.device.create_buffer_mapped(&wgpu::BufferDescriptor {usage, size, label: None, mapped_at_creation: true})
-    }*/
-
-    /*pub fn buffer_from_data<T:Sized+Copy>(&self, usage:wgpu::BufferUsage, data:&[T]) -> wgpu::Buffer {
-
-        let size = data.len() * size_of::<T>();
-        let buffer_mapped = self.buffer_mapped(usage, size as u64);
-
-        unsafe {
-            ptr::copy_nonoverlapping(data.as_ptr() as *const u8, buffer_mapped.data.as_mut_ptr(), size);
-        }
-
-
-    }*/
 
     pub fn buffer_from_data<T:Sized>(&self, usage:wgpu::BufferUsage, data:&[T]) -> wgpu::Buffer {
         self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             usage, contents: data.as_byte_slice(), label: None
         })
     }
+
+
+    // shader
 
     pub fn load_spirv<R:Read+Seek>(&self, mut shader_spirv:R) -> wgpu::ShaderModule {
         let mut data = Vec::new();
@@ -328,57 +254,8 @@ impl Gx {
     }
 
 
-    pub fn texture(&self,
-        width:u32, height:u32, sample_count:u32, usage:wgpu::TextureUsage, format:TexOpt, label:Option<&str>
-    ) -> wgpu::Texture {
-        self.device.create_texture(&wgpu::TextureDescriptor {
-            size: wgpu::Extent3d {width, height, depth: 1},
-            mip_level_count: 1,
-            sample_count,
-            dimension: wgpu::TextureDimension::D2,
-            format: match format {
-                TexOpt::Output => OUTPUT_FORMAT,
-                TexOpt::Texture => TEXTURE_FORMAT,
-                TexOpt::Depth => DEPTH_FORMAT
-            },
-            usage,
-            label,
-        })
-    }
-
-
-    pub fn write_texture<T:Sized>(&self, texture:&wgpu::Texture, (x, y, w, h):(u32, u32, u32, u32), data:&[T]) {
-        self.queue.write_texture(
-            wgpu::TextureCopyViewBase {
-                texture, mip_level: 0, origin: wgpu::Origin3d { x, y, z: 0 }
-            },
-            data.as_byte_slice(),
-            wgpu::TextureDataLayout {
-                offset: 0, bytes_per_row: 4 * w, rows_per_image: h,
-            },
-            wgpu::Extent3d { width: w, height: h, depth: 1 },
-        )
-    }
-
-
-    pub fn sampler(&self) -> wgpu::Sampler {
-        self.device.create_sampler(&wgpu::SamplerDescriptor {
-            label: None,
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::FilterMode::Linear,
-            lod_min_clamp: -100.0,
-            lod_max_clamp: 100.0,
-            compare: Some(wgpu::CompareFunction::Always),
-            anisotropy_clamp: None,
-        })
-    }
-
-
     // bind group
+
     pub fn binding(&self, entries: &[wgpu::BindGroupLayoutEntry]) -> wgpu::BindGroupLayout {
         self.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries, label: None
@@ -393,8 +270,9 @@ impl Gx {
 
 
     // render_pipeline
+
     pub fn render_pipeline(
-        &self, use_texture_format:bool, depth_testing:bool, alpha_blend:bool, msaa:u32,
+        &self, format:TexOpt, depth_testing:bool, alpha_blend:bool, msaa:u32,
         vs_module:&wgpu::ShaderModule, fs_module:&wgpu::ShaderModule,
         vertex_layout:wgpu::VertexBufferDescriptor, topology:wgpu::PrimitiveTopology,
         bind_group_layout:&wgpu::BindGroupLayout,
@@ -433,7 +311,8 @@ impl Gx {
             primitive_topology: topology,
 
             color_states: &[wgpu::ColorStateDescriptor {
-                format: if use_texture_format { TEXTURE_FORMAT } else { OUTPUT_FORMAT },
+
+                format: TexOpt::select(format),
 
                 color_blend: if alpha_blend { wgpu::BlendDescriptor {
                     src_factor: wgpu::BlendFactor::SrcAlpha,
@@ -455,14 +334,8 @@ impl Gx {
             depth_stencil_state: if depth_testing { Some(wgpu::DepthStencilStateDescriptor {
                 format: DEPTH_FORMAT,
                 depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::Less,
+                depth_compare: wgpu::CompareFunction::LessEqual,
                 stencil: wgpu::StencilStateDescriptor::default()
-                /*stencil: wgpu::StencilStateDescriptor {
-                    front: wgpu::StencilStateFaceDescriptor::IGNORE,
-                    back: wgpu::StencilStateFaceDescriptor::IGNORE,
-                    read_mask: 0,
-                    write_mask: 0,
-                }*/
             }) } else { None },
 
             vertex_state: wgpu::VertexStateDescriptor {
@@ -476,4 +349,114 @@ impl Gx {
         })
     }
 
+
+    // encoding, rendering
+
+    pub fn with_encoder<'a, F>(&mut self, handler: F)
+        where F: 'a + FnOnce(&mut wgpu::CommandEncoder, &mut Gx)
+    {
+        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+        handler(&mut encoder, self);
+        self.queue.submit(Some(encoder.finish()));
+    }
+
+
+    pub fn pass_render(
+        &mut self,
+        attachment:&wgpu::TextureView,
+        depth_attachment:Option<&wgpu::TextureView>,
+        mssa_attachment:Option<&wgpu::TextureView>, // antialiasing multisampled texture_attachment
+        color:Option<Color>,
+        draws:&[(&wgpu::RenderPipeline, &wgpu::BindGroup, wgpu::BufferSlice, Range<u32>)]
+    ) {
+        self.with_encoder(|encoder, _| {
+            pass_render(encoder, attachment, depth_attachment, mssa_attachment, color, draws);
+        })
+    }
+
+
+    pub fn with_encoder_frame<'a, F>(&mut self, handler: F) -> Result<(), wgpu::SwapChainError>
+        where F: 'a + FnOnce(
+            &mut wgpu::CommandEncoder, &wgpu::SwapChainFrame,
+            Option<&wgpu::TextureView>, Option<&wgpu::TextureView>
+        )
+    {
+        let frame = self.swap_chain.get_current_frame()?;
+        self.with_encoder(|mut encoder, gx| {
+            handler(&mut encoder, &frame, gx.depth_texture_view.as_ref(), gx.msaa_texture_view.as_ref());
+        });
+        Ok(())
+    }
+
+
+    pub fn pass_frame_render(&mut self, color:Option<Color>,
+        draws:&[(&wgpu::RenderPipeline, &wgpu::BindGroup, wgpu::BufferSlice, Range<u32>)]
+    ) -> Result<(), wgpu::SwapChainError>
+    {
+        self.with_encoder_frame(|encoder, frame, deph_view, msaa| {
+            pass_render(encoder, &frame.output.view, deph_view, msaa, color, draws);
+        })
+    }
+}
+
+
+// pass render function
+
+pub fn pass_render(
+    encoder:&mut wgpu::CommandEncoder,
+    attachment:&wgpu::TextureView,
+    depth_attachment:Option<&wgpu::TextureView>,
+    mssa_attachment:Option<&wgpu::TextureView>, // antialiasing multisampled texture_attachment
+    color:Option<Color>,
+    draws:&[(&wgpu::RenderPipeline, &wgpu::BindGroup, wgpu::BufferSlice, Range<u32>)]
+) {
+    let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+        color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {
+            attachment: if let Some(ms_at) = mssa_attachment { ms_at } else { attachment },
+            resolve_target: if mssa_attachment.is_some() { Some(attachment) } else { None },
+            ops: wgpu::Operations {
+                load: if let Some(cl) = color
+                    { wgpu::LoadOp::Clear( cl.into() ) }
+                    else { wgpu::LoadOp::Load },
+                store: true
+            }
+        }],
+        depth_stencil_attachment: if let Some(depth_attachment) = depth_attachment {
+          Some(wgpu::RenderPassDepthStencilAttachmentDescriptor {
+            attachment: depth_attachment,
+            depth_ops: Some(wgpu::Operations {
+                load: if color.is_some() { wgpu::LoadOp::Clear(1.0) } else { wgpu::LoadOp::Load },
+                store: true
+            }),
+            stencil_ops: None,
+            /*stencil_ops: Some(wgpu::Operations {
+                load: wgpu::LoadOp::Clear(0),
+                store: true
+            }),*/
+        })} else { None },
+    });
+
+    /*let mut l_render_pipeline = None;
+    let mut l_bind_group = None;
+    let mut l_vertices = None;*/
+
+    for (render_pipeline, bind_group, vertices, range) in draws {
+
+        // if l_render_pipeline != Some(render_pipeline) {
+        rpass.set_pipeline(render_pipeline);
+            /*l_render_pipeline = Some(render_pipeline);
+        }*/
+
+        // if l_bind_group != Some(bind_group) {
+        rpass.set_bind_group(0, bind_group, &[]);
+            /*l_bind_group = Some(bind_group);
+        }*/
+
+        // if l_vertices != Some(vertices) {
+        rpass.set_vertex_buffer(0, *vertices);
+            /*l_vertices = Some(vertices);
+        }*/
+
+        rpass.draw(range.clone(), 0..1);
+    }
 }

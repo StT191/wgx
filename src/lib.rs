@@ -4,7 +4,7 @@
 pub use glsl_to_spirv::ShaderType;
 
 pub use wgpu::{
-    BufferUsage, TextureUsage, PrimitiveTopology
+    BufferUsage as BuffUse, TextureUsage as TexUse, PrimitiveTopology as Primitive
 };
 
 
@@ -19,6 +19,9 @@ pub use macros::*;
 mod gx;
 pub use gx::*; // all wgpu handling
 
+/*
+mod vec4;
+pub use vec4::*;*/
 
 mod color;
 pub use color::*;

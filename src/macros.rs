@@ -1,11 +1,15 @@
 
 #[macro_export]
 macro_rules! binding {
-    ($loc:expr, $stage:ident, UniformBuffer) => {
+    ($loc:expr, $stage:ident, UniformBuffer, $min_size:expr) => {
         wgpu::BindGroupLayoutEntry {
             binding: $loc,
             visibility: wgpu::ShaderStage::$stage,
-            ty: wgpu::BindingType::UniformBuffer { dynamic: false },
+            ty: wgpu::BindingType::UniformBuffer {
+                dynamic: false,
+                min_binding_size: core::num::NonZeroU64::new($min_size),
+            },
+            count: None,
         }
     };
     ($loc:expr, $stage:ident, SampledTexture) => {
@@ -24,7 +28,7 @@ macro_rules! binding {
         wgpu::BindGroupLayoutEntry {
             binding: $loc,
             visibility: wgpu::ShaderStage::$stage,
-            ty: wgpu::BindingType::Sampler { comparison: true },
+            ty: wgpu::BindingType::Sampler { comparison: false },
             count: None,
         }
     };
@@ -32,15 +36,6 @@ macro_rules! binding {
 
 #[macro_export]
 macro_rules! bind {
-    ($loc:expr, Buffer, $value:expr, $range:expr) => {
-        wgpu::Binding {
-            binding: $loc,
-            resource: wgpu::BindingResource::Buffer {
-                buffer: $value,
-                range: $range,
-            },
-        }
-    };
     ($loc:expr, $ty:ident, $value:expr) => {
         wgpu::BindGroupEntry {
             binding: $loc,

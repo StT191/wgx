@@ -31,71 +31,41 @@ fn main() {
 
 
     // global pipeline
-    let vs = gx.load_glsl(include_str!("../../shaders/pass_texcoord.vert"), ShaderType::Vertex);
-    let fs = gx.load_glsl(include_str!("../../shaders/texture_flat.frag"), ShaderType::Fragment);
+    let vs = gx.load_glsl(include_str!("../../shaders/pass_plain.vert"), ShaderType::Vertex);
+    let fs = gx.load_glsl(include_str!("../../shaders/color_flat.frag"), ShaderType::Fragment);
 
-    let vertex_desc = vertex_desc![0 => Float3, 1 => Float2];
+
+    let vertex_desc = vertex_desc![0 => Float3];
 
     let layout = gx.binding(&[
-        binding!(0, FRAGMENT, SampledTexture),
-        binding!(1, FRAGMENT, Sampler)
+        binding!(0, FRAGMENT, UniformBuffer, 16),
     ]);
 
     let pipeline = gx.render_pipeline(
         TexOpt::Output, DEPTH_TESTING, ALPHA_BLENDING, MSAA, &vs, &fs,
-        vertex_desc, Primitive::TriangleList, &layout
+        vertex_desc, Primitive::TriangleStrip, &layout
     );
 
     // first render
 
     // colors
-    let texture = gx.texture(2, 1, 1, TexUse::COPY_DST | TexUse::COPY_SRC  | TexUse::SAMPLED, TexOpt::Texture);
-
-    gx.write_texture(&texture, (0, 0, 2, 1), &[
-        (255u8, 0u8, 0u8, 255u8), (0, 0, 255, 50),
+    let color_buffer = gx.buffer_from_data(BuffUse::UNIFORM, &[
+        Color::from((1.0, 0.0, 0.0)).f32()
     ]);
 
-
-    /*gx.with_encoder(|encoder, gx| {
-        let buff = gx.buffer_from_data::<(u8, u8, u8, u8)>(BufferUsage::COPY_SRC, &[
-            (255, 0, 0, 255), (0, 0, 255, 50),
-        ]);
-
-        buffer_to_texture(encoder, &buff, (2, 1, 0), &texture, (0, 0, 2, 1));
-    });*/
+    let binding = gx.bind(&layout, &[
+        bind!(0, Buffer, color_buffer.slice(..)),
+    ]);
 
 
     // vertices
-    const N:usize = 9;
-
-    let data:[((f32, f32, f32), (f32, f32)); N] = [
-
-        ((-0.25, -0.5, 0.35), (0.0, 0.0)),
-        ((0.0, -0.5, 0.35), (1.0, 0.0)),
-        ((-1.0, 0.5, 0.1), (0.0, 0.0)),
-
-        ((0.25, -0.5, 0.1), (0.0, 0.0)),
-        ((0.5, -0.5, 0.1), (1.0, 0.0)),
-        ((-1.0, 0.5, 0.6), (0.0, 0.0)),
-
-        ((-0.75, -0.5, 0.1), (0.0, 0.0)),
-        ((-1.0, -0.5, 0.1), (1.0, 0.0)),
-        ((-0.3, 0.5, 0.312), (1.0, 0.0)),
+    let data:[(f32, f32, f32); 4] = [
+        (-0.5, -0.5, 0.0),
+        ( 0.5, -0.5, 0.0),
+        (-0.5,  0.5, 0.0),
+        ( 0.5,  0.5, 0.0),
     ];
-
-    let vertices = gx.buffer_from_data(BuffUse::VERTEX, &data[0..N]);
-
-
-
-    // texture + sampler
-
-    let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-    let sampler = gx.sampler();
-
-    let binding = gx.bind(&layout, &[
-        bind!(0, TextureView, &texture_view),
-        bind!(1, Sampler, &sampler),
-    ]);
+    let vertices = gx.buffer_from_data(BuffUse::VERTEX, &data[..]);
 
 
 
@@ -131,7 +101,7 @@ fn main() {
                 gx.pass_frame_render(
                     Some(Color::GREEN),
                     &[
-                        (&pipeline, &binding, vertices.slice(..), 0..N as u32),
+                        (&pipeline, &binding, vertices.slice(..), 0..data.len() as u32),
                     ],
                 );
 
