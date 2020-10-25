@@ -1,8 +1,6 @@
 #![allow(unused)]
 
 // imports
-use futures::executor::block_on;
-
 use std::{time::{Instant}, include_str};
 
 use winit::{
@@ -98,12 +96,14 @@ fn main() {
 
                 let then = Instant::now();
 
-                gx.pass_frame_render(
-                    Some(Color::GREEN),
-                    &[
-                        (&pipeline, &binding, vertices.slice(..), 0..data.len() as u32),
-                    ],
-                );
+                gx.with_encoder_frame(|encoder, gx| {
+                    gx.draw(encoder,
+                        Some(Color::GREEN),
+                        &[
+                            (&pipeline, &binding, vertices.slice(..), 0..data.len() as u32),
+                        ],
+                    );
+                });
 
 
                 println!("{:?}", then.elapsed());

@@ -1,11 +1,9 @@
 #![allow(unused)]
 
 // imports
-use futures::executor::block_on;
-
 use image;
 
-use std::{time::{Instant}, include_str};
+use std::{time::{Instant}, include_str, fs::File, io::Read};
 
 use winit::{
     event_loop::{ControlFlow, EventLoop},
@@ -97,7 +95,7 @@ fn main() {
 
 
     // picture pipeline
-    let img = image::open("/home/stefan/dev/wgx/logo_red.png")
+    let img = image::open("img/logo_red.png")
         .expect("failed loading image")
         .into_rgba();
 
@@ -148,6 +146,21 @@ fn main() {
     let p_vertices = gx.buffer_from_data(BuffUse::VERTEX, &p_data[..]);
 
 
+    // text_render
+    let mut font_data = Vec::new();
+    File::open("fonts/BelieveIt-DvLE.ttf").expect("failed loading font").read_to_end(&mut font_data);
+
+    let mut glyphs = gx.glyph_brush(TexOpt::Output, font_data).expect("invalid font");
+
+    /*gx
+
+    glyphs.with_encoder(gx.device(), encoder, &frame.output.view, gx.width(), gx.height());*/
+
+    let rotate_y = cgmath::Matrix4::<f32>::from_angle_y(cgmath::Deg(0.0));
+    let rotate_x = cgmath::Matrix4::<f32>::from_angle_x(cgmath::Deg(0.0));
+    let rotate_z = cgmath::Matrix4::<f32>::from_angle_z(cgmath::Deg(0.0));
+
+
     event_loop.run(move |event, _, control_flow| {
 
         *control_flow = ControlFlow::Wait;
@@ -175,15 +188,30 @@ fn main() {
 
                 let then = Instant::now();
 
-                gx.pass_frame_render(
-                    Some(Color::GREEN),
-                    &[
-                        (&t_pipeline, &binding, t_vertices.slice(..), 0..t_data.len() as u32),
-                        (&l_pipeline, &binding, l_vertices.slice(..), 0..l_data.len() as u32),
-                        (&i_pipeline, &img_binding, i_vertices.slice(..), 0..i_data.len() as u32),
-                        (&p_pipeline, &binding, p_vertices.slice(..), 0..p_data.len() as u32),
-                    ],
-                );
+
+                gx.with_encoder_frame(|encoder, gx| {
+                    gx.draw(encoder,
+                        Some(Color::GREEN),
+                        &[
+                            (&t_pipeline, &binding, t_vertices.slice(..), 0..t_data.len() as u32),
+                            (&l_pipeline, &binding, l_vertices.slice(..), 0..l_data.len() as u32),
+                            (&i_pipeline, &img_binding, i_vertices.slice(..), 0..i_data.len() as u32),
+                            (&p_pipeline, &binding, p_vertices.slice(..), 0..p_data.len() as u32),
+                        ]
+                    );
+
+                    glyphs.add_text(0.0, 0.0, vec![
+                        Text::new("Hey Ho!").with_scale(100.0)
+                    ]);
+
+
+                    let trf =
+                        cgmath::Matrix4::from_translation((0.0, 0.0, 0.0).into()) *
+                        rotate_z * rotate_y * rotate_x *
+                        cgmath::Matrix4::from_translation((0.0, 0.0, 0.0).into());
+
+                    gx.draw_glyphs(encoder, &mut glyphs, Some(trf));
+                });
 
 
                 println!("{:?}", then.elapsed());

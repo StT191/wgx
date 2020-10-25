@@ -1,8 +1,6 @@
 #![allow(unused)]
 
 // imports
-use futures::executor::block_on;
-
 use std::{time::{Instant}, include_str};
 
 use winit::{
@@ -66,11 +64,9 @@ fn main() {
 
 
     // vertices
-    const N:usize = 9;
+    let data = [
 
-    let data:[((f32, f32, f32), (f32, f32)); N] = [
-
-        ((-0.25, -0.5, 0.35), (0.0, 0.0)),
+        ((-0.25f32, -0.5f32, 0.35f32), (0.0f32, 0.0f32)),
         ((0.0, -0.5, 0.35), (1.0, 0.0)),
         ((-1.0, 0.5, 0.1), (0.0, 0.0)),
 
@@ -82,8 +78,7 @@ fn main() {
         ((-1.0, -0.5, 0.1), (1.0, 0.0)),
         ((-0.3, 0.5, 0.312), (1.0, 0.0)),
     ];
-
-    let vertices = gx.buffer_from_data(BuffUse::VERTEX, &data[0..N]);
+    let vertices = gx.buffer_from_data(BuffUse::VERTEX, &data[..]);
 
 
 
@@ -128,12 +123,15 @@ fn main() {
 
                 let then = Instant::now();
 
-                gx.pass_frame_render(
-                    Some(Color::GREEN),
-                    &[
-                        (&pipeline, &binding, vertices.slice(..), 0..N as u32),
-                    ],
-                );
+
+                gx.with_encoder_frame(|encoder, gx| {
+                    gx.draw(encoder,
+                        Some(Color::GREEN),
+                        &[
+                            (&pipeline, &binding, vertices.slice(..), 0..data.len() as u32),
+                        ],
+                    );
+                });
 
 
                 println!("{:?}", then.elapsed());

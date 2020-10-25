@@ -48,6 +48,11 @@ impl Into<(f64, f64, f64)> for Color {
 }
 
 
+impl Into<[f32; 4]> for Color {
+    fn into(self) -> [f32; 4] { [self.r as f32, self.g as f32, self.g as f32, self.a as f32] }
+}
+
+
 impl Into<(f32, f32, f32, f32)> for Color {
     fn into(self) -> (f32, f32, f32, f32) { (self.r as f32, self.g as f32, self.g as f32, self.a as f32) }
 }

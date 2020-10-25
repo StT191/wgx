@@ -20,14 +20,14 @@ pub enum Error {
         src_slice_size: usize,
         dst_type_size: usize,
     },
-    /// When converting a `Vec<T>` it had a capacity that
+    /*/// When converting a `Vec<T>` it had a capacity that
     /// allowed only for a non-integer number of values
     /// from the output type.
     CapacityMismatch {
         dst_type: &'static str,
         src_vec_capacity: usize,
         dst_type_capacity: usize,
-    },
+    },*/
 }
 
 impl fmt::Display for Error {
@@ -59,7 +59,7 @@ impl fmt::Display for Error {
                     dst_type
                 )?;
             }
-            Error::CapacityMismatch {
+            /*Error::CapacityMismatch {
                 dst_type,
                 src_vec_capacity,
                 dst_type_capacity,
@@ -72,7 +72,7 @@ impl fmt::Display for Error {
                     dst_type_capacity,
                     dst_type
                 )?;
-            }
+            }*/
         }
 
         Ok(())
@@ -87,7 +87,7 @@ impl StdError for Error {
         match *self {
             AlignmentMismatch { .. } => "Alignment Mismatch",
             LengthMismatch { .. } => "Length Mismatch",
-            CapacityMismatch { .. } => "Capacity Mismatch",
+            // CapacityMismatch { .. } => "Capacity Mismatch",
         }
     }
 }

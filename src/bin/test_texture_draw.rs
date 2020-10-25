@@ -1,8 +1,6 @@
 #![allow(unused)]
 
 // imports
-use futures::executor::block_on;
-
 use std::{time::{Instant}, include_str};
 
 use winit::{
@@ -86,11 +84,13 @@ fn main() {
         bind!(1, Sampler, &sampler),
     ]);
 
-    // first render
-    gx.pass_render(&draw_texture_view, None, Some(&draw_msaa_texture_view), Some(Color::TRANSPARENT), &[
-        (&draw_pipeline, &binding, draw_vertices.slice(..), 0..A as u32),
-    ]);
 
+    // first render
+    gx.with_encoder(|encoder, gx| {
+        encoder.draw((&draw_texture_view, None, Some(&draw_msaa_texture_view)), Some(Color::TRANSPARENT), &[
+            (&draw_pipeline, &binding, draw_vertices.slice(..), 0..A as u32),
+        ]);
+    });
 
 
     // real draw
@@ -99,11 +99,9 @@ fn main() {
         bind!(1, Sampler, &sampler),
     ]);
 
-    const N:usize = 6;
 
-    let data:[((f32, f32, f32), (f32, f32)); N] = [
-
-        ((-1.0, -1.0, 0.0), (0.0, 0.0)),
+    let data = [
+        ((-1.0f32, -1.0f32, 0.0f32), (0.0f32, 0.0f32)),
         (( 1.0, -1.0, 0.0), (1.0, 0.0)),
         (( 1.0,  1.0, 0.0), (1.0, 1.0)),
 
@@ -111,7 +109,6 @@ fn main() {
         ((-1.0,  1.0, 0.0), (0.0, 1.0)),
         ((-1.0, -1.0, 0.0), (0.0, 0.0)),
     ];
-
     let vertices = gx.buffer_from_data(BuffUse::VERTEX, &data[..]);
 
 
@@ -144,12 +141,15 @@ fn main() {
 
                 let then = Instant::now();
 
-                gx.pass_frame_render(
-                    Some(Color::GREEN),
-                    &[
-                        (&pipeline, &binding, vertices.slice(..), 0..N as u32),
-                    ],
-                );
+
+                gx.with_encoder_frame(|encoder, gx| {
+                    gx.draw(encoder,
+                        Some(Color::GREEN),
+                        &[
+                            (&pipeline, &binding, vertices.slice(..), 0..data.len() as u32),
+                        ],
+                    );
+                });
 
 
                 println!("{:?}", then.elapsed());

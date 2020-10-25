@@ -3,86 +3,15 @@ use glsl_to_spirv::ShaderType;
 use futures::executor::block_on;
 use std::{io::{Read, Seek}, ops::Range};
 // use core::num::NonZeroU8;
+use cgmath::Matrix4;
 
 use wgpu::util::DeviceExt;
+
+use wgpu_glyph::{GlyphBrush, ab_glyph::{FontArc, InvalidFont}, GlyphBrushBuilder};
+
+
 use crate::byte_slice::AsByteSlice;
-use crate::Color;
-
-
-
-// some settings constants
-pub const OUTPUT_FORMAT:wgpu::TextureFormat = wgpu::TextureFormat::Bgra8UnormSrgb;
-// pub const TEXTURE_FORMAT:wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
-pub const TEXTURE_FORMAT:wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
-pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
-
-
-// TextureFormat enum
-#[derive(Debug)]
-pub enum TexOpt { Output, Texture, Depth }
-
-impl TexOpt {
-    fn select(format:Self) -> wgpu::TextureFormat {
-        match format {
-            TexOpt::Output => OUTPUT_FORMAT,
-            TexOpt::Texture => TEXTURE_FORMAT,
-            TexOpt::Depth => DEPTH_FORMAT,
-        }
-    }
-}
-
-
-// some helper functions
-
-pub fn buffer_to_buffer(
-    encoder:&mut wgpu::CommandEncoder,
-    src_buffer:&wgpu::Buffer, src_offset:wgpu::BufferAddress,
-    dst_buffer:&wgpu::Buffer, dst_offset:wgpu::BufferAddress,
-    size:wgpu::BufferAddress,
-) {
-    encoder.copy_buffer_to_buffer(src_buffer, src_offset, dst_buffer, dst_offset, size);
-}
-
-pub fn buffer_to_texture(
-    encoder:&mut wgpu::CommandEncoder,
-    buffer:&wgpu::Buffer, (bf_w, bf_h, offset):(u32, u32, u64),
-    texture:&wgpu::Texture, (x, y, w, h):(u32, u32, u32, u32)
-) {
-    encoder.copy_buffer_to_texture(
-        wgpu::BufferCopyViewBase {
-            buffer, layout: wgpu::TextureDataLayout { offset, bytes_per_row: 4 * bf_w, rows_per_image: bf_h }
-        },
-        wgpu::TextureCopyViewBase { texture, mip_level: 0, origin: wgpu::Origin3d { x, y, z: 0, } },
-        wgpu::Extent3d {width: w, height: h, depth: 1},
-    );
-}
-
-pub fn texture_to_buffer(
-    encoder:&mut wgpu::CommandEncoder,
-    texture:&wgpu::Texture, (x, y, w, h):(u32, u32, u32, u32),
-    buffer:&wgpu::Buffer, (bf_w, bf_h, offset):(u32, u32, u64)
-) {
-    encoder.copy_texture_to_buffer(
-        wgpu::TextureCopyViewBase { texture, mip_level: 0, origin: wgpu::Origin3d { x, y, z: 0, } },
-        wgpu::BufferCopyViewBase {
-            buffer, layout:  wgpu::TextureDataLayout { offset, bytes_per_row: 4 * bf_w, rows_per_image: bf_h }
-        },
-        wgpu::Extent3d {width: w, height: h, depth: 1},
-    );
-}
-
-
-// wgpu extensions
-pub trait DefaultView<T> {
-    fn create_default_view(&self) -> T;
-}
-
-impl DefaultView<wgpu::TextureView> for wgpu::Texture {
-    fn create_default_view(&self) -> wgpu::TextureView {
-        self.create_view(&wgpu::TextureViewDescriptor::default())
-    }
-}
-
+use crate::*;
 
 
 // gx
@@ -103,10 +32,19 @@ pub struct Gx {
     pub msaa: u32, // antialiasing // changing needs call to update
     msaa_texture: Option<wgpu::Texture>,
     msaa_texture_view: Option<wgpu::TextureView>,
+
+    current_frame: Option<wgpu::SwapChainFrame>,
 }
 
 
 impl Gx {
+
+    // getters
+
+    pub fn device(&self) -> &wgpu::Device { &self.device }
+    pub fn width(&self) -> u32 { self.sc_desc.width }
+    pub fn height(&self) -> u32 { self.sc_desc.height }
+
 
     // initialize
 
@@ -146,6 +84,7 @@ impl Gx {
             /*instance,*/ surface, device, sc_desc, swap_chain, queue,
             depth_testing, depth_texture: None, depth_texture_view: None,
             msaa, msaa_texture: None, msaa_texture_view: None,
+            current_frame: None,
         };
 
         if depth_testing || msaa > 1 {
@@ -233,6 +172,15 @@ impl Gx {
         self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             usage, contents: data.as_byte_slice(), label: None
         })
+    }
+
+
+    // text render
+
+    pub fn glyph_brush(&self, format:TexOpt, font_data:Vec<u8>) -> Result<GlyphBrush<(), FontArc>, InvalidFont>
+    {
+        let font = FontArc::try_from_vec(font_data)?;
+        Ok(GlyphBrushBuilder::using_font(font).build(&self.device, TexOpt::select(format)))
     }
 
 
@@ -352,111 +300,63 @@ impl Gx {
 
     // encoding, rendering
 
-    pub fn with_encoder<'a, F>(&mut self, handler: F)
-        where F: 'a + FnOnce(&mut wgpu::CommandEncoder, &mut Gx)
+    pub fn with_encoder<'a, F, T>(&mut self, handler: F) -> T
+        where F: 'a + FnOnce(&mut wgpu::CommandEncoder, &mut Gx) -> T
     {
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-        handler(&mut encoder, self);
+        let result = handler(&mut encoder, self);
         self.queue.submit(Some(encoder.finish()));
+        result
     }
 
 
-    pub fn pass_render(
-        &mut self,
-        attachment:&wgpu::TextureView,
-        depth_attachment:Option<&wgpu::TextureView>,
-        mssa_attachment:Option<&wgpu::TextureView>, // antialiasing multisampled texture_attachment
-        color:Option<Color>,
-        draws:&[(&wgpu::RenderPipeline, &wgpu::BindGroup, wgpu::BufferSlice, Range<u32>)]
-    ) {
-        self.with_encoder(|encoder, _| {
-            pass_render(encoder, attachment, depth_attachment, mssa_attachment, color, draws);
-        })
+    pub fn frame(&self) -> (&wgpu::TextureView, Option<&wgpu::TextureView>, Option<&wgpu::TextureView>) {
+        (
+            &(self.current_frame.as_ref().expect("no current frame")).output.view,
+            self.depth_texture_view.as_ref(),
+            self.msaa_texture_view.as_ref()
+        )
     }
 
 
     pub fn with_encoder_frame<'a, F>(&mut self, handler: F) -> Result<(), wgpu::SwapChainError>
-        where F: 'a + FnOnce(
-            &mut wgpu::CommandEncoder, &wgpu::SwapChainFrame,
-            Option<&wgpu::TextureView>, Option<&wgpu::TextureView>
-        )
+        where F: 'a + FnOnce(&mut wgpu::CommandEncoder, &mut Gx)
     {
-        let frame = self.swap_chain.get_current_frame()?;
-        self.with_encoder(|mut encoder, gx| {
-            handler(&mut encoder, &frame, gx.depth_texture_view.as_ref(), gx.msaa_texture_view.as_ref());
-        });
+        self.current_frame = Some(self.swap_chain.get_current_frame()?);
+
+        self.with_encoder(|mut encoder, gx| { handler(&mut encoder, gx) });
+
+        self.current_frame = None;
+
         Ok(())
     }
 
 
-    pub fn pass_frame_render(&mut self, color:Option<Color>,
+    pub fn draw(
+        &self, encoder:&mut wgpu::CommandEncoder, color:Option<Color>,
         draws:&[(&wgpu::RenderPipeline, &wgpu::BindGroup, wgpu::BufferSlice, Range<u32>)]
-    ) -> Result<(), wgpu::SwapChainError>
+    ) {
+        encoder.draw(self.frame(), color, draws);
+    }
+
+
+    pub fn draw_glyphs(
+        &mut self, encoder:&mut wgpu::CommandEncoder, glyphs:&mut GlyphBrush<(), FontArc>, transform: Option<Matrix4<f32>>
+    ) -> Result<(), String>
     {
-        self.with_encoder_frame(|encoder, frame, deph_view, msaa| {
-            pass_render(encoder, &frame.output.view, deph_view, msaa, color, draws);
-        })
+        let (width, height) = (self.sc_desc.width as f32, self.sc_desc.height as f32);
+        let depth = f32::max(width, height);
+
+        let mut trfmat =
+            Matrix4::from_nonuniform_scale(2.0/width, -2.0/height, 1.0/depth) *
+            Matrix4::<f32>::from_translation((0.0, 0.0, depth/2.0).into())
+            ;
+
+        if let Some(trf) = transform { trfmat = trfmat * trf };
+
+        glyphs.draw(&self.device, encoder, self.frame().0, trfmat, None)
     }
+
+
 }
 
-
-// pass render function
-
-pub fn pass_render(
-    encoder:&mut wgpu::CommandEncoder,
-    attachment:&wgpu::TextureView,
-    depth_attachment:Option<&wgpu::TextureView>,
-    mssa_attachment:Option<&wgpu::TextureView>, // antialiasing multisampled texture_attachment
-    color:Option<Color>,
-    draws:&[(&wgpu::RenderPipeline, &wgpu::BindGroup, wgpu::BufferSlice, Range<u32>)]
-) {
-    let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-        color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {
-            attachment: if let Some(ms_at) = mssa_attachment { ms_at } else { attachment },
-            resolve_target: if mssa_attachment.is_some() { Some(attachment) } else { None },
-            ops: wgpu::Operations {
-                load: if let Some(cl) = color
-                    { wgpu::LoadOp::Clear( cl.into() ) }
-                    else { wgpu::LoadOp::Load },
-                store: true
-            }
-        }],
-        depth_stencil_attachment: if let Some(depth_attachment) = depth_attachment {
-          Some(wgpu::RenderPassDepthStencilAttachmentDescriptor {
-            attachment: depth_attachment,
-            depth_ops: Some(wgpu::Operations {
-                load: if color.is_some() { wgpu::LoadOp::Clear(1.0) } else { wgpu::LoadOp::Load },
-                store: true
-            }),
-            stencil_ops: None,
-            /*stencil_ops: Some(wgpu::Operations {
-                load: wgpu::LoadOp::Clear(0),
-                store: true
-            }),*/
-        })} else { None },
-    });
-
-    /*let mut l_render_pipeline = None;
-    let mut l_bind_group = None;
-    let mut l_vertices = None;*/
-
-    for (render_pipeline, bind_group, vertices, range) in draws {
-
-        // if l_render_pipeline != Some(render_pipeline) {
-        rpass.set_pipeline(render_pipeline);
-            /*l_render_pipeline = Some(render_pipeline);
-        }*/
-
-        // if l_bind_group != Some(bind_group) {
-        rpass.set_bind_group(0, bind_group, &[]);
-            /*l_bind_group = Some(bind_group);
-        }*/
-
-        // if l_vertices != Some(vertices) {
-        rpass.set_vertex_buffer(0, *vertices);
-            /*l_vertices = Some(vertices);
-        }*/
-
-        rpass.draw(range.clone(), 0..1);
-    }
-}
