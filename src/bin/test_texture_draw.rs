@@ -124,7 +124,7 @@ fn main() {
             },
 
             Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
-                gx.update(size.width, size.height);
+                gx.update(size.width, size.height, DEPTH_TESTING, MSAA);
             },
 
             Event::WindowEvent {

@@ -35,6 +35,9 @@ mod gx;
 pub use gx::*; // all wgpu handling
 
 
+mod text_input;
+pub use text_input::*;
+
 
 /*mod refs;
 pub use refs::*;*/

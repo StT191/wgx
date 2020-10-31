@@ -25,11 +25,15 @@ pub struct Gx {
     sc_desc: wgpu::SwapChainDescriptor,
     swap_chain: wgpu::SwapChain,
 
-    pub depth_testing: bool, // changing needs call to update
+    depth_testing: bool, // changing needs call to update
     depth_texture: Option<wgpu::Texture>,
     depth_texture_view: Option<wgpu::TextureView>,
 
-    pub msaa: u32, // antialiasing // changing needs call to update
+    needs_glyph_depth: bool,
+    glyph_depth_texture: Option<wgpu::Texture>,
+    glyph_depth_texture_view: Option<wgpu::TextureView>,
+
+    msaa: u32, // antialiasing // changing needs call to update
     msaa_texture: Option<wgpu::Texture>,
     msaa_texture_view: Option<wgpu::TextureView>,
 
@@ -86,12 +90,14 @@ impl Gx {
         let mut gx = Self {
             /*instance,*/ surface, device, sc_desc, swap_chain, queue,
             depth_testing, depth_texture: None, depth_texture_view: None,
+            needs_glyph_depth: false,
+            glyph_depth_texture: None, glyph_depth_texture_view: None,
             msaa, msaa_texture: None, msaa_texture_view: None,
             current_frame: None, projection: Matrix4::identity(),
         };
 
         if depth_testing || msaa > 1 {
-            gx.update(size.width, size.height)
+            gx.update(size.width, size.height, depth_testing, msaa);
         }
 
         gx
@@ -146,9 +152,12 @@ impl Gx {
 
     // update
 
-    pub fn update(&mut self, width:u32, height:u32) {
+    pub fn update(&mut self, width:u32, height:u32, depth_testing:bool, msaa:u32) {
+        self.depth_testing = depth_testing;
+        self.msaa = msaa;
         self.sc_desc.width = width;
         self.sc_desc.height = height;
+
         self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
 
         self.projection = unit_view(30.0, width as f32/height as f32, 1000.0);
@@ -164,6 +173,12 @@ impl Gx {
             let msaa_texture = self.msaa_texture(width, height, self.msaa, TexOpt::Output);
             self.msaa_texture_view = Some(msaa_texture.create_default_view());
             self.msaa_texture = Some(msaa_texture);
+        }
+
+        if self.needs_glyph_depth && self.msaa > 1 {
+            let glyph_depth_texture = self.depth_texture(width, height, 1);
+            self.glyph_depth_texture_view = Some(glyph_depth_texture.create_default_view());
+            self.glyph_depth_texture = Some(glyph_depth_texture);
         }
     }
 
@@ -190,9 +205,12 @@ impl Gx {
     }
 
 
-    pub fn glyph_brush_with_depth(&self, format:TexOpt, font_data:Vec<u8>)
+    pub fn glyph_brush_with_depth(&mut self, format:TexOpt, font_data:Vec<u8>)
         -> Result<GlyphBrush<wgpu::DepthStencilStateDescriptor, FontArc>, InvalidFont>
     {
+        self.needs_glyph_depth = true;
+        self.update(self.sc_desc.width, self.sc_desc.height, self.depth_testing, self.msaa);
+
         let font = FontArc::try_from_vec(font_data)?;
         Ok(
             GlyphBrushBuilder::using_font(font)
@@ -382,13 +400,17 @@ impl Gx {
     {
         let frame = self.frame()?;
 
+        // choose the right deph attachment
+        let deph_attachment = if self.msaa > 1 {
+            self.glyph_depth_texture_view.as_ref().ok_or("no glyph depth attachment")?
+        } else {
+            frame.1.ok_or("no depth attachment")?
+        };
+
+
         let projection =  if let Some(trf) = transform { self.projection * trf } else { self.projection };
 
-        glyphs.draw(
-            &self.device, encoder,
-            (frame.0, frame.1.ok_or("no depth attachment")?),
-            clear_depth, projection, region
-        )
+        glyphs.draw(&self.device, encoder, (frame.0, deph_attachment), clear_depth, projection, region)
     }
 
 

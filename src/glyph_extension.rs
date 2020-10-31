@@ -17,8 +17,8 @@ macro_rules! layout {
     };
     (Wrap, $h:ident, $v:ident) => {
         wgpu_glyph::Layout::default_wrap()
-        .h_align(HorizontalAlign::$h)
-        .v_align(VerticalAlign::$v)
+        .h_align(wgpu_glyph::HorizontalAlign::$h)
+        .v_align(wgpu_glyph::VerticalAlign::$v)
     };
 }
 
