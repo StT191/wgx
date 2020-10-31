@@ -2,7 +2,7 @@
 
 use std::{ops::Range};
 use crate::Color;
-
+use cgmath::*;
 
 
 // Texture Format Option enum
@@ -26,8 +26,18 @@ impl TexOpt {
 }
 
 
-// default view extension
+// matrix projection
+pub fn unit_view(fov_deg: f32, aspect:f32, unit: f32) -> Matrix4<f32> {
+    let dist = unit / Deg(fov_deg/2.0).tan();
+    Matrix4::from(PerspectiveFov {
+        fovy: Deg(fov_deg).into(),
+        aspect, near: unit/1.0e3, far: 2.0e3*dist,
+    }) *
+    Matrix4::<f32>::from_translation((0.0, 0.0, -dist).into())
+}
 
+
+// default view extension
 pub trait DefaultViewExtension<T> {
     fn create_default_view(&self) -> T;
 }
@@ -57,7 +67,7 @@ pub trait EncoderExtension {
     );
     fn draw(
         &mut self,
-        frame:(&wgpu::TextureView, Option<&wgpu::TextureView>, Option<&wgpu::TextureView>),
+        view:(&wgpu::TextureView, Option<&wgpu::TextureView>, Option<&wgpu::TextureView>),
         color:Option<Color>,
         draws:&[(&wgpu::RenderPipeline, &wgpu::BindGroup, wgpu::BufferSlice, Range<u32>)]
     );

@@ -1,9 +1,9 @@
 #version 450
 
-// input
+// in
 layout(location = 0) in vec3 a_Pos;
 
-// output
+// out
 layout(location = 0) out vec2 v_TexCoord;
 
 // function

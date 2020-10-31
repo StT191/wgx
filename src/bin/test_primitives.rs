@@ -11,6 +11,7 @@ use winit::{
 };
 
 use wgx::*;
+use cgmath::*;
 
 
 // main
@@ -47,7 +48,7 @@ fn main() {
     // colors
     let color_texture = gx.texture(3, 1, 1, TexUse::SAMPLED | TexUse::COPY_DST, TexOpt::Texture);
     gx.write_texture(&color_texture, (0, 0, 3, 1), &[
-        (255u8, 0u8, 0u8, 255u8), (0, 255, 0, 255), (0, 0, 255, 255),
+        [255u8, 0, 0, 255], [0, 255, 0, 255], [0, 0, 255, 255],
     ]);
     let color_texture_view = color_texture.create_default_view();
 
@@ -67,10 +68,10 @@ fn main() {
     );
 
     let t_data = [
-        (( 0.5f32,  0.5f32, 0.0f32), (0.0f32, 0.0f32)),
-        ((-0.5,  0.5, 0.0), (0.0, 0.0)),
-        (( 0.5, -0.5, 0.0), (0.0, 0.0)),
-        ((-0.5, -0.5, 0.0), (0.0, 0.0)),
+        ([ 0.5,  0.5, 0.0f32], [0.0, 0.0f32]),
+        ([-0.5,  0.5, 0.0], [0.0, 0.0]),
+        ([ 0.5, -0.5, 0.0], [0.0, 0.0]),
+        ([-0.5, -0.5, 0.0], [0.0, 0.0]),
     ];
 
     let t_vertices = gx.buffer_from_data(BuffUse::VERTEX, &t_data[..]);
@@ -83,12 +84,12 @@ fn main() {
     );
 
     let l_data = [
-        (( 0.5f32,  0.5f32, 0.0f32), (1.0f32, 0.0f32)),
-        ((-0.5,  0.5, 0.0), (1.0, 0.0)),
-        ((-0.5, -0.5, 0.0), (1.0, 0.0)),
-        (( 0.5, -0.5, 0.0), (1.0, 0.0)),
-        (( 0.5,  0.5, 0.0), (1.0, 0.0)),
-        (( -1.0, -1.0, 0.0), (1.0, 0.0)),
+        ([ 0.5,  0.5, 0.0f32], [1.0, 0.0f32]),
+        ([-0.5,  0.5, 0.0], [1.0, 0.0]),
+        ([-0.5, -0.5, 0.0], [1.0, 0.0]),
+        ([ 0.5, -0.5, 0.0], [1.0, 0.0]),
+        ([ 0.5,  0.5, 0.0], [1.0, 0.0]),
+        ([ -1.0, -1.0, 0.0], [1.0, 0.0]),
     ];
 
     let l_vertices = gx.buffer_from_data(BuffUse::VERTEX, &l_data[..]);
@@ -121,10 +122,10 @@ fn main() {
     );
 
     let i_data = [
-        (( 0.25f32,  0.25f32, 0.0f32), (1.0f32, 0.0f32)),
-        ((-0.25,  0.25, 0.0), (0.0, 0.0)),
-        (( 0.25, -0.25, 0.0), (1.0, 1.0)),
-        ((-0.25, -0.25, 0.0), (0.0, 1.0)),
+        ([ 0.25,  0.25, 0.0f32], [1.0, 0.0f32]),
+        ([-0.25,  0.25, 0.0], [0.0, 0.0]),
+        ([ 0.25, -0.25, 0.0], [1.0, 1.0]),
+        ([-0.25, -0.25, 0.0], [0.0, 1.0]),
     ];
 
     let i_vertices = gx.buffer_from_data(BuffUse::VERTEX, &i_data[..]);
@@ -137,10 +138,10 @@ fn main() {
     );
 
     let p_data = [
-        (( 0.25f32,  0.25f32, 0.0f32), (1.0f32, 0.0f32)),
-        ((-0.25,  0.25, 0.0), (0.0, 0.0)),
-        (( 0.25, -0.25, 0.0), (1.0, 1.0)),
-        ((-0.25, -0.25, 0.0), (0.0, 1.0)),
+        ([ 0.25,  0.25, 0.0f32], [1.0, 0.0f32]),
+        ([-0.25,  0.25, 0.0], [0.0, 0.0]),
+        ([ 0.25, -0.25, 0.0], [1.0, 1.0]),
+        ([-0.25, -0.25, 0.0], [0.0, 1.0]),
     ];
 
     let p_vertices = gx.buffer_from_data(BuffUse::VERTEX, &p_data[..]);
@@ -148,17 +149,13 @@ fn main() {
 
     // text_render
     let mut font_data = Vec::new();
-    File::open("fonts/BelieveIt-DvLE.ttf").expect("failed loading font").read_to_end(&mut font_data);
+    File::open("fonts/Destain-Xgma.ttf").expect("failed loading font").read_to_end(&mut font_data);
 
     let mut glyphs = gx.glyph_brush(TexOpt::Output, font_data).expect("invalid font");
 
     /*gx
 
     glyphs.with_encoder(gx.device(), encoder, &frame.output.view, gx.width(), gx.height());*/
-
-    let rotate_y = cgmath::Matrix4::<f32>::from_angle_y(cgmath::Deg(0.0));
-    let rotate_x = cgmath::Matrix4::<f32>::from_angle_x(cgmath::Deg(0.0));
-    let rotate_z = cgmath::Matrix4::<f32>::from_angle_z(cgmath::Deg(0.0));
 
 
     event_loop.run(move |event, _, control_flow| {
@@ -200,17 +197,21 @@ fn main() {
                         ]
                     );
 
-                    glyphs.add_text(0.0, 0.0, vec![
-                        Text::new("Hey Ho!").with_scale(100.0)
-                    ]);
-
+                    glyphs.add_text(
+                        vec![Text::new("Hey Ho!\nWhat is going on? Anyway?")
+                        .with_scale(50.0).with_color(Color::from([0x2,0x2,0x12]))],
+                        None, Some((200.0, f32::INFINITY)), None
+                    );
 
                     let trf =
-                        cgmath::Matrix4::from_translation((0.0, 0.0, 0.0).into()) *
-                        rotate_z * rotate_y * rotate_x *
-                        cgmath::Matrix4::from_translation((0.0, 0.0, 0.0).into());
+                        // Matrix4::from_translation((0.0, 0.0, 0.0).into()) *
+                        // Matrix4::from_angle_z(Deg(45.0)) *
+                        // Matrix4::from_angle_y(Deg(88.0)) *
+                        Matrix4::from_translation((-1200.0, 900.0, 0.0).into()) *
+                        // Matrix4::from_angle_x(Deg(45.0)) *
+                        Matrix4::from_scale(3.0);
 
-                    gx.draw_glyphs(encoder, &mut glyphs, Some(trf));
+                    gx.draw_glyphs(encoder, &mut glyphs, Some(trf), None);
                 });
 
 

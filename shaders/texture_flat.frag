@@ -1,11 +1,13 @@
 #version 450
 
-// input
+// uniform
 layout(set = 0, binding = 0) uniform texture2D t_Color;
 layout(set = 0, binding = 1) uniform sampler s_Color;
 
-// output
+// in
 layout(location = 0) in vec2 v_TexCoord;
+
+// out
 layout(location = 0) out vec4 color;
 
 // function

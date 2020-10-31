@@ -34,6 +34,8 @@ pub struct Gx {
     msaa_texture_view: Option<wgpu::TextureView>,
 
     current_frame: Option<wgpu::SwapChainFrame>,
+
+    pub projection: Matrix4<f32>,
 }
 
 
@@ -44,6 +46,7 @@ impl Gx {
     pub fn device(&self) -> &wgpu::Device { &self.device }
     pub fn width(&self) -> u32 { self.sc_desc.width }
     pub fn height(&self) -> u32 { self.sc_desc.height }
+    pub fn view_distance(&self) -> f32 { self.projection[3][3] }
 
 
     // initialize
@@ -84,7 +87,7 @@ impl Gx {
             /*instance,*/ surface, device, sc_desc, swap_chain, queue,
             depth_testing, depth_texture: None, depth_texture_view: None,
             msaa, msaa_texture: None, msaa_texture_view: None,
-            current_frame: None,
+            current_frame: None, projection: Matrix4::identity(),
         };
 
         if depth_testing || msaa > 1 {
@@ -148,6 +151,9 @@ impl Gx {
         self.sc_desc.height = height;
         self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
 
+        self.projection = unit_view(30.0, width as f32/height as f32, 1000.0);
+
+
         if self.depth_testing {
             let depth_texture = self.depth_texture(width, height, self.msaa);
             self.depth_texture_view = Some(depth_texture.create_default_view());
@@ -181,6 +187,23 @@ impl Gx {
     {
         let font = FontArc::try_from_vec(font_data)?;
         Ok(GlyphBrushBuilder::using_font(font).build(&self.device, TexOpt::select(format)))
+    }
+
+
+    pub fn glyph_brush_with_depth(&self, format:TexOpt, font_data:Vec<u8>)
+        -> Result<GlyphBrush<wgpu::DepthStencilStateDescriptor, FontArc>, InvalidFont>
+    {
+        let font = FontArc::try_from_vec(font_data)?;
+        Ok(
+            GlyphBrushBuilder::using_font(font)
+            .depth_stencil_state(wgpu::DepthStencilStateDescriptor {
+                format: DEPTH_FORMAT,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::LessEqual,
+                stencil: wgpu::StencilStateDescriptor::default()
+            })
+            .build(&self.device, TexOpt::select(format))
+        )
     }
 
 
@@ -268,13 +291,11 @@ impl Gx {
                     operation: wgpu::BlendOperation::Add,
                 }} else { wgpu::BlendDescriptor::REPLACE },
 
-                alpha_blend: wgpu::BlendDescriptor::REPLACE,
-
-                /*alpha_blend: wgpu::BlendDescriptor {
+                alpha_blend: if alpha_blend { wgpu::BlendDescriptor {
                     src_factor: wgpu::BlendFactor::One,
                     dst_factor: wgpu::BlendFactor::One,
                     operation: wgpu::BlendOperation::Max,
-                },*/
+                }} else { wgpu::BlendDescriptor::REPLACE },
 
                 write_mask: wgpu::ColorWrite::ALL,
             }],
@@ -310,12 +331,13 @@ impl Gx {
     }
 
 
-    pub fn frame(&self) -> (&wgpu::TextureView, Option<&wgpu::TextureView>, Option<&wgpu::TextureView>) {
-        (
-            &(self.current_frame.as_ref().expect("no current frame")).output.view,
+    pub fn frame(&self) -> Result<(&wgpu::TextureView, Option<&wgpu::TextureView>, Option<&wgpu::TextureView>), String>
+    {
+        Ok((
+            &(self.current_frame.as_ref().ok_or("no current frame".to_string())?).output.view,
             self.depth_texture_view.as_ref(),
             self.msaa_texture_view.as_ref()
-        )
+        ))
     }
 
 
@@ -335,26 +357,38 @@ impl Gx {
     pub fn draw(
         &self, encoder:&mut wgpu::CommandEncoder, color:Option<Color>,
         draws:&[(&wgpu::RenderPipeline, &wgpu::BindGroup, wgpu::BufferSlice, Range<u32>)]
-    ) {
-        encoder.draw(self.frame(), color, draws);
+    ) -> Result<(), String>
+    {
+        encoder.draw(self.frame()?, color, draws);
+        Ok(())
     }
 
 
     pub fn draw_glyphs(
-        &mut self, encoder:&mut wgpu::CommandEncoder, glyphs:&mut GlyphBrush<(), FontArc>, transform: Option<Matrix4<f32>>
+        &mut self, encoder:&mut wgpu::CommandEncoder, glyphs:&mut GlyphBrush<(), FontArc>,
+        transform: Option<Matrix4<f32>>, region: Option<[u32; 4]>
     ) -> Result<(), String>
     {
-        let (width, height) = (self.sc_desc.width as f32, self.sc_desc.height as f32);
-        let depth = f32::max(width, height);
+        let projection =  if let Some(trf) = transform { self.projection * trf } else { self.projection };
 
-        let mut trfmat =
-            Matrix4::from_nonuniform_scale(2.0/width, -2.0/height, 1.0/depth) *
-            Matrix4::<f32>::from_translation((0.0, 0.0, depth/2.0).into())
-            ;
+        glyphs.draw(&self.device, encoder, self.frame()?.0, projection, region)
+    }
 
-        if let Some(trf) = transform { trfmat = trfmat * trf };
 
-        glyphs.draw(&self.device, encoder, self.frame().0, trfmat, None)
+    pub fn draw_glyphs_with_depth(
+        &mut self, encoder:&mut wgpu::CommandEncoder, glyphs:&mut GlyphBrush<wgpu::DepthStencilStateDescriptor, FontArc>,
+        clear_depth:bool, transform: Option<Matrix4<f32>>, region: Option<[u32; 4]>
+    ) -> Result<(), String>
+    {
+        let frame = self.frame()?;
+
+        let projection =  if let Some(trf) = transform { self.projection * trf } else { self.projection };
+
+        glyphs.draw(
+            &self.device, encoder,
+            (frame.0, frame.1.ok_or("no depth attachment")?),
+            clear_depth, projection, region
+        )
     }
 
 
