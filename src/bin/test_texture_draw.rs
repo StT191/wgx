@@ -4,6 +4,7 @@
 use std::{time::{Instant}, include_str};
 
 use winit::{
+    dpi::PhysicalSize,
     event_loop::{ControlFlow, EventLoop},
     window::Window, event::{Event, WindowEvent},
 };
@@ -22,10 +23,11 @@ fn main() {
     let event_loop = EventLoop::new();
 
     let window = Window::new(&event_loop).unwrap();
+    window.set_inner_size(PhysicalSize::<u32>::from((800, 600)));
     window.set_title("WgFx");
 
-
-    let mut gx = Gx::new(&window, DEPTH_TESTING, MSAA);
+    let mut gx = Wgx::new(Some(&window));
+    let mut target = gx.surface_target((800, 600), DEPTH_TESTING, MSAA).expect("render target failed");
 
 
     // global pipeline
@@ -37,35 +39,31 @@ fn main() {
         binding!(1, FRAGMENT, Sampler)
     ]);
 
-    let pipeline = gx.render_pipeline(
-        TexOpt::Output, DEPTH_TESTING, ALPHA_BLENDING, MSAA, &vs, &fs, vertex_desc![0 => Float3, 1 => Float2],
+    let pipeline = target.render_pipeline(
+        &gx, ALPHA_BLENDING, &vs, &fs, vertex_desc![0 => Float3, 1 => Float2],
         Primitive::TriangleList, &layout
     );
 
     let sampler = gx.sampler();
 
     // colors
-    let color_texture = gx.texture(2, 1, 1, TexUse::SAMPLED | TexUse::COPY_DST, TexOpt::Texture);
+    let color_texture = gx.texture((2, 1), 1, TexUse::SAMPLED | TexUse::COPY_DST, TEXTURE);
     gx.write_texture(&color_texture, (0, 0, 2, 1), &[
         (255u8, 0u8, 0u8, 255u8), (255, 0, 0, 255),
     ]);
     let color_texture_view = color_texture.create_default_view();
 
 
+
     // draw texture
     let size = window.inner_size();
 
-    let draw_pipeline = gx.render_pipeline(
-        TexOpt::Texture, false, false, 8, &vs, &fs, vertex_desc![0 => Float3, 1 => Float2],
+    let draw_target = TextureTarget::new(&gx, (size.width, size.height), true, 8, TexUse::SAMPLED, TEXTURE);
+
+    let draw_pipeline = draw_target.render_pipeline(
+        &gx, false, &vs, &fs, vertex_desc![0 => Float3, 1 => Float2],
         Primitive::LineStrip, &layout
     );
-
-    let draw_texture = gx.texture(size.width, size.height, 1, TexUse::SAMPLED | TexUse::OUTPUT_ATTACHMENT, TexOpt::Texture);
-
-    let draw_msaa_texture = gx.msaa_texture(size.width, size.height, 8, TexOpt::Texture);
-
-    let draw_texture_view = draw_texture.create_default_view();
-    let draw_msaa_texture_view = draw_msaa_texture.create_default_view();
 
     // draw_vertices
     const A:usize = 4;
@@ -84,18 +82,19 @@ fn main() {
         bind!(1, Sampler, &sampler),
     ]);
 
-
     // first render
-    gx.with_encoder(|encoder, gx| {
-        encoder.draw((&draw_texture_view, None, Some(&draw_msaa_texture_view)), Some(Color::TRANSPARENT), &[
+    gx.with_encoder(|encoder| {
+        encoder.draw(draw_target.attachment(), Some(Color::TRANSPARENT), &[
             (&draw_pipeline, &binding, draw_vertices.slice(..), 0..A as u32),
         ]);
     });
 
 
+
+
     // real draw
     let binding = gx.bind(&layout, &[
-        bind!(0, TextureView, &draw_texture_view),
+        bind!(0, TextureView, &draw_target.attachment().0),
         bind!(1, Sampler, &sampler),
     ]);
 
@@ -124,7 +123,7 @@ fn main() {
             },
 
             Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
-                gx.update(size.width, size.height, DEPTH_TESTING, MSAA);
+                target.update(&gx, (size.width, size.height));
             },
 
             Event::WindowEvent {
@@ -142,8 +141,8 @@ fn main() {
                 let then = Instant::now();
 
 
-                gx.with_encoder_frame(|encoder, gx| {
-                    gx.draw(encoder,
+                target.with_encoder_frame(&gx, |encoder, attachment| {
+                    encoder.draw(attachment,
                         Some(Color::GREEN),
                         &[
                             (&pipeline, &binding, vertices.slice(..), 0..data.len() as u32),

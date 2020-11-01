@@ -1,13 +1,49 @@
 
+use crate::{Wgx, DEPTH, RenderAttachment};
 use cgmath::Matrix4;
-
-use wgpu_glyph::{GlyphBrush, FontId, ab_glyph::{FontArc, InvalidFont}, Region, Section, Text, Layout, BuiltInLineBreaker};
-
+use wgpu_glyph::{*, ab_glyph::{FontArc, InvalidFont}};
 use wgpu::util::StagingBelt;
 
 
-// align macro
 
+// extend Wgx
+pub trait WgxGlyphBrushBuilderExtension {
+    fn glyph_brush(&self, format:wgpu::TextureFormat, font_data:Vec<u8>)
+        -> Result<GlyphBrush<(), FontArc>, InvalidFont>;
+
+    fn glyph_brush_with_depth(&self, format:wgpu::TextureFormat, font_data:Vec<u8>)
+        -> Result<GlyphBrush<wgpu::DepthStencilStateDescriptor, FontArc>, InvalidFont>;
+}
+
+impl WgxGlyphBrushBuilderExtension for Wgx {
+
+    fn glyph_brush(&self, format:wgpu::TextureFormat, font_data:Vec<u8>)
+        -> Result<GlyphBrush<(), FontArc>, InvalidFont>
+    {
+        let font = FontArc::try_from_vec(font_data)?;
+        Ok(GlyphBrushBuilder::using_font(font).build(&self.device, format))
+    }
+
+
+    fn glyph_brush_with_depth(&self, format:wgpu::TextureFormat, font_data:Vec<u8>)
+        -> Result<GlyphBrush<wgpu::DepthStencilStateDescriptor, FontArc>, InvalidFont>
+    {
+        let font = FontArc::try_from_vec(font_data)?;
+        Ok(
+            GlyphBrushBuilder::using_font(font)
+            .depth_stencil_state(wgpu::DepthStencilStateDescriptor {
+                format: DEPTH,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::LessEqual,
+                stencil: wgpu::StencilStateDescriptor::default()
+            })
+            .build(&self.device, format)
+        )
+    }
+}
+
+
+// layout macro
 #[macro_export]
 macro_rules! layout {
     (Single, $h:ident, $v:ident) => {
@@ -23,40 +59,22 @@ macro_rules! layout {
 }
 
 
-// defs
-
-pub trait GlyphExtension {
+// glyphbrush extension
+pub trait GlyphBrushExtension {
+    fn load_font(&mut self, font_data:Vec<u8>) -> Result<FontId, InvalidFont>;
     fn add_text(
         &mut self, text:Vec<Text>, position:Option<(f32, f32)>, bounds:Option<(f32, f32)>,
         layout:Option<Layout<BuiltInLineBreaker>>
     );
 }
 
-pub trait GlyphLoadExtension {
-    fn load_font(&mut self, font_data:Vec<u8>) -> Result<FontId, InvalidFont>;
-}
+impl<D> GlyphBrushExtension for GlyphBrush<D> {
 
-pub trait GlyphDrawExtension {
-    fn draw(
-        &mut self, device: &wgpu::Device, encoder: &mut wgpu::CommandEncoder,
-        attachment: &wgpu::TextureView,
-        transform: Matrix4<f32>, region: Option<[u32; 4]>
-    ) -> Result<(), String>;
-}
+    fn load_font(&mut self, font_data:Vec<u8>) -> Result<FontId, InvalidFont> {
+        let font = FontArc::try_from_vec(font_data)?;
+        Ok(self.add_font(font))
+    }
 
-pub trait GlyphDrawWithDepthExtension {
-    fn draw(
-        &mut self, device: &wgpu::Device, encoder: &mut wgpu::CommandEncoder,
-        view:(&wgpu::TextureView, &wgpu::TextureView), clear_depth:bool,
-        transform: Matrix4<f32>, region: Option<[u32; 4]>
-    ) -> Result<(), String>;
-}
-
-
-
-// impl
-
-impl<D> GlyphExtension for GlyphBrush<D> {
     fn add_text(
         &mut self, text:Vec<Text>, position:Option<(f32, f32)>, bounds:Option<(f32, f32)>,
         layout:Option<Layout<BuiltInLineBreaker>>)
@@ -72,59 +90,54 @@ impl<D> GlyphExtension for GlyphBrush<D> {
 }
 
 
-impl<D> GlyphLoadExtension for GlyphBrush<D> {
-    fn load_font(&mut self, font_data:Vec<u8>) -> Result<FontId, InvalidFont> {
-        let font = FontArc::try_from_vec(font_data)?;
-        Ok(self.add_font(font))
-    }
+// extend encoder
+pub trait EncoderGlyphDrawExtension {
+    fn draw_glyphs(
+        &mut self, wgx: &Wgx, attachment: RenderAttachment, glypths: &mut GlyphBrush<()>,
+        transform: Matrix4<f32>, region: Option<[u32; 4]>
+    ) -> Result<(), String>;
+
+    fn draw_glyphs_with_depth(
+        &mut self, wgx: &Wgx, attachment: RenderAttachment, glypths: &mut GlyphBrush<wgpu::DepthStencilStateDescriptor>,
+        clear_depth:bool, transform: Matrix4<f32>, region: Option<[u32; 4]>
+    ) -> Result<(), String>;
 }
 
+impl EncoderGlyphDrawExtension for wgpu::CommandEncoder<> {
 
-
-impl GlyphDrawExtension for GlyphBrush<()> {
-    fn draw(
-        &mut self, device: &wgpu::Device, encoder: &mut wgpu::CommandEncoder,
-        attachment: &wgpu::TextureView,
+    fn draw_glyphs (
+        &mut self, wgx: &Wgx, attachment: RenderAttachment, glypths: &mut GlyphBrush<()>,
         transform: Matrix4<f32>, region: Option<[u32; 4]>
     ) -> Result<(), String> {
 
         let mut belt = StagingBelt::new(4*1024*1024);
-
         let transform = transform * Matrix4::from_nonuniform_scale(1.0, -1.0, 1.0);
 
-
-        // draw
-
         let result = if let Some(region) = region {
-            self.draw_queued_with_transform_and_scissoring(
-                device, &mut belt, encoder, attachment, *transform.as_ref(),
+            glypths.draw_queued_with_transform_and_scissoring(
+                &wgx.device, &mut belt, self, attachment.0, *transform.as_ref(),
                 Region {x: region[0], y: region[1], width: region[2], height: region[3]}
             )
         }
         else {
-            self.draw_queued_with_transform(
-                device, &mut belt, encoder, attachment, *transform.as_ref()
+            glypths.draw_queued_with_transform(
+                &wgx.device, &mut belt, self, attachment.0, *transform.as_ref()
             )
         };
 
         // let _ = belt.recall();
-
         result
     }
-}
 
-
-impl GlyphDrawWithDepthExtension for GlyphBrush<wgpu::DepthStencilStateDescriptor> {
-    fn draw(
-        &mut self, device: &wgpu::Device, encoder: &mut wgpu::CommandEncoder,
-        (attachment, depth_attachment):(&wgpu::TextureView, &wgpu::TextureView), clear_depth:bool,
-        transform: Matrix4<f32>, region: Option<[u32; 4]>
+    fn draw_glyphs_with_depth(
+        &mut self, wgx: &Wgx, attachment: RenderAttachment, glypths: &mut GlyphBrush<wgpu::DepthStencilStateDescriptor>,
+        clear_depth:bool, transform: Matrix4<f32>, region: Option<[u32; 4]>
     ) -> Result<(), String> {
 
         let mut belt = StagingBelt::new(4*1024*1024);
 
         let depth_ops = wgpu::RenderPassDepthStencilAttachmentDescriptor {
-            attachment: depth_attachment,
+            attachment: attachment.1.ok_or("deph attachment missing")?,
             depth_ops: Some(wgpu::Operations {
                 load: if clear_depth { wgpu::LoadOp::Clear(1.0) } else { wgpu::LoadOp::Load },
                 store: true
@@ -134,25 +147,23 @@ impl GlyphDrawWithDepthExtension for GlyphBrush<wgpu::DepthStencilStateDescripto
 
         let transform = transform * Matrix4::from_nonuniform_scale(1.0, -1.0, 1.0);
 
-
-        // draw
-
         let result = if let Some(region) = region {
-            self.draw_queued_with_transform_and_scissoring(
-                device, &mut belt, encoder, attachment,
+            glypths.draw_queued_with_transform_and_scissoring(
+                &wgx.device, &mut belt, self, attachment.0,
                 depth_ops, *transform.as_ref(),
                 Region {x: region[0], y: region[1], width: region[2], height: region[3]}
             )
         }
         else {
-            self.draw_queued_with_transform(
-                device, &mut belt, encoder, attachment,
+            glypths.draw_queued_with_transform(
+                &wgx.device, &mut belt, self, attachment.0,
                 depth_ops, *transform.as_ref()
             )
         };
 
         // let _ = belt.recall();
-
         result
     }
 }
+
+

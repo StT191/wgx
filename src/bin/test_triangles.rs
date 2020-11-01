@@ -4,6 +4,7 @@
 use std::{time::{Instant}, include_str};
 
 use winit::{
+    dpi::PhysicalSize,
     event_loop::{ControlFlow, EventLoop},
     window::Window, event::{Event, WindowEvent},
 };
@@ -15,39 +16,42 @@ use wgx::*;
 fn main() {
 
     const DEPTH_TESTING:bool = true;
-    const ALPHA_BLENDING:bool = false;
     const MSAA:u32 = 8;
+    const ALPHA_BLENDING:bool = false;
 
 
     let event_loop = EventLoop::new();
 
     let window = Window::new(&event_loop).unwrap();
+    window.set_inner_size(PhysicalSize::<u32>::from((600, 600)));
     window.set_title("WgFx");
 
 
-    let mut gx = Gx::new(&window, DEPTH_TESTING, MSAA);
+    let mut gx = Wgx::new(Some(&window));
+    let mut target = gx.surface_target((600, 600), DEPTH_TESTING, MSAA).expect("render target failed");
 
 
     // global pipeline
     let vs = gx.load_glsl(include_str!("../../shaders/pass_texcoord.vert"), ShaderType::Vertex);
     let fs = gx.load_glsl(include_str!("../../shaders/texture_flat.frag"), ShaderType::Fragment);
 
-    let vertex_desc = vertex_desc![0 => Float3, 1 => Float2];
 
     let layout = gx.binding(&[
         binding!(0, FRAGMENT, SampledTexture),
         binding!(1, FRAGMENT, Sampler)
     ]);
 
-    let pipeline = gx.render_pipeline(
-        TexOpt::Output, DEPTH_TESTING, ALPHA_BLENDING, MSAA, &vs, &fs,
-        vertex_desc, Primitive::TriangleList, &layout
+
+    let pipeline = target.render_pipeline(
+        &gx, ALPHA_BLENDING, &vs, &fs,
+        vertex_desc![0 => Float3, 1 => Float2],
+        Primitive::TriangleList, &layout
     );
 
     // first render
 
     // colors
-    let texture = gx.texture(2, 1, 1, TexUse::COPY_DST | TexUse::COPY_SRC  | TexUse::SAMPLED, TexOpt::Texture);
+    let texture = gx.texture((2, 1), 1, TexUse::COPY_DST | TexUse::COPY_SRC  | TexUse::SAMPLED, TEXTURE);
 
     gx.write_texture(&texture, (0, 0, 2, 1), &[
         (255u8, 0u8, 0u8, 255u8), (0, 0, 255, 50),
@@ -65,21 +69,19 @@ fn main() {
 
     // vertices
     let data = [
+        ([-0.25, -0.5, 0.35f32], [0.0, 0.0f32]),
+        ([0.0, -0.5, 0.35], [1.0, 0.0]),
+        ([-1.0, 0.5, 0.1], [0.0, 0.0]),
 
-        ((-0.25f32, -0.5f32, 0.35f32), (0.0f32, 0.0f32)),
-        ((0.0, -0.5, 0.35), (1.0, 0.0)),
-        ((-1.0, 0.5, 0.1), (0.0, 0.0)),
+        ([0.25, -0.5, 0.1], [0.0, 0.0]),
+        ([0.5, -0.5, 0.1], [1.0, 0.0]),
+        ([-1.0, 0.5, 0.6], [0.0, 0.0]),
 
-        ((0.25, -0.5, 0.1), (0.0, 0.0)),
-        ((0.5, -0.5, 0.1), (1.0, 0.0)),
-        ((-1.0, 0.5, 0.6), (0.0, 0.0)),
-
-        ((-0.75, -0.5, 0.1), (0.0, 0.0)),
-        ((-1.0, -0.5, 0.1), (1.0, 0.0)),
-        ((-0.3, 0.5, 0.312), (1.0, 0.0)),
+        ([-0.75, -0.5, 0.1], [0.0, 0.0]),
+        ([-1.0, -0.5, 0.1], [1.0, 0.0]),
+        ([-0.3, 0.5, 0.312], [1.0, 0.0]),
     ];
     let vertices = gx.buffer_from_data(BuffUse::VERTEX, &data[..]);
-
 
 
     // texture + sampler
@@ -106,7 +108,7 @@ fn main() {
             },
 
             Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
-                gx.update(size.width, size.height, DEPTH_TESTING, MSAA);
+                target.update(&gx, (size.width, size.height));
             },
 
             Event::WindowEvent {
@@ -124,8 +126,9 @@ fn main() {
                 let then = Instant::now();
 
 
-                gx.with_encoder_frame(|encoder, gx| {
-                    gx.draw(encoder,
+                target.with_encoder_frame(&gx, |encoder, attachment| {
+                    encoder.draw(
+                        attachment,
                         Some(Color::GREEN),
                         &[
                             (&pipeline, &binding, vertices.slice(..), 0..data.len() as u32),
@@ -140,4 +143,6 @@ fn main() {
             _ => {}
         }
     });
+
+    let rx = false;
 }

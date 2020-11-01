@@ -1,7 +1,7 @@
 
 use core::{fmt, mem, slice, any::type_name};
-
 use std::error::Error as StdError;
+
 
 /// Possible errors during slice conversion.
 #[derive(Clone, Debug, PartialEq, Eq)]

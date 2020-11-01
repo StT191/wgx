@@ -1,6 +1,5 @@
 
-
-// wgpu::Color
+// wgpu::Color drop in
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Color { pub r: f64, pub g: f64, pub b: f64, pub a: f64 }

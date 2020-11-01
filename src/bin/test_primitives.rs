@@ -6,6 +6,7 @@ use image;
 use std::{time::{Instant}, include_str, fs::File, io::Read};
 
 use winit::{
+    dpi::PhysicalSize,
     event_loop::{ControlFlow, EventLoop},
     window::Window, event::{Event, WindowEvent},
 };
@@ -25,10 +26,11 @@ fn main() {
     let event_loop = EventLoop::new();
 
     let window = Window::new(&event_loop).unwrap();
+    window.set_inner_size(PhysicalSize::<u32>::from((800, 600)));
     window.set_title("WgFx");
 
-
-    let mut gx = Gx::new(&window, DEPTH_TESTING, MSAA);
+    let mut gx = Wgx::new(Some(&window));
+    let mut target = gx.surface_target((800, 600), DEPTH_TESTING, MSAA).expect("render target failed");
 
     // clear
     // gx.pass_frame_render(Some(Color::GREEN), &[]);
@@ -46,7 +48,7 @@ fn main() {
 
 
     // colors
-    let color_texture = gx.texture(3, 1, 1, TexUse::SAMPLED | TexUse::COPY_DST, TexOpt::Texture);
+    let color_texture = gx.texture((3, 1), 1, TexUse::SAMPLED | TexUse::COPY_DST, TEXTURE);
     gx.write_texture(&color_texture, (0, 0, 3, 1), &[
         [255u8, 0, 0, 255], [0, 255, 0, 255], [0, 0, 255, 255],
     ]);
@@ -62,8 +64,8 @@ fn main() {
 
 
     // triangle pipeline
-    let t_pipeline = gx.render_pipeline(
-        TexOpt::Output, DEPTH_TESTING, ALPHA_BLENDING, MSAA, &vs, &fs, vertex_desc![0 => Float3, 1 => Float2],
+    let t_pipeline = target.render_pipeline(
+        &gx, ALPHA_BLENDING, &vs, &fs, vertex_desc![0 => Float3, 1 => Float2],
         Primitive::TriangleStrip, &layout
     );
 
@@ -78,8 +80,8 @@ fn main() {
 
 
     // lines pipeline
-    let l_pipeline = gx.render_pipeline(
-        TexOpt::Output, DEPTH_TESTING, ALPHA_BLENDING, MSAA, &vs, &fs, vertex_desc![0 => Float3, 1 => Float2],
+    let l_pipeline = target.render_pipeline(
+        &gx, ALPHA_BLENDING, &vs, &fs, vertex_desc![0 => Float3, 1 => Float2],
         Primitive::LineStrip, &layout
     );
 
@@ -102,7 +104,7 @@ fn main() {
 
     let (w, h) = (img.width(), img.height());
 
-    let image_texture = gx.texture(w, h, 1, TexUse::SAMPLED | TexUse::COPY_DST, TexOpt::Texture);
+    let image_texture = gx.texture((w, h), 1, TexUse::SAMPLED | TexUse::COPY_DST, TEXTURE);
 
     gx.write_texture(&image_texture, (0, 0, w, h), &img.as_raw().as_slice() );
 
@@ -116,8 +118,8 @@ fn main() {
     ]);
 
 
-    let i_pipeline = gx.render_pipeline(
-        TexOpt::Output, DEPTH_TESTING, ALPHA_BLENDING, MSAA, &vs, &fs, vertex_desc![0 => Float3, 1 => Float2],
+    let i_pipeline = target.render_pipeline(
+        &gx, ALPHA_BLENDING, &vs, &fs, vertex_desc![0 => Float3, 1 => Float2],
         Primitive::TriangleStrip, &layout
     );
 
@@ -132,8 +134,8 @@ fn main() {
 
 
     // points pipeline
-    let p_pipeline = gx.render_pipeline(
-        TexOpt::Output, DEPTH_TESTING, ALPHA_BLENDING, MSAA, &vs, &fs, vertex_desc![0 => Float3, 1 => Float2],
+    let p_pipeline = target.render_pipeline(
+        &gx, ALPHA_BLENDING, &vs, &fs, vertex_desc![0 => Float3, 1 => Float2],
         Primitive::PointList, &layout
     );
 
@@ -151,11 +153,9 @@ fn main() {
     let mut font_data = Vec::new();
     File::open("fonts/Destain-Xgma.ttf").expect("failed loading font").read_to_end(&mut font_data);
 
-    let mut glyphs = gx.glyph_brush(TexOpt::Output, font_data).expect("invalid font");
+    let mut glyphs = gx.glyph_brush(OUTPUT, font_data).expect("invalid font");
 
-    /*gx
-
-    glyphs.with_encoder(gx.device(), encoder, &frame.output.view, gx.width(), gx.height());*/
+    let projection = unit_view(30.0, 8.0/6.0, 1000.0);
 
 
     event_loop.run(move |event, _, control_flow| {
@@ -168,7 +168,7 @@ fn main() {
             },
 
             Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
-                gx.update(size.width, size.height, DEPTH_TESTING, MSAA);
+                target.update(&gx, (size.width, size.height));
             },
 
             Event::WindowEvent {
@@ -185,9 +185,24 @@ fn main() {
 
                 let then = Instant::now();
 
+                glyphs.add_text(
+                    vec![Text::new("Hey Ho!\nWhat is going on? Anyway?")
+                    .with_scale(50.0).with_color(Color::from([0x2,0x2,0x12]))],
+                    None, Some((200.0, f32::INFINITY)), None
+                );
 
-                gx.with_encoder_frame(|encoder, gx| {
-                    gx.draw(encoder,
+                let trf =
+                    projection *
+                    // Matrix4::from_translation((0.0, 0.0, 0.0).into()) *
+                    // Matrix4::from_angle_z(Deg(45.0)) *
+                    // Matrix4::from_angle_y(Deg(88.0)) *
+                    Matrix4::from_translation((-1200.0, 900.0, 0.0).into()) *
+                    // Matrix4::from_angle_x(Deg(45.0)) *
+                    Matrix4::from_scale(3.0);
+
+
+                target.with_encoder_frame(&gx, |encoder, attachment| {
+                    encoder.draw(attachment,
                         Some(Color::GREEN),
                         &[
                             (&t_pipeline, &binding, t_vertices.slice(..), 0..t_data.len() as u32),
@@ -196,22 +211,7 @@ fn main() {
                             (&p_pipeline, &binding, p_vertices.slice(..), 0..p_data.len() as u32),
                         ]
                     );
-
-                    glyphs.add_text(
-                        vec![Text::new("Hey Ho!\nWhat is going on? Anyway?")
-                        .with_scale(50.0).with_color(Color::from([0x2,0x2,0x12]))],
-                        None, Some((200.0, f32::INFINITY)), None
-                    );
-
-                    let trf =
-                        // Matrix4::from_translation((0.0, 0.0, 0.0).into()) *
-                        // Matrix4::from_angle_z(Deg(45.0)) *
-                        // Matrix4::from_angle_y(Deg(88.0)) *
-                        Matrix4::from_translation((-1200.0, 900.0, 0.0).into()) *
-                        // Matrix4::from_angle_x(Deg(45.0)) *
-                        Matrix4::from_scale(3.0);
-
-                    gx.draw_glyphs(encoder, &mut glyphs, Some(trf), None);
+                    encoder.draw_glyphs(&gx, attachment, &mut glyphs, trf, None);
                 });
 
 

@@ -1,40 +1,6 @@
 
-
 use std::{ops::Range};
-use crate::Color;
-use cgmath::*;
-
-
-// Texture Format Option enum
-
-pub const OUTPUT_FORMAT:wgpu::TextureFormat = wgpu::TextureFormat::Bgra8UnormSrgb;
-pub const TEXTURE_FORMAT:wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
-pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
-
-
-#[derive(Debug)]
-pub enum TexOpt { Output, Texture, Depth }
-
-impl TexOpt {
-    pub fn select(format:Self) -> wgpu::TextureFormat {
-        match format {
-            TexOpt::Output => OUTPUT_FORMAT,
-            TexOpt::Texture => TEXTURE_FORMAT,
-            TexOpt::Depth => DEPTH_FORMAT
-        }
-    }
-}
-
-
-// matrix projection
-pub fn unit_view(fov_deg: f32, aspect:f32, unit: f32) -> Matrix4<f32> {
-    let dist = unit / Deg(fov_deg/2.0).tan();
-    Matrix4::from(PerspectiveFov {
-        fovy: Deg(fov_deg).into(),
-        aspect, near: unit/1.0e3, far: 2.0e3*dist,
-    }) *
-    Matrix4::<f32>::from_translation((0.0, 0.0, -dist).into())
-}
+use crate::{Color, RenderAttachment};
 
 
 // default view extension
@@ -67,7 +33,7 @@ pub trait EncoderExtension {
     );
     fn draw(
         &mut self,
-        view:(&wgpu::TextureView, Option<&wgpu::TextureView>, Option<&wgpu::TextureView>),
+        attachment:RenderAttachment,
         color:Option<Color>,
         draws:&[(&wgpu::RenderPipeline, &wgpu::BindGroup, wgpu::BufferSlice, Range<u32>)]
     );
@@ -77,7 +43,6 @@ pub trait EncoderExtension {
 
 impl EncoderExtension for wgpu::CommandEncoder {
 
-
     fn buffer_to_buffer(
         &mut self,
         src_buffer:&wgpu::Buffer, src_offset:wgpu::BufferAddress,
@@ -86,7 +51,6 @@ impl EncoderExtension for wgpu::CommandEncoder {
     ) {
         self.copy_buffer_to_buffer(src_buffer, src_offset, dst_buffer, dst_offset, size);
     }
-
 
     fn buffer_to_texture(
         &mut self,
@@ -101,7 +65,6 @@ impl EncoderExtension for wgpu::CommandEncoder {
             wgpu::Extent3d {width: w, height: h, depth: 1},
         );
     }
-
 
     fn texture_to_buffer(
         &mut self,
@@ -118,13 +81,9 @@ impl EncoderExtension for wgpu::CommandEncoder {
     }
 
 
-
-    // pass render function
-
     fn draw(
         &mut self,
-        (attachment, depth_attachment, mssa_attachment)
-        :(&wgpu::TextureView, Option<&wgpu::TextureView>, Option<&wgpu::TextureView>),
+        (attachment, depth_attachment, mssa_attachment):RenderAttachment,
         color:Option<Color>,
         draws:&[(&wgpu::RenderPipeline, &wgpu::BindGroup, wgpu::BufferSlice, Range<u32>)]
     ) {

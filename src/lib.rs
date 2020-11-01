@@ -1,26 +1,43 @@
 
-// all imports
+// passing external types
 
 pub use glsl_to_spirv::ShaderType;
-
 pub use wgpu::{
     BufferUsage as BuffUse, TextureUsage as TexUse, PrimitiveTopology as Primitive
 };
 
 
+// macros
+
 mod macros;
 pub use macros::*;
 
 
-mod byte_slice;
+// common types
 
+pub use cgmath::{prelude::*};
+
+mod byte_slice;
 
 mod color;
 pub use color::*;
 
 
-pub use cgmath::{prelude::*};
 
+// wgx
+
+mod wgpu_extensions;
+pub use wgpu_extensions::*;
+
+mod wgx;
+pub use wgx::*;
+
+mod render_target;
+pub use render_target::*;
+
+
+
+// features extensions
 
 pub use wgpu_glyph::Text;
 
@@ -28,16 +45,13 @@ mod glyph_extension;
 pub use glyph_extension::*;
 
 
-mod gx_helpers;
-pub use gx_helpers::*;
 
-mod gx;
-pub use gx::*; // all wgpu handling
+// extra modules
 
+mod projection;
+pub use projection::*;
 
 mod text_input;
 pub use text_input::*;
 
 
-/*mod refs;
-pub use refs::*;*/

@@ -4,6 +4,7 @@
 use std::{time::{Instant}, include_str};
 
 use winit::{
+    dpi::PhysicalSize,
     event_loop::{ControlFlow, EventLoop},
     window::Window, event::{Event, WindowEvent},
 };
@@ -22,10 +23,11 @@ fn main() {
     let event_loop = EventLoop::new();
 
     let window = Window::new(&event_loop).unwrap();
+    window.set_inner_size(PhysicalSize::<u32>::from((800, 600)));
     window.set_title("WgFx");
 
-
-    let mut gx = Gx::new(&window, DEPTH_TESTING, MSAA);
+    let mut gx = Wgx::new(Some(&window));
+    let mut target = gx.surface_target((800, 600), DEPTH_TESTING, MSAA).expect("render target failed");
 
 
     // global pipeline
@@ -39,8 +41,8 @@ fn main() {
         binding!(0, FRAGMENT, UniformBuffer, 16),
     ]);
 
-    let pipeline = gx.render_pipeline(
-        TexOpt::Output, DEPTH_TESTING, ALPHA_BLENDING, MSAA, &vs, &fs,
+    let pipeline = target.render_pipeline(
+        &gx, ALPHA_BLENDING, &vs, &fs,
         vertex_desc, Primitive::TriangleStrip, &layout
     );
 
@@ -48,7 +50,7 @@ fn main() {
 
     // colors
     let color_buffer = gx.buffer_from_data(BuffUse::UNIFORM, &[
-        Color::from((1.0, 0.0, 0.0)).f32()
+        Color::from([1.0, 0.0, 0.0]).f32()
     ]);
 
     let binding = gx.bind(&layout, &[
@@ -79,7 +81,7 @@ fn main() {
             },
 
             Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
-                gx.update(size.width, size.height, DEPTH_TESTING, MSAA);
+                target.update(&gx, (size.width, size.height));
             },
 
             Event::WindowEvent {
@@ -96,8 +98,8 @@ fn main() {
 
                 let then = Instant::now();
 
-                gx.with_encoder_frame(|encoder, gx| {
-                    gx.draw(encoder,
+                target.with_encoder_frame(&gx, |encoder, attachment| {
+                    encoder.draw(attachment,
                         Some(Color::GREEN),
                         &[
                             (&pipeline, &binding, vertices.slice(..), 0..data.len() as u32),

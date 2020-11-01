@@ -2252,6 +2252,7 @@ dependencies = [
  "futures",
  "glsl-to-spirv",
  "image",
+ "raw-window-handle",
  "wgpu",
  "wgpu_glyph",
  "winit",

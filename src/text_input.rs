@@ -1,5 +1,4 @@
 
-
 #[derive(Debug)]
 pub struct SimpleTextInput {
     text: String,

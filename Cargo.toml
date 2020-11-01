@@ -10,6 +10,7 @@ doctest = false
 
 [dependencies]
 wgpu = "0.6"
+raw-window-handle = "0.3"
 glsl-to-spirv = "0.1"
 cgmath = "0.17.0"
 wgpu_glyph = "0.10.0"
