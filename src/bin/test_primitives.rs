@@ -155,7 +155,7 @@ fn main() {
 
     let mut glyphs = gx.glyph_brush(OUTPUT, font_data).expect("invalid font");
 
-    let projection = unit_view(30.0, 8.0/6.0, 1000.0);
+    let projection = unit_fov_projection(30.0, 8.0/6.0, 1000.0);
 
 
     event_loop.run(move |event, _, control_flow| {

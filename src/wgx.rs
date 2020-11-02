@@ -123,6 +123,10 @@ impl Wgx {
         })
     }
 
+    pub fn write_buffer<T: AsByteSlice<U>, U>(&self, buffer:&wgpu::Buffer, offset:u64, data:T) {
+        self.queue.write_buffer(buffer, offset, data.as_byte_slice());
+    }
+
 
     // shader
 

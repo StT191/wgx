@@ -21,13 +21,16 @@ fn main() {
     const MSAA:u32 = 1;
 
 
+    // window setup
     let event_loop = EventLoop::new();
+
 
     let window = Window::new(&event_loop).unwrap();
     window.set_inner_size(PhysicalSize::<u32>::from((800, 600)));
     window.set_title("WgFx");
 
 
+    // wgx setup
     let mut gx = Wgx::new(Some(&window));
     let mut target = gx.surface_target((800, 600), DEPTH_TESTING, MSAA).expect("render target failed");
 
@@ -39,11 +42,12 @@ fn main() {
     let mut glyphs = gx.glyph_brush(OUTPUT, font_data).expect("invalid font");
 
 
-    let projection = unit_view(30.0, 8.0/6.0, 1000.0);
+    let projection = window_fov_projection(30.0, 800.0, 600.0);
 
 
     let mut text_input = SimpleTextInput::new("Hey Ho!\nWhat is going on? Anyway?\n");
     text_input.set_curser_end();
+
 
 
     event_loop.run(move |event, _, control_flow| {
