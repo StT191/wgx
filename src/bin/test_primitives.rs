@@ -3,7 +3,7 @@
 // imports
 use image;
 
-use std::{time::{Instant}, include_str, fs::File, io::Read};
+use std::{time::{Instant}, fs::read};
 
 use winit::{
     dpi::PhysicalSize,
@@ -37,7 +37,7 @@ fn main() {
 
 
     // global pipeline
-    let vs = gx.load_glsl(include_str!("../../shaders/pass_texcoord.vert"), ShaderType::Vertex);
+    let vs = gx.load_glsl(include_str!("../../shaders/pass_texC.vert"), ShaderType::Vertex);
     let fs = gx.load_glsl(include_str!("../../shaders/texture_flat.frag"), ShaderType::Fragment);
 
     // layout
@@ -100,7 +100,7 @@ fn main() {
     // picture pipeline
     let img = image::open("img/logo_red.png")
         .expect("failed loading image")
-        .into_rgba();
+        .into_rgba8();
 
     let (w, h) = (img.width(), img.height());
 
@@ -150,8 +150,7 @@ fn main() {
 
 
     // text_render
-    let mut font_data = Vec::new();
-    File::open("fonts/Destain-Xgma.ttf").expect("failed loading font").read_to_end(&mut font_data);
+    let font_data = read("fonts/font_active.ttf").expect("failed loading font");
 
     let mut glyphs = gx.glyph_brush(OUTPUT, font_data).expect("invalid font");
 

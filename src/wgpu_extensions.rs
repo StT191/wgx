@@ -88,6 +88,7 @@ impl EncoderExtension for wgpu::CommandEncoder {
         draws:&[(&wgpu::RenderPipeline, &wgpu::BindGroup, wgpu::BufferSlice, Range<u32>)]
     ) {
         let mut rpass = self.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: None,
             color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {
                 attachment: if let Some(ms_at) = mssa_attachment { ms_at } else { attachment },
                 resolve_target: if mssa_attachment.is_some() { Some(attachment) } else { None },

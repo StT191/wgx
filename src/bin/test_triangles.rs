@@ -1,7 +1,7 @@
 #![allow(unused)]
 
 // imports
-use std::{time::{Instant}, include_str};
+use std::{time::{Instant}};
 
 use winit::{
     dpi::PhysicalSize,
@@ -17,7 +17,7 @@ fn main() {
 
     const DEPTH_TESTING:bool = true;
     const MSAA:u32 = 8;
-    const ALPHA_BLENDING:bool = false;
+    const ALPHA_BLENDING:bool = true;
 
 
     let event_loop = EventLoop::new();
@@ -32,7 +32,7 @@ fn main() {
 
 
     // global pipeline
-    let vs = gx.load_glsl(include_str!("../../shaders/pass_texcoord.vert"), ShaderType::Vertex);
+    let vs = gx.load_glsl(include_str!("../../shaders/pass_texC.vert"), ShaderType::Vertex);
     let fs = gx.load_glsl(include_str!("../../shaders/texture_flat.frag"), ShaderType::Fragment);
 
 

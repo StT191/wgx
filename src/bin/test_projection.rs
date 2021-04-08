@@ -1,7 +1,7 @@
 #![allow(unused)]
 
 // imports
-use std::{time::{Instant}, include_str, convert::AsRef};
+use std::{time::{Instant}};
 
 use winit::{
     dpi::PhysicalSize,
@@ -34,7 +34,7 @@ fn main() {
 
 
     // global pipeline
-    let vs = gx.load_glsl(include_str!("../../shaders/projection_texcoord.vert"), ShaderType::Vertex);
+    let vs = gx.load_glsl(include_str!("../../shaders/proj_texC.vert"), ShaderType::Vertex);
     let fs = gx.load_glsl(include_str!("../../shaders/texture_flat.frag"), ShaderType::Fragment);
 
     let layout = gx.binding(&[
@@ -110,13 +110,13 @@ fn main() {
     ;
 
 
-    let mut pj_buffer = gx.buffer_from_data(BuffUse::UNIFORM | BuffUse::COPY_DST, AsRef::<[f32; 16]>::as_ref(&projection));
+    let pj_buffer = gx.buffer_from_data(BuffUse::UNIFORM | BuffUse::COPY_DST, AsRef::<[f32; 16]>::as_ref(&projection));
 
 
-    let mut binding = gx.bind(&layout, &[
+    let binding = gx.bind(&layout, &[
         bind!(0, TextureView, &texture_view),
         bind!(1, Sampler, &sampler),
-        bind!(2, Buffer, pj_buffer.slice(..)),
+        bind!(2, Buffer, &pj_buffer, 0, None),
     ]);
 
 

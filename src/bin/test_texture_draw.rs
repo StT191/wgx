@@ -1,7 +1,7 @@
 #![allow(unused)]
 
 // imports
-use std::{time::{Instant}, include_str};
+use std::{time::{Instant}};
 
 use winit::{
     dpi::PhysicalSize,
@@ -31,7 +31,7 @@ fn main() {
 
 
     // global pipeline
-    let vs = gx.load_glsl(include_str!("../../shaders/pass_texcoord.vert"), ShaderType::Vertex);
+    let vs = gx.load_glsl(include_str!("../../shaders/pass_texC.vert"), ShaderType::Vertex);
     let fs = gx.load_glsl(include_str!("../../shaders/texture_flat.frag"), ShaderType::Fragment);
 
     let layout = gx.binding(&[

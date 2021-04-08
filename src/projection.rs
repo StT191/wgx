@@ -14,7 +14,7 @@ pub fn unit_fov_projection(fov_deg: f32, aspect:f32, unit: f32) -> Matrix4<f32> 
 
 pub fn flat_window_projection(width: f32, height: f32) -> Matrix4<f32> {
     Matrix4::from_translation((-1.0, 1.0, 0.0).into()) *
-    Matrix4::from_nonuniform_scale(1.0/width, -1.0/height, 0.0)
+    Matrix4::from_nonuniform_scale(2.0/width, -2.0/height, 0.0)
 }
 
 

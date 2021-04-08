@@ -12,7 +12,7 @@ pub trait WgxGlyphBrushBuilderExtension {
         -> Result<GlyphBrush<(), FontArc>, InvalidFont>;
 
     fn glyph_brush_with_depth(&self, format:wgpu::TextureFormat, font_data:Vec<u8>)
-        -> Result<GlyphBrush<wgpu::DepthStencilStateDescriptor, FontArc>, InvalidFont>;
+        -> Result<GlyphBrush<wgpu::DepthStencilState, FontArc>, InvalidFont>;
 }
 
 impl WgxGlyphBrushBuilderExtension for Wgx {
@@ -26,16 +26,18 @@ impl WgxGlyphBrushBuilderExtension for Wgx {
 
 
     fn glyph_brush_with_depth(&self, format:wgpu::TextureFormat, font_data:Vec<u8>)
-        -> Result<GlyphBrush<wgpu::DepthStencilStateDescriptor, FontArc>, InvalidFont>
+        -> Result<GlyphBrush<wgpu::DepthStencilState, FontArc>, InvalidFont>
     {
         let font = FontArc::try_from_vec(font_data)?;
         Ok(
             GlyphBrushBuilder::using_font(font)
-            .depth_stencil_state(wgpu::DepthStencilStateDescriptor {
+            .depth_stencil_state(wgpu::DepthStencilState {
                 format: DEPTH,
                 depth_write_enabled: true,
                 depth_compare: wgpu::CompareFunction::LessEqual,
-                stencil: wgpu::StencilStateDescriptor::default()
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+                clamp_depth: false,
             })
             .build(&self.device, format)
         )
@@ -98,7 +100,7 @@ pub trait EncoderGlyphDrawExtension {
     ) -> Result<(), String>;
 
     fn draw_glyphs_with_depth(
-        &mut self, wgx: &Wgx, attachment: RenderAttachment, glypths: &mut GlyphBrush<wgpu::DepthStencilStateDescriptor>,
+        &mut self, wgx: &Wgx, attachment: RenderAttachment, glypths: &mut GlyphBrush<wgpu::DepthStencilState>,
         clear_depth:bool, transform: Matrix4<f32>, region: Option<[u32; 4]>
     ) -> Result<(), String>;
 }
@@ -130,7 +132,7 @@ impl EncoderGlyphDrawExtension for wgpu::CommandEncoder<> {
     }
 
     fn draw_glyphs_with_depth(
-        &mut self, wgx: &Wgx, attachment: RenderAttachment, glypths: &mut GlyphBrush<wgpu::DepthStencilStateDescriptor>,
+        &mut self, wgx: &Wgx, attachment: RenderAttachment, glypths: &mut GlyphBrush<wgpu::DepthStencilState>,
         clear_depth:bool, transform: Matrix4<f32>, region: Option<[u32; 4]>
     ) -> Result<(), String> {
 

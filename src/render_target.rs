@@ -4,7 +4,7 @@ use crate::{Wgx, OUTPUT, TexUse, DefaultViewExtension};
 
 // cloneable swapchain descriptor
 const SWAP_CHAIN_DESC:wgpu::SwapChainDescriptor = wgpu::SwapChainDescriptor {
-    usage: wgpu::TextureUsage::OUTPUT_ATTACHMENT,
+    usage: wgpu::TextureUsage::RENDER_ATTACHMENT,
     format: OUTPUT, width: 0, height: 0,
     present_mode: wgpu::PresentMode::Mailbox,
 };
@@ -24,7 +24,7 @@ pub trait RenderTarget {
 
     fn render_pipeline(
         &self, wgx: &Wgx, alpha_blend:bool, vs_module:&wgpu::ShaderModule, fs_module:&wgpu::ShaderModule,
-        vertex_layout:wgpu::VertexBufferDescriptor, topology:wgpu::PrimitiveTopology,
+        vertex_layout:wgpu::VertexBufferLayout, topology:wgpu::PrimitiveTopology,
         bind_group_layout:&wgpu::BindGroupLayout,
     ) -> wgpu::RenderPipeline {
         wgx.render_pipeline(
@@ -73,46 +73,58 @@ impl RenderTarget for TextureTarget {
 }
 
 
+
 impl TextureTarget {
 
     pub fn texture(&self) -> &wgpu::Texture { &self.texture }
     pub fn depth_texture(&self) -> Option<&wgpu::Texture> { self.depth_texture.as_ref() }
     pub fn msaa_texture(&self) -> Option<&wgpu::Texture> { self.msaa_texture.as_ref() }
 
-
     pub fn new(wgx:&Wgx,
-        (width, height):(u32, u32), depth_testing: bool, msaa:u32,
-        usage:wgpu::TextureUsage, format:wgpu::TextureFormat
+        size:(u32, u32), depth_testing: bool, msaa:u32, usage:wgpu::TextureUsage, format:wgpu::TextureFormat
     ) -> Self
     {
         // sample count is always one for output attachments
-        let texture = wgx.texture((width, height), 1, TexUse::OUTPUT_ATTACHMENT | usage, format);
+        let texture = wgx.texture(size, 1, TexUse::RENDER_ATTACHMENT | usage, format);
+        Self::from_texture(wgx, texture, size, depth_testing, msaa, format)
+    }
 
+    pub fn from_texture(wgx:&Wgx,
+        texture:wgpu::Texture, size:(u32, u32), depth_testing:bool, msaa:u32, format:wgpu::TextureFormat
+    ) -> Self
+    {
         let texture_view = texture.create_default_view();
 
-
-        let (depth_texture, depth_texture_view) = if depth_testing {
-            let depth_texture = wgx.depth_texture((width, height), msaa);
-            let depth_texture_view = depth_texture.create_default_view();
-            (Some(depth_texture), Some(depth_texture_view))
-        } else {
-            (None, None)
-        };
-
-        let (msaa_texture, msaa_texture_view) = if msaa > 1 {
-            let msaa_texture = wgx.msaa_texture((width, height), msaa, format);
-            let msaa_texture_view = msaa_texture.create_default_view();
-            (Some(msaa_texture), Some(msaa_texture_view))
-        } else {
-            (None, None)
-        };
+        let (depth_texture, depth_texture_view) = create_depth_option(wgx, size, depth_testing, msaa);
+        let (msaa_texture, msaa_texture_view) = create_msaa_option(wgx, size, msaa, format);
 
         Self {
-            format, size: (width, height), depth_testing, msaa,
+            format, size, depth_testing, msaa,
             texture, texture_view,
             depth_texture, depth_texture_view,
             msaa_texture, msaa_texture_view,
         }
+    }
+
+    pub fn from_texture_and_depth(wgx:&Wgx,
+        texture:wgpu::Texture, depth_texture:wgpu::Texture, size:(u32, u32), msaa:u32, format:wgpu::TextureFormat
+    ) -> Self
+    {
+        let texture_view = texture.create_default_view();
+
+        let depth_texture_view = Some(depth_texture.create_default_view());
+        let (msaa_texture, msaa_texture_view) = create_msaa_option(wgx, size, msaa, format);
+
+        Self {
+            format, size, depth_testing: true, msaa,
+            texture, texture_view,
+            depth_texture: Some(depth_texture), depth_texture_view,
+            msaa_texture, msaa_texture_view,
+        }
+    }
+
+    pub fn downgrade(self) -> (wgpu::Texture, Option<wgpu::Texture>) {
+        (self.texture, self.depth_texture)
     }
 }
 
@@ -164,7 +176,6 @@ impl SurfaceTarget {
 
         let swap_chain = wgx.device.create_swap_chain(&surface, &sc_desc);
 
-
         let mut target = Self {
             size: (width, height), depth_testing, msaa,
             surface, swap_chain, current_frame: None,
@@ -177,7 +188,6 @@ impl SurfaceTarget {
         Ok(target)
     }
 
-
     pub fn update(&mut self, wgx:&Wgx, (width, height):(u32, u32)) {
         self.size = (width, height);
 
@@ -187,19 +197,14 @@ impl SurfaceTarget {
 
         self.swap_chain = wgx.device.create_swap_chain(&self.surface, &sc_desc);
 
-        if self.depth_testing {
-            let depth_texture = wgx.depth_texture((width, height), self.msaa);
-            self.depth_texture_view = Some(depth_texture.create_default_view());
-            self.depth_texture = Some(depth_texture);
-        }
+        let (depth_texture, depth_texture_view) = create_depth_option(wgx, self.size, self.depth_testing, self.msaa);
+        self.depth_texture = depth_texture;
+        self.depth_texture_view = depth_texture_view;
 
-        if self.msaa > 1 {
-            let msaa_texture = wgx.msaa_texture((width, height), self.msaa, OUTPUT);
-            self.msaa_texture_view = Some(msaa_texture.create_default_view());
-            self.msaa_texture = Some(msaa_texture);
-        }
+        let (msaa_texture, msaa_texture_view) = create_msaa_option(wgx, self.size, self.msaa, OUTPUT);
+        self.msaa_texture = msaa_texture;
+        self.msaa_texture_view = msaa_texture_view;
     }
-
 
     pub fn with_encoder_frame<'a, F>(&mut self, wgx:&Wgx, handler: F) -> Result<(), wgpu::SwapChainError>
         where F: 'a + FnOnce(&mut wgpu::CommandEncoder, RenderAttachment)
@@ -212,6 +217,31 @@ impl SurfaceTarget {
 
         Ok(())
     }
-
 }
 
+
+
+// helper
+fn create_depth_option(wgx:&Wgx, size:(u32, u32), depth_testing:bool, msaa:u32) ->
+    (Option<wgpu::Texture>, Option<wgpu::TextureView>)
+{
+    if depth_testing {
+        let depth_texture = wgx.depth_texture(size, msaa);
+        let depth_texture_view = depth_texture.create_default_view();
+        (Some(depth_texture), Some(depth_texture_view))
+    } else {
+        (None, None)
+    }
+}
+
+fn create_msaa_option(wgx:&Wgx, size:(u32, u32), msaa:u32, format:wgpu::TextureFormat) ->
+    (Option<wgpu::Texture>, Option<wgpu::TextureView>)
+{
+    if msaa > 1 {
+        let msaa_texture = wgx.msaa_texture(size, msaa, format);
+        let msaa_texture_view = msaa_texture.create_default_view();
+        (Some(msaa_texture), Some(msaa_texture_view))
+    } else {
+        (None, None)
+    }
+}

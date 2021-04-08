@@ -22,6 +22,7 @@ mod byte_slice;
 mod color;
 pub use color::*;
 
+pub mod refs;
 
 
 // wgx
@@ -36,14 +37,12 @@ mod render_target;
 pub use render_target::*;
 
 
-
 // features extensions
 
 pub use wgpu_glyph::Text;
 
 mod glyph_extension;
 pub use glyph_extension::*;
-
 
 
 // extra modules

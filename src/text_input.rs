@@ -46,23 +46,6 @@ impl SimpleTextInput {
         else { false }
     }
 
-    pub fn set_curser(&mut self, positon: usize) -> bool {
-        let was = self.curser;
-        self.curser = 0;
-        for _ in 0..positon {
-            if !self.advance() { break }
-        }
-        self.curser != was
-    }
-
-    pub fn set_curser_end(&mut self) -> bool {
-        if self.curser != self.text.len() {
-            self.curser = self.text.len();
-            true
-        }
-        else { false }
-    }
-
     pub fn recede(&mut self) -> bool {
         if self.curser != 0 {
             loop {
@@ -74,11 +57,47 @@ impl SimpleTextInput {
         else { false }
     }
 
+    pub fn set_curser(&mut self, positon: usize) -> bool {
+        let was = self.curser;
+        self.curser = 0;
+        for _ in 0..positon {
+            if !self.advance() { break }
+        }
+        self.curser != was
+    }
+
+    pub fn advance_line(&mut self) -> bool {
+        let was = self.curser;
+        self.advance();
+        if let Some(pos) = self.text[self.curser..].find('\n') {
+            self.curser += pos;
+        }
+        else { self.curser = self.text.len() }
+        self.curser != was
+    }
+
+    pub fn recede_line(&mut self) -> bool {
+        let was = self.curser;
+        if let Some(pos) = self.text[..self.curser].rfind('\n') {
+            self.curser = pos;
+        }
+        else { self.curser = 0; }
+        self.curser != was
+    }
+
+    pub fn set_curser_end(&mut self) -> bool {
+        if self.curser != self.text.len() {
+            self.curser = self.text.len();
+            true
+        }
+        else { false }
+    }
+
 
     // char insertion
     pub fn insert(&mut self, character:char) -> bool {
         match (character, character.is_control()) {
-            ('\n', _) | ('\r', _) | (_, false) =>
+            ('\n', _) | (_, false) =>
             {
                 self.text.insert(self.curser, character);
                 self.advance();
