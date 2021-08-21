@@ -20,7 +20,7 @@ fn main() {
 
     const DEPTH_TESTING:bool = false;
     const ALPHA_BLENDING:bool = true;
-    const MSAA:u32 = 8;
+    const MSAA:u32 = 4;
 
 
     let event_loop = EventLoop::new();
@@ -48,7 +48,7 @@ fn main() {
 
 
     // colors
-    let color_texture = gx.texture((3, 1), 1, TexUse::SAMPLED | TexUse::COPY_DST, TEXTURE);
+    let color_texture = gx.texture((3, 1), 1, TexUse::TEXTURE_BINDING | TexUse::COPY_DST, TEXTURE);
     gx.write_texture(&color_texture, (0, 0, 3, 1), &[
         [255u8, 0, 0, 255], [0, 255, 0, 255], [0, 0, 255, 255],
     ]);
@@ -65,7 +65,7 @@ fn main() {
 
     // triangle pipeline
     let t_pipeline = target.render_pipeline(
-        &gx, ALPHA_BLENDING, &vs, &fs, vertex_desc![0 => Float3, 1 => Float2],
+        &gx, ALPHA_BLENDING, &vs, &fs, vertex_desc![0 => Float32x3, 1 => Float32x2],
         Primitive::TriangleStrip, &layout
     );
 
@@ -81,7 +81,7 @@ fn main() {
 
     // lines pipeline
     let l_pipeline = target.render_pipeline(
-        &gx, ALPHA_BLENDING, &vs, &fs, vertex_desc![0 => Float3, 1 => Float2],
+        &gx, ALPHA_BLENDING, &vs, &fs, vertex_desc![0 => Float32x3, 1 => Float32x2],
         Primitive::LineStrip, &layout
     );
 
@@ -104,7 +104,7 @@ fn main() {
 
     let (w, h) = (img.width(), img.height());
 
-    let image_texture = gx.texture((w, h), 1, TexUse::SAMPLED | TexUse::COPY_DST, TEXTURE);
+    let image_texture = gx.texture((w, h), 1, TexUse::TEXTURE_BINDING | TexUse::COPY_DST, TEXTURE);
 
     gx.write_texture(&image_texture, (0, 0, w, h), &img.as_raw().as_slice() );
 
@@ -119,7 +119,7 @@ fn main() {
 
 
     let i_pipeline = target.render_pipeline(
-        &gx, ALPHA_BLENDING, &vs, &fs, vertex_desc![0 => Float3, 1 => Float2],
+        &gx, ALPHA_BLENDING, &vs, &fs, vertex_desc![0 => Float32x3, 1 => Float32x2],
         Primitive::TriangleStrip, &layout
     );
 
@@ -135,7 +135,7 @@ fn main() {
 
     // points pipeline
     let p_pipeline = target.render_pipeline(
-        &gx, ALPHA_BLENDING, &vs, &fs, vertex_desc![0 => Float3, 1 => Float2],
+        &gx, ALPHA_BLENDING, &vs, &fs, vertex_desc![0 => Float32x3, 1 => Float32x2],
         Primitive::PointList, &layout
     );
 

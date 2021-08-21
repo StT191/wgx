@@ -1,5 +1,5 @@
 
-use std::{ops::Range};
+use std::{ops::Range, num::NonZeroU32};
 use crate::{Color, RenderAttachment};
 
 
@@ -58,11 +58,11 @@ impl EncoderExtension for wgpu::CommandEncoder {
         texture:&wgpu::Texture, (x, y, w, h):(u32, u32, u32, u32)
     ) {
         self.copy_buffer_to_texture(
-            wgpu::BufferCopyViewBase {
-                buffer, layout: wgpu::TextureDataLayout { offset, bytes_per_row: 4 * bf_w, rows_per_image: bf_h }
+            wgpu::ImageCopyBuffer {
+                buffer, layout: wgpu::ImageDataLayout { offset, bytes_per_row: NonZeroU32::new(4 * bf_w), rows_per_image: NonZeroU32::new(bf_h) }
             },
-            wgpu::TextureCopyViewBase { texture, mip_level: 0, origin: wgpu::Origin3d { x, y, z: 0, } },
-            wgpu::Extent3d {width: w, height: h, depth: 1},
+            wgpu::ImageCopyTexture { texture, mip_level: 0, origin: wgpu::Origin3d { x, y, z: 0, }, aspect: wgpu::TextureAspect::All },
+            wgpu::Extent3d {width: w, height: h, depth_or_array_layers: 1},
         );
     }
 
@@ -72,11 +72,11 @@ impl EncoderExtension for wgpu::CommandEncoder {
         buffer:&wgpu::Buffer, (bf_w, bf_h, offset):(u32, u32, u64)
     ) {
         self.copy_texture_to_buffer(
-            wgpu::TextureCopyViewBase { texture, mip_level: 0, origin: wgpu::Origin3d { x, y, z: 0, } },
-            wgpu::BufferCopyViewBase {
-                buffer, layout:  wgpu::TextureDataLayout { offset, bytes_per_row: 4 * bf_w, rows_per_image: bf_h }
+            wgpu::ImageCopyTexture { texture, mip_level: 0, origin: wgpu::Origin3d { x, y, z: 0, }, aspect: wgpu::TextureAspect::All },
+            wgpu::ImageCopyBuffer {
+                buffer, layout:  wgpu::ImageDataLayout { offset, bytes_per_row: NonZeroU32::new(4 * bf_w), rows_per_image: NonZeroU32::new(bf_h) }
             },
-            wgpu::Extent3d {width: w, height: h, depth: 1},
+            wgpu::Extent3d {width: w, height: h, depth_or_array_layers: 1},
         );
     }
 
@@ -89,8 +89,8 @@ impl EncoderExtension for wgpu::CommandEncoder {
     ) {
         let mut rpass = self.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
-            color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {
-                attachment: if let Some(ms_at) = mssa_attachment { ms_at } else { attachment },
+            color_attachments: &[wgpu::RenderPassColorAttachment {
+                view: if let Some(ms_at) = mssa_attachment { ms_at } else { attachment },
                 resolve_target: if mssa_attachment.is_some() { Some(attachment) } else { None },
                 ops: wgpu::Operations {
                     load: if let Some(cl) = color
@@ -100,8 +100,8 @@ impl EncoderExtension for wgpu::CommandEncoder {
                 }
             }],
             depth_stencil_attachment: if let Some(depth_attachment) = depth_attachment {
-              Some(wgpu::RenderPassDepthStencilAttachmentDescriptor {
-                attachment: depth_attachment,
+              Some(wgpu::RenderPassDepthStencilAttachment {
+                view: depth_attachment,
                 depth_ops: Some(wgpu::Operations {
                     load: if color.is_some() { wgpu::LoadOp::Clear(1.0) } else { wgpu::LoadOp::Load },
                     store: true

@@ -17,7 +17,7 @@ fn main() {
 
     const DEPTH_TESTING:bool = false;
     const ALPHA_BLENDING:bool = true;
-    const MSAA:u32 = 1;
+    const MSAA:u32 = 4;
 
 
     let event_loop = EventLoop::new();
@@ -40,14 +40,14 @@ fn main() {
     ]);
 
     let pipeline = target.render_pipeline(
-        &gx, ALPHA_BLENDING, &vs, &fs, vertex_desc![0 => Float3, 1 => Float2],
+        &gx, ALPHA_BLENDING, &vs, &fs, vertex_desc![0 => Float32x3, 1 => Float32x2],
         Primitive::TriangleList, &layout
     );
 
     let sampler = gx.sampler();
 
     // colors
-    let color_texture = gx.texture((2, 1), 1, TexUse::SAMPLED | TexUse::COPY_DST, TEXTURE);
+    let color_texture = gx.texture((2, 1), 1, TexUse::TEXTURE_BINDING | TexUse::COPY_DST, TEXTURE);
     gx.write_texture(&color_texture, (0, 0, 2, 1), &[
         (255u8, 0u8, 0u8, 255u8), (255, 0, 0, 255),
     ]);
@@ -58,10 +58,10 @@ fn main() {
     // draw texture
     let size = window.inner_size();
 
-    let draw_target = TextureTarget::new(&gx, (size.width, size.height), true, 8, TexUse::SAMPLED, TEXTURE);
+    let draw_target = TextureTarget::new(&gx, (size.width, size.height), true, 8, TexUse::TEXTURE_BINDING, TEXTURE);
 
     let draw_pipeline = draw_target.render_pipeline(
-        &gx, false, &vs, &fs, vertex_desc![0 => Float3, 1 => Float2],
+        &gx, false, &vs, &fs, vertex_desc![0 => Float32x3, 1 => Float32x2],
         Primitive::LineStrip, &layout
     );
 

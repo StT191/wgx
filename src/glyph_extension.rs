@@ -37,7 +37,6 @@ impl WgxGlyphBrushBuilderExtension for Wgx {
                 depth_compare: wgpu::CompareFunction::LessEqual,
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
-                clamp_depth: false,
             })
             .build(&self.device, format)
         )
@@ -138,8 +137,8 @@ impl EncoderGlyphDrawExtension for wgpu::CommandEncoder<> {
 
         let mut belt = StagingBelt::new(4*1024*1024);
 
-        let depth_ops = wgpu::RenderPassDepthStencilAttachmentDescriptor {
-            attachment: attachment.1.ok_or("deph attachment missing")?,
+        let depth_ops = wgpu::RenderPassDepthStencilAttachment {
+            view: attachment.1.ok_or("deph attachment missing")?,
             depth_ops: Some(wgpu::Operations {
                 load: if clear_depth { wgpu::LoadOp::Clear(1.0) } else { wgpu::LoadOp::Load },
                 store: true

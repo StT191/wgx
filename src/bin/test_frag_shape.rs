@@ -44,7 +44,7 @@ fn main() {
 
     let pipeline = target.render_pipeline(
         &gx, ALPHA_BLENDING, &vs, &fs,
-        vertex_desc![0 => Float2, 1 => Float4],
+        vertex_desc![0 => Float32x2, 1 => Float32x4],
         Primitive::TriangleList, &layout
     );
 

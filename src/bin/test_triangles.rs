@@ -16,7 +16,7 @@ use wgx::*;
 fn main() {
 
     const DEPTH_TESTING:bool = true;
-    const MSAA:u32 = 8;
+    const MSAA:u32 = 4;
     const ALPHA_BLENDING:bool = true;
 
 
@@ -44,14 +44,14 @@ fn main() {
 
     let pipeline = target.render_pipeline(
         &gx, ALPHA_BLENDING, &vs, &fs,
-        vertex_desc![0 => Float3, 1 => Float2],
+        vertex_desc![0 => Float32x3, 1 => Float32x2],
         Primitive::TriangleList, &layout
     );
 
     // first render
 
     // colors
-    let texture = gx.texture((2, 1), 1, TexUse::COPY_DST | TexUse::COPY_SRC  | TexUse::SAMPLED, TEXTURE);
+    let texture = gx.texture((2, 1), 1, TexUse::COPY_DST | TexUse::COPY_SRC  | TexUse::TEXTURE_BINDING, TEXTURE);
 
     gx.write_texture(&texture, (0, 0, 2, 1), &[
         (255u8, 0u8, 0u8, 255u8), (0, 0, 255, 50),
@@ -86,7 +86,7 @@ fn main() {
 
     // texture + sampler
 
-    let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+    let texture_view = texture.create_default_view();
     let sampler = gx.sampler();
 
     let binding = gx.bind(&layout, &[
@@ -143,6 +143,4 @@ fn main() {
             _ => {}
         }
     });
-
-    let rx = false;
 }

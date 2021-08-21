@@ -2,9 +2,9 @@
 use crate::{Wgx, OUTPUT, TexUse, DefaultViewExtension};
 
 
-// cloneable swapchain descriptor
-const SWAP_CHAIN_DESC:wgpu::SwapChainDescriptor = wgpu::SwapChainDescriptor {
-    usage: wgpu::TextureUsage::RENDER_ATTACHMENT,
+// cloneable surface configuration
+const SURFACE_CONFIGURATION:wgpu::SurfaceConfiguration = wgpu::SurfaceConfiguration {
+    usage: TexUse::RENDER_ATTACHMENT,
     format: OUTPUT, width: 0, height: 0,
     present_mode: wgpu::PresentMode::Mailbox,
 };
@@ -81,7 +81,7 @@ impl TextureTarget {
     pub fn msaa_texture(&self) -> Option<&wgpu::Texture> { self.msaa_texture.as_ref() }
 
     pub fn new(wgx:&Wgx,
-        size:(u32, u32), depth_testing: bool, msaa:u32, usage:wgpu::TextureUsage, format:wgpu::TextureFormat
+        size:(u32, u32), depth_testing: bool, msaa:u32, usage:wgpu::TextureUsages, format:wgpu::TextureFormat
     ) -> Self
     {
         // sample count is always one for output attachments
@@ -131,14 +131,17 @@ impl TextureTarget {
 
 
 pub struct SurfaceTarget {
-    size: (u32, u32),
+
+    config: wgpu::SurfaceConfiguration,
+
+    // size: (u32, u32),
     depth_testing: bool,
     msaa: u32,
 
     // texture / view
     surface: wgpu::Surface,
-    swap_chain: wgpu::SwapChain,
-    current_frame: Option<wgpu::SwapChainFrame>,
+    current_frame: Option<wgpu::SurfaceFrame>,
+    current_frame_view: Option<wgpu::TextureView>,
 
     depth_texture: Option<wgpu::Texture>,
     depth_texture_view: Option<wgpu::TextureView>,
@@ -152,14 +155,14 @@ impl RenderTarget for SurfaceTarget {
 
     fn attachment(&self) -> RenderAttachment {
         (
-            &self.current_frame.as_ref().expect("no current frame").output.view,
+            &self.current_frame_view.as_ref().expect("no current frame view"),
             self.depth_texture_view.as_ref(),
             self.msaa_texture_view.as_ref(),
         )
     }
 
     fn format(&self) -> wgpu::TextureFormat { OUTPUT }
-    fn size(&self) -> (u32, u32) { self.size }
+    fn size(&self) -> (u32, u32) { (self.config.width, self.config.height) }
     fn depth_testing(&self) -> bool { self.depth_testing }
     fn msaa(&self) -> u32 { self.msaa }
 }
@@ -170,15 +173,17 @@ impl SurfaceTarget {
     pub(super) fn new(wgx:&Wgx, surface:wgpu::Surface, (width, height):(u32, u32), depth_testing:bool, msaa:u32)
         -> Result<Self, String>
     {
-        let mut sc_desc = SWAP_CHAIN_DESC.clone();
-        sc_desc.width = width;
-        sc_desc.height = height;
+        let mut config = SURFACE_CONFIGURATION.clone();
+        config.width = width;
+        config.height = height;
 
-        let swap_chain = wgx.device.create_swap_chain(&surface, &sc_desc);
+        config.format = surface.get_preferred_format(&wgx.adapter).expect("couldn't get default format");
+
+        surface.configure(&wgx.device, &config);
 
         let mut target = Self {
-            size: (width, height), depth_testing, msaa,
-            surface, swap_chain, current_frame: None,
+            config, depth_testing, msaa,
+            surface, current_frame: None, current_frame_view: None,
             depth_texture: None, depth_texture_view: None,
             msaa_texture: None, msaa_texture_view: None,
         };
@@ -189,30 +194,30 @@ impl SurfaceTarget {
     }
 
     pub fn update(&mut self, wgx:&Wgx, (width, height):(u32, u32)) {
-        self.size = (width, height);
 
-        let mut sc_desc = SWAP_CHAIN_DESC.clone();
-        sc_desc.width = width;
-        sc_desc.height = height;
+        self.config.width = width;
+        self.config.height = height;
 
-        self.swap_chain = wgx.device.create_swap_chain(&self.surface, &sc_desc);
+        self.surface.configure(&wgx.device, &self.config);
 
-        let (depth_texture, depth_texture_view) = create_depth_option(wgx, self.size, self.depth_testing, self.msaa);
+        let (depth_texture, depth_texture_view) = create_depth_option(wgx, self.size(), self.depth_testing, self.msaa);
         self.depth_texture = depth_texture;
         self.depth_texture_view = depth_texture_view;
 
-        let (msaa_texture, msaa_texture_view) = create_msaa_option(wgx, self.size, self.msaa, OUTPUT);
+        let (msaa_texture, msaa_texture_view) = create_msaa_option(wgx, self.size(), self.msaa, self.format());
         self.msaa_texture = msaa_texture;
         self.msaa_texture_view = msaa_texture_view;
     }
 
-    pub fn with_encoder_frame<'a, F>(&mut self, wgx:&Wgx, handler: F) -> Result<(), wgpu::SwapChainError>
+    pub fn with_encoder_frame<'a, F>(&mut self, wgx:&Wgx, handler: F) -> Result<(), wgpu::SurfaceError>
         where F: 'a + FnOnce(&mut wgpu::CommandEncoder, RenderAttachment)
     {
-        self.current_frame = Some(self.swap_chain.get_current_frame()?);
+        self.current_frame = Some(self.surface.get_current_frame()?);
+        self.current_frame_view = Some(self.current_frame.as_ref().unwrap().output.texture.create_default_view());
 
         wgx.with_encoder(|mut encoder| { handler(&mut encoder, self.attachment()) });
 
+        self.current_frame_view = None;
         self.current_frame = None;
 
         Ok(())

@@ -3,7 +3,7 @@
 
 pub use glsl_to_spirv::ShaderType;
 pub use wgpu::{
-    BufferUsage as BuffUse, TextureUsage as TexUse, PrimitiveTopology as Primitive
+    BufferUsages as BuffUse, TextureUsages as TexUse, PrimitiveTopology as Primitive
 };
 
 
