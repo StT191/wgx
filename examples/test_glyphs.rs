@@ -36,7 +36,7 @@ fn main() {
 
 
     // text_render
-    // let font_data = include_bytes!("../../fonts/font_active.ttf");
+    // let font_data = include_bytes!("../fonts/font_active.ttf");
     let font_data = read("fonts/font_active.ttf").expect("failed loading font");
 
     let mut glyphs = gx.glyph_brush(OUTPUT, font_data).expect("invalid font");

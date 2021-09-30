@@ -37,8 +37,8 @@ fn main() {
 
 
     // global pipeline
-    let vs = gx.load_glsl(include_str!("../../shaders/pass_texC.vert"), ShaderType::Vertex);
-    let fs = gx.load_glsl(include_str!("../../shaders/texture_flat.frag"), ShaderType::Fragment);
+    let vs = gx.load_glsl(include_str!("../shaders/pass_texC.vert"), ShaderType::Vertex);
+    let fs = gx.load_glsl(include_str!("../shaders/texture_flat.frag"), ShaderType::Fragment);
 
     // layout
     let layout = gx.binding(&[

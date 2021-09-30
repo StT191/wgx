@@ -33,8 +33,8 @@ fn main() {
 
 
     // pipeline
-    let vs = gx.load_glsl(include_str!("../../shaders/proj_2d_vNorm_passCol.vert"), ShaderType::Vertex);
-    let fs = gx.load_glsl(include_str!("../../shaders/circle_flat.frag"), ShaderType::Fragment);
+    let vs = gx.load_glsl(include_str!("../shaders/proj_2d_vNorm_passCol.vert"), ShaderType::Vertex);
+    let fs = gx.load_glsl(include_str!("../shaders/circle_flat.frag"), ShaderType::Fragment);
 
     let layout = gx.binding(&[
         binding!(0, VERTEX, UniformBuffer, 64),

@@ -1,7 +1,5 @@
 
 // passing external types
-
-pub use glsl_to_spirv::ShaderType;
 pub use wgpu::{
     BufferUsages as BuffUse, TextureUsages as TexUse, PrimitiveTopology as Primitive
 };
@@ -37,11 +35,17 @@ mod render_target;
 pub use render_target::*;
 
 
-// features extensions
+// extensions
 
+#[cfg(feature = "spirv")]
+pub use glsl_to_spirv::ShaderType;
+
+#[cfg(feature = "glyph")]
 pub use wgpu_glyph::Text;
 
+#[cfg(feature = "glyph")]
 mod glyph_extension;
+#[cfg(feature = "glyph")]
 pub use glyph_extension::*;
 
 

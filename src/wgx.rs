@@ -1,7 +1,13 @@
 
+#[cfg(feature = "spirv")]
 use glsl_to_spirv::ShaderType;
+
+#[cfg(feature = "spirv")]
+use std::io::{Read, Seek};
+
 use futures::executor::block_on;
-use std::{io::{Read, Seek}, num::NonZeroU32};
+use std::num::NonZeroU32;
+
 use wgpu::util::DeviceExt;
 use raw_window_handle::HasRawWindowHandle;
 use crate::byte_slice::AsByteSlice;
@@ -136,6 +142,7 @@ impl Wgx {
 
     // shader
 
+    #[cfg(feature = "glyph")]
     pub fn load_spirv<R:Read+Seek>(&self, mut shader_spirv:R) -> wgpu::ShaderModule {
         let mut data = Vec::new();
         let _ = shader_spirv.read_to_end(&mut data);
@@ -145,6 +152,7 @@ impl Wgx {
         unsafe { self.device.create_shader_module_spirv(&wgpu::ShaderModuleDescriptorSpirV { label: None, source }) }*/
     }
 
+    #[cfg(feature = "glyph")]
     pub fn load_glsl(&self, code:&str, ty:ShaderType) -> wgpu::ShaderModule {
         self.load_spirv(glsl_to_spirv::compile(&code, ty).unwrap())
     }
