@@ -84,7 +84,7 @@ fn main() {
 
     // first render
     gx.with_encoder(|encoder| {
-        encoder.draw(draw_target.attachment(), Some(Color::TRANSPARENT), &[
+        encoder.draw(&draw_target.attachment(), Some(Color::TRANSPARENT), &[
             (&draw_pipeline, &binding, draw_vertices.slice(..), 0..A as u32),
         ]);
     });
@@ -94,7 +94,7 @@ fn main() {
 
     // real draw
     let binding = gx.bind(&layout, &[
-        bind!(0, TextureView, &draw_target.attachment().0),
+        bind!(0, TextureView, &draw_target.attachment().view),
         bind!(1, Sampler, &sampler),
     ]);
 

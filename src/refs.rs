@@ -34,7 +34,7 @@ impl<T> DerefMut for Flr<T> { fn deref_mut(&mut self) -> &mut Self::Target {
 
 impl<T> From<T> for Flr<T> { fn from(other: T) -> Self { Self(UnsafeCell::from(other).into()) } }
 
-impl<T> Hash for Flr<T> { fn hash<H: Hasher>(&self, state: &mut H) { self.0.get().hash(state) } }
+impl<T> Hash for Flr<T> { fn hash<H: Hasher>(&self, state:&mut H) { self.0.get().hash(state) } }
 impl<T> PartialEq<Flr<T>> for Flr<T> { fn eq(&self, other: &Self) -> bool { self.0.get() == other.0.get() } }
 impl<T> Eq for Flr<T> {}
 
@@ -42,7 +42,7 @@ impl<T> Clone for Flr<T> { fn clone(&self) -> Self { Self(self.0.clone()) } }
 
 
 impl<T: Debug> Debug for Flr<T> {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, formatter:&mut Formatter<'_>) -> fmt::Result {
         (**self).fmt(formatter)
     }
 }

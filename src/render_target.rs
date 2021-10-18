@@ -10,7 +10,11 @@ const SURFACE_CONFIGURATION:wgpu::SurfaceConfiguration = wgpu::SurfaceConfigurat
 };
 
 
-pub type RenderAttachment<'a> = (&'a wgpu::TextureView, Option<&'a wgpu::TextureView>, Option<&'a wgpu::TextureView>);
+pub struct RenderAttachment<'a> {
+    pub view: &'a wgpu::TextureView,
+    pub depth: Option<&'a wgpu::TextureView>,
+    pub msaa: Option<&'a wgpu::TextureView>,
+}
 
 
 pub trait RenderTarget {
@@ -59,11 +63,11 @@ pub struct TextureTarget {
 impl RenderTarget for TextureTarget {
 
     fn attachment(&self) -> RenderAttachment {
-        (
-            &self.texture_view,
-            self.depth_texture_view.as_ref(),
-            self.msaa_texture_view.as_ref(),
-        )
+        RenderAttachment {
+            view: &self.texture_view,
+            depth: self.depth_texture_view.as_ref(),
+            msaa: self.msaa_texture_view.as_ref(),
+        }
     }
 
     fn format(&self) -> wgpu::TextureFormat { self.format }
@@ -154,11 +158,11 @@ pub struct SurfaceTarget {
 impl RenderTarget for SurfaceTarget {
 
     fn attachment(&self) -> RenderAttachment {
-        (
-            &self.current_frame_view.as_ref().expect("no current frame view"),
-            self.depth_texture_view.as_ref(),
-            self.msaa_texture_view.as_ref(),
-        )
+        RenderAttachment {
+            view: &self.current_frame_view.as_ref().expect("no current frame view"),
+            depth: self.depth_texture_view.as_ref(),
+            msaa: self.msaa_texture_view.as_ref(),
+        }
     }
 
     fn format(&self) -> wgpu::TextureFormat { OUTPUT }
@@ -210,12 +214,12 @@ impl SurfaceTarget {
     }
 
     pub fn with_encoder_frame<'a, F>(&mut self, wgx:&Wgx, handler: F) -> Result<(), wgpu::SurfaceError>
-        where F: 'a + FnOnce(&mut wgpu::CommandEncoder, RenderAttachment)
+        where F: 'a + FnOnce(&mut wgpu::CommandEncoder, &RenderAttachment)
     {
         self.current_frame = Some(self.surface.get_current_frame()?);
         self.current_frame_view = Some(self.current_frame.as_ref().unwrap().output.texture.create_default_view());
 
-        wgx.with_encoder(|mut encoder| { handler(&mut encoder, self.attachment()) });
+        wgx.with_encoder(|mut encoder| handler(&mut encoder, &self.attachment()));
 
         self.current_frame_view = None;
         self.current_frame = None;

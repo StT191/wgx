@@ -26,11 +26,19 @@ fn main() {
     let event_loop = EventLoop::new();
 
     let window = Window::new(&event_loop).unwrap();
-    window.set_inner_size(PhysicalSize::<u32>::from((800, 600)));
+
+    // size
+    let sf = window.scale_factor() as f32;
+
+    let width = (sf * 800.0) as u32;
+    let heigh = (sf * 600.0) as u32;
+
+    window.set_inner_size(PhysicalSize::<u32>::from((width, heigh)));
     window.set_title("WgFx");
 
+
     let mut gx = Wgx::new(Some(&window));
-    let mut target = gx.surface_target((800, 600), DEPTH_TESTING, MSAA).expect("render target failed");
+    let mut target = gx.surface_target((width, heigh), DEPTH_TESTING, MSAA).expect("render target failed");
 
     // clear
     // gx.pass_frame_render(Some(Color::GREEN), &[]);
@@ -154,7 +162,7 @@ fn main() {
 
     let mut glyphs = gx.glyph_brush(OUTPUT, font_data).expect("invalid font");
 
-    let projection = unit_fov_projection(30.0, 8.0/6.0, 1000.0);
+    let projection = unit_fov_projection(30.0, width as f32 / heigh as f32, sf*1000.0);
 
 
     event_loop.run(move |event, _, control_flow| {
@@ -186,8 +194,8 @@ fn main() {
 
                 glyphs.add_text(
                     vec![Text::new("Hey Ho!\nWhat is going on? Anyway?")
-                    .with_scale(50.0).with_color(Color::from([0x2,0x2,0x12]))],
-                    None, Some((200.0, f32::INFINITY)), None
+                    .with_scale(sf*50.0).with_color(Color::from([0x2,0x2,0x12]))],
+                    None, Some((sf*200.0, f32::INFINITY)), None
                 );
 
                 let trf =
@@ -195,7 +203,7 @@ fn main() {
                     // Matrix4::from_translation((0.0, 0.0, 0.0).into()) *
                     // Matrix4::from_angle_z(Deg(45.0)) *
                     // Matrix4::from_angle_y(Deg(88.0)) *
-                    Matrix4::from_translation((-1200.0, 900.0, 0.0).into()) *
+                    Matrix4::from_translation((-sf*1200.0, sf*900.0, 0.0).into()) *
                     // Matrix4::from_angle_x(Deg(45.0)) *
                     Matrix4::from_scale(3.0);
 
@@ -210,7 +218,7 @@ fn main() {
                             (&p_pipeline, &binding, p_vertices.slice(..), 0..p_data.len() as u32),
                         ]
                     );
-                    encoder.draw_glyphs(&gx, attachment, &mut glyphs, trf, None);
+                    encoder.draw_glyphs(&gx, attachment, &mut glyphs, trf, None, None);
                 });
 
 

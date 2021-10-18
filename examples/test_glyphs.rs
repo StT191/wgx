@@ -26,13 +26,13 @@ fn main() {
 
 
     let window = Window::new(&event_loop).unwrap();
-    window.set_inner_size(PhysicalSize::<u32>::from((1600, 1600)));
+    window.set_inner_size(PhysicalSize::<u32>::from((1200, 1000)));
     window.set_title("WgFx");
 
 
     // wgx setup
     let mut gx = Wgx::new(Some(&window));
-    let mut target = gx.surface_target((1600, 1600), DEPTH_TESTING, MSAA).expect("render target failed");
+    let mut target = gx.surface_target((1200, 1000), DEPTH_TESTING, MSAA).expect("render target failed");
 
 
     // text_render
@@ -43,6 +43,9 @@ fn main() {
 
     let mut text_input = SimpleTextInput::new("Hey Ho!\nWhat is going on? Anyway?\n");
     text_input.set_curser_end();
+
+
+    let mut staging_belt = wgpu::util::StagingBelt::new(10240);
 
 
     event_loop.run(move |event, _, control_flow| {
@@ -123,8 +126,11 @@ fn main() {
 
                 target.with_encoder_frame(&gx, |encoder, attachment| {
                     encoder.draw(attachment, Some(Color::GREEN), &[]);
-                    encoder.draw_glyphs(&gx, attachment, &mut glyphs, trf, None);
+                    encoder.draw_glyphs(&gx, attachment, &mut glyphs, trf, None, Some(&mut staging_belt));
+                    staging_belt.finish();
                 });
+
+                // futures::executor::block_on(staging_belt.recall());
 
 
                 println!("{:?}", then.elapsed());

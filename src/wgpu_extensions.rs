@@ -32,9 +32,7 @@ pub trait EncoderExtension {
         buffer:&wgpu::Buffer, bf_extend:(u32, u32, u64),
     );
     fn draw(
-        &mut self,
-        attachment:RenderAttachment,
-        color:Option<Color>,
+        &mut self, attachment:&RenderAttachment, color:Option<Color>,
         draws:&[(&wgpu::RenderPipeline, &wgpu::BindGroup, wgpu::BufferSlice, Range<u32>)]
     );
 }
@@ -82,16 +80,14 @@ impl EncoderExtension for wgpu::CommandEncoder {
 
 
     fn draw(
-        &mut self,
-        (attachment, depth_attachment, mssa_attachment):RenderAttachment,
-        color:Option<Color>,
+        &mut self, attachment:&RenderAttachment, color:Option<Color>,
         draws:&[(&wgpu::RenderPipeline, &wgpu::BindGroup, wgpu::BufferSlice, Range<u32>)]
     ) {
         let mut rpass = self.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
             color_attachments: &[wgpu::RenderPassColorAttachment {
-                view: if let Some(ms_at) = mssa_attachment { ms_at } else { attachment },
-                resolve_target: if mssa_attachment.is_some() { Some(attachment) } else { None },
+                view: if let Some(ms_at) = attachment.msaa { ms_at } else { attachment.view },
+                resolve_target: if attachment.msaa.is_some() { Some(attachment.view) } else { None },
                 ops: wgpu::Operations {
                     load: if let Some(cl) = color
                         { wgpu::LoadOp::Clear( cl.into() ) }
@@ -99,7 +95,7 @@ impl EncoderExtension for wgpu::CommandEncoder {
                     store: true
                 }
             }],
-            depth_stencil_attachment: if let Some(depth_attachment) = depth_attachment {
+            depth_stencil_attachment: if let Some(depth_attachment) = attachment.depth {
               Some(wgpu::RenderPassDepthStencilAttachment {
                 view: depth_attachment,
                 depth_ops: Some(wgpu::Operations {

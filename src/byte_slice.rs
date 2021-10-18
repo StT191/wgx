@@ -31,7 +31,7 @@ pub enum Error {
 }
 
 impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, f:&mut fmt::Formatter) -> Result<(), fmt::Error> {
         match self {
             Error::AlignmentMismatch {
                 dst_type,
@@ -145,7 +145,7 @@ where
     Self: Sized,
 {
     fn from_byte_slice<T: AsRef<[u8]> + ?Sized>(slice: &T) -> Result<&[Self], Error>;
-    fn from_mut_byte_slice<T: AsMut<[u8]> + ?Sized>(slice: &mut T) -> Result<&mut [Self], Error>;
+    fn from_mut_byte_slice<T: AsMut<[u8]> + ?Sized>(slice:&mut T) -> Result<&mut [Self], Error>;
 }
 
 
@@ -161,7 +161,7 @@ pub unsafe trait ToMutByteSlice
 where
     Self: Sized,
 {
-    fn to_mut_byte_slice<T: AsMut<[Self]> + ?Sized>(slice: &mut T) -> &mut [u8];
+    fn to_mut_byte_slice<T: AsMut<[Self]> + ?Sized>(slice:&mut T) -> &mut [u8];
 }
 
 
@@ -183,7 +183,7 @@ unsafe impl<U: Sized> FromByteSlice for U {
         }
     }
 
-    fn from_mut_byte_slice<T: AsMut<[u8]> + ?Sized>(slice: &mut T) -> Result<&mut [U], Error> {
+    fn from_mut_byte_slice<T: AsMut<[u8]> + ?Sized>(slice:&mut T) -> Result<&mut [U], Error> {
         let slice = slice.as_mut();
         let len = check_constraints::<U>(slice)?;
 
@@ -211,7 +211,7 @@ unsafe impl<U: Sized> ToByteSlice for U {
 
 unsafe impl<U: Sized> ToMutByteSlice for U {
 
-    fn to_mut_byte_slice<T: AsMut<[U]> + ?Sized>(slice: &mut T) -> &mut [u8] {
+    fn to_mut_byte_slice<T: AsMut<[U]> + ?Sized>(slice:&mut T) -> &mut [u8] {
         let slice = slice.as_mut();
         let len = slice.len() * mem::size_of::<U>();
         unsafe {
