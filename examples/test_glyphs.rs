@@ -21,6 +21,10 @@ fn main() {
     const MSAA:u32 = 1;
 
 
+    use futures::task::SpawnExt;
+    let mut local_pool = futures::executor::LocalPool::new();
+
+
     // window setup
     let event_loop = EventLoop::new();
 
@@ -129,8 +133,6 @@ fn main() {
                     encoder.draw_glyphs(&gx, attachment, &mut glyphs, trf, None, Some(&mut staging_belt));
                     staging_belt.finish();
                 });
-
-                // futures::executor::block_on(staging_belt.recall());
 
 
                 println!("{:?}", then.elapsed());

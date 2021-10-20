@@ -15,12 +15,12 @@ glyph = ["wgpu_glyph"]
 spirv = ["glsl-to-spirv", "wgpu/spirv"]
 
 [dependencies]
-wgpu = { version = "0.10" }
+wgpu = { version = "0.11" }
 futures = "0.3"
 raw-window-handle = "0.3"
 cgmath = "0.18"
 glsl-to-spirv = { version = "0.1", optional = true }
-wgpu_glyph = { version = "0.14", optional = true }
+wgpu_glyph = { version = "0.15", optional = true }
 
 [dev-dependencies]
 winit = "0.25"

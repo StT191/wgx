@@ -144,7 +144,7 @@ pub struct SurfaceTarget {
 
     // texture / view
     surface: wgpu::Surface,
-    current_frame: Option<wgpu::SurfaceFrame>,
+    current_frame: Option<wgpu::SurfaceTexture>,
     current_frame_view: Option<wgpu::TextureView>,
 
     depth_texture: Option<wgpu::Texture>,
@@ -216,13 +216,15 @@ impl SurfaceTarget {
     pub fn with_encoder_frame<'a, F>(&mut self, wgx:&Wgx, handler: F) -> Result<(), wgpu::SurfaceError>
         where F: 'a + FnOnce(&mut wgpu::CommandEncoder, &RenderAttachment)
     {
-        self.current_frame = Some(self.surface.get_current_frame()?);
-        self.current_frame_view = Some(self.current_frame.as_ref().unwrap().output.texture.create_default_view());
+        self.current_frame = Some(self.surface.get_current_texture()?);
+        self.current_frame_view = Some(self.current_frame.as_ref().unwrap().texture.create_default_view());
 
         wgx.with_encoder(|mut encoder| handler(&mut encoder, &self.attachment()));
 
         self.current_frame_view = None;
-        self.current_frame = None;
+
+        let current_frame = self.current_frame.take().unwrap();
+        current_frame.present();
 
         Ok(())
     }
