@@ -49,6 +49,14 @@ mod glyph_extension;
 pub use glyph_extension::*;
 
 
+// iced
+
+#[cfg(feature = "iced")]
+mod iced;
+#[cfg(feature = "iced")]
+pub use iced::Iced;
+
+
 // extra modules
 
 mod projection;

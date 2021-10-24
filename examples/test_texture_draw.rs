@@ -1,6 +1,4 @@
-#![allow(unused)]
 
-// imports
 use std::{time::{Instant}};
 
 use winit::{
@@ -12,106 +10,99 @@ use winit::{
 use wgx::*;
 
 
-// main
 fn main() {
 
     const DEPTH_TESTING:bool = false;
-    const ALPHA_BLENDING:bool = true;
-    const MSAA:u32 = 4;
+    const ALPHA_BLENDING:bool = false;
+    const MSAA:u32 = 1;
 
 
     let event_loop = EventLoop::new();
 
     let window = Window::new(&event_loop).unwrap();
-    window.set_inner_size(PhysicalSize::<u32>::from((800, 600)));
+
+    // size
+    let sf = window.scale_factor() as f32;
+
+    let width = (sf * 800.0) as u32;
+    let height = (sf * 600.0) as u32;
+
+    window.set_inner_size(PhysicalSize::<u32>::from((width, height)));
     window.set_title("WgFx");
 
+
     let mut gx = Wgx::new(Some(&window));
-    let mut target = gx.surface_target((800, 600), DEPTH_TESTING, MSAA).expect("render target failed");
+    let mut target = gx.surface_target((width, height), DEPTH_TESTING, MSAA).expect("render target failed");
 
 
-    // global pipeline
+    // shaders
     let vs = gx.load_glsl(include_str!("../shaders/pass_texC.vert"), ShaderType::Vertex);
     let fs = gx.load_glsl(include_str!("../shaders/texture_flat.frag"), ShaderType::Fragment);
 
+
+    // layout
     let layout = gx.binding(&[
         binding!(0, FRAGMENT, SampledTexture),
         binding!(1, FRAGMENT, Sampler)
     ]);
 
+
+    // pipeline
     let pipeline = target.render_pipeline(
         &gx, ALPHA_BLENDING, &vs, &fs, vertex_desc![0 => Float32x3, 1 => Float32x2],
-        Primitive::TriangleList, &layout
+        Primitive::TriangleStrip, &layout
     );
 
+
+    // sampler
     let sampler = gx.sampler();
 
+
+    // vertices
+    let vertex_data = [
+        ([ 0.5,  0.5, 0.0f32], [1.0, 0.0f32]),
+        ([-0.5,  0.5, 0.0], [0.0, 0.0]),
+        ([ 0.5, -0.5, 0.0], [1.0, 1.0]),
+        ([-0.5, -0.5, 0.0], [0.0, 1.0]),
+    ];
+    let vertices = gx.buffer_from_data(BuffUse::VERTEX, &vertex_data[..]);
+
+
     // colors
-    let color_texture = gx.texture((2, 1), 1, TexUse::TEXTURE_BINDING | TexUse::COPY_DST, TEXTURE);
-    gx.write_texture(&color_texture, (0, 0, 2, 1), &[
-        (255u8, 0u8, 0u8, 255u8), (255, 0, 0, 255),
-    ]);
+    let color_texture = gx.texture((1, 1), 1, TexUse::TEXTURE_BINDING | TexUse::COPY_DST, TEXTURE);
+    gx.write_texture(&color_texture, (0, 0, 1, 1), &[Color::RED.u8()]);
     let color_texture_view = color_texture.create_default_view();
 
 
 
-    // draw texture
-    let size = window.inner_size();
-
-    let draw_target = TextureTarget::new(&gx, (size.width, size.height), true, 1, TexUse::TEXTURE_BINDING, TEXTURE);
+    // draw target
+    let draw_target = TextureTarget::new(&gx, (width, height), false, 1, TexUse::TEXTURE_BINDING, TEXTURE);
 
     let draw_pipeline = draw_target.render_pipeline(
         &gx, false, &vs, &fs, vertex_desc![0 => Float32x3, 1 => Float32x2],
-        Primitive::LineStrip, &layout
+        Primitive::TriangleStrip, &layout
     );
 
-    // draw_vertices
-    const A:usize = 4;
-
-    let data:[((f32, f32, f32), (f32, f32)); A] = [
-        (( 0.5,  0.5, 0.0), (1.0, 1.0)),
-        ((-0.5,  0.5, 0.0), (1.0, 1.0)),
-        ((-0.5, -0.5, 0.0), (1.0, 1.0)),
-        (( 0.5,  0.5, 0.0), (1.0, 1.0)),
-    ];
-
-    let draw_vertices = gx.buffer_from_data(BuffUse::VERTEX, &data[..]);
-
-    let binding = gx.bind(&layout, &[
+    let draw_binding = gx.bind(&layout, &[
         bind!(0, TextureView, &color_texture_view),
         bind!(1, Sampler, &sampler),
     ]);
 
-    // first render
-    gx.with_encoder(|encoder| {
-        encoder.draw(&draw_target.attachment(), Some(Color::TRANSPARENT), &[
-            (&draw_pipeline, &binding, draw_vertices.slice(..), 0..A as u32),
-        ]);
-    });
+    target.with_encoder_frame(&gx, |encoder, attachment| { // !! ecoder witout draw to attachment produces hang!
+        encoder.draw(&draw_target.attachment(), Some(Color::YELLOW),
+            &[(&draw_pipeline, &draw_binding, vertices.slice(..), 0..vertex_data.len() as u32)]
+        );
+        encoder.draw(attachment, None, &[]);
+    }).expect("frame error");
 
 
 
-
-    // real draw
+    // binding
     let binding = gx.bind(&layout, &[
         bind!(0, TextureView, &draw_target.attachment().view),
         bind!(1, Sampler, &sampler),
     ]);
 
-
-    let data = [
-        ((-1.0f32, -1.0f32, 0.0f32), (0.0f32, 0.0f32)),
-        (( 1.0, -1.0, 0.0), (1.0, 0.0)),
-        (( 1.0,  1.0, 0.0), (1.0, 1.0)),
-
-        (( 1.0,  1.0, 0.0), (1.0, 1.0)),
-        ((-1.0,  1.0, 0.0), (0.0, 1.0)),
-        ((-1.0, -1.0, 0.0), (0.0, 0.0)),
-    ];
-    let vertices = gx.buffer_from_data(BuffUse::VERTEX, &data[..]);
-
-
-    // event loop
 
     event_loop.run(move |event, _, control_flow| {
 
@@ -140,16 +131,13 @@ fn main() {
 
                 let then = Instant::now();
 
-
                 target.with_encoder_frame(&gx, |encoder, attachment| {
-                    encoder.draw(attachment,
-                        Some(Color::GREEN),
-                        &[
-                            (&pipeline, &binding, vertices.slice(..), 0..data.len() as u32),
-                        ],
-                    );
-                });
 
+                    encoder.draw(attachment, Some(Color::GREEN), &[
+                        (&pipeline, &binding, vertices.slice(..), 0..vertex_data.len() as u32),
+                    ]);
+
+                }).expect("frame error");
 
                 println!("{:?}", then.elapsed());
             },

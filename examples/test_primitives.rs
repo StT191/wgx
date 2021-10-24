@@ -40,9 +40,6 @@ fn main() {
     let mut gx = Wgx::new(Some(&window));
     let mut target = gx.surface_target((width, heigh), DEPTH_TESTING, MSAA).expect("render target failed");
 
-    // clear
-    // gx.pass_frame_render(Some(Color::GREEN), &[]);
-
 
     // global pipeline
     let vs = gx.load_glsl(include_str!("../shaders/pass_texC.vert"), ShaderType::Vertex);
@@ -114,7 +111,7 @@ fn main() {
 
     let image_texture = gx.texture((w, h), 1, TexUse::TEXTURE_BINDING | TexUse::COPY_DST, TEXTURE);
 
-    gx.write_texture(&image_texture, (0, 0, w, h), &img.as_raw().as_slice() );
+    gx.write_texture(&image_texture, (0, 0, w, h), &img.as_raw().as_slice());
 
     let image_texture_view = image_texture.create_default_view();
 
@@ -209,6 +206,7 @@ fn main() {
 
 
                 target.with_encoder_frame(&gx, |encoder, attachment| {
+
                     encoder.draw(attachment,
                         Some(Color::GREEN),
                         &[
@@ -218,8 +216,10 @@ fn main() {
                             (&p_pipeline, &binding, p_vertices.slice(..), 0..p_data.len() as u32),
                         ]
                     );
+
                     encoder.draw_glyphs(&gx, attachment, &mut glyphs, trf, None, None);
-                });
+
+                }).expect("frame error");
 
 
                 println!("{:?}", then.elapsed());

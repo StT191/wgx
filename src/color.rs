@@ -7,7 +7,7 @@ pub struct Color { pub r: f32, pub g: f32, pub b: f32, pub a: f32 }
 // From
 
 impl From<[f32; 4]> for Color {
-    fn from([r, g, b, a]:[f32; 4]) -> Self { Self::new(r, g, b, a) }
+    fn from([r, g, b, a]:[f32; 4]) -> Self { Self {r, g, b, a} }
 }
 impl From<[f32; 3]> for Color {
     fn from([r, g, b]:[f32; 3]) -> Self { Self::from([r, g, b, 1.0]) }
@@ -34,6 +34,12 @@ impl From<[u8; 3]> for Color {
 
 impl From<wgpu::Color> for Color {
     fn from(wgpu::Color {r, g, b, a}:wgpu::Color) -> Self { Self::from([r, g, b, a]) }
+}
+
+
+#[cfg(feature = "iced")]
+impl From<iced_wgpu::Color> for Color {
+    fn from(iced_wgpu::Color {r, g, b, a}:iced_wgpu::Color) -> Self { Self {r, g, b, a} }
 }
 
 
@@ -68,6 +74,12 @@ impl Into<wgpu::Color> for Color {
 }
 
 
+#[cfg(feature = "iced")]
+impl Into<iced_wgpu::Color> for Color {
+    fn into(self) -> iced_wgpu::Color { iced_wgpu::Color {r: self.r, g: self.g, b: self.b, a: self.a} }
+}
+
+
 
 impl Color {
     pub fn new(r:f32, g:f32, b:f32, a:f32) -> Self { Self {r, g, b, a} }
@@ -82,6 +94,9 @@ impl Color {
     pub fn u8_rgb(self) -> [u8; 3] { self.into() }
 
     pub fn wgpu(self) -> wgpu::Color { self.into() }
+
+    #[cfg(feature = "iced")]
+    pub fn iced_wgpu(self) -> iced_wgpu::Color { self.into() }
 
 
     pub const TRANSPARENT:Self = Color { r: 0.0, g: 0.0, b: 0.0, a: 0.0 };

@@ -129,10 +129,12 @@ fn main() {
 
 
                 target.with_encoder_frame(&gx, |encoder, attachment| {
+
                     encoder.draw(attachment, Some(Color::GREEN), &[]);
                     encoder.draw_glyphs(&gx, attachment, &mut glyphs, trf, None, Some(&mut staging_belt));
                     staging_belt.finish();
-                });
+
+                }).expect("frame error");
 
 
                 println!("{:?}", then.elapsed());

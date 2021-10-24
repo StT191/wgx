@@ -5,6 +5,9 @@ use glsl_to_spirv::ShaderType;
 #[cfg(feature = "spirv")]
 use std::io::{Read, Seek};
 
+#[cfg(feature = "iced")]
+use iced_wgpu::{Renderer, Backend, Settings};
+
 use futures::executor::block_on;
 use std::num::NonZeroU32;
 
@@ -26,7 +29,7 @@ pub const DEPTH: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 pub struct Wgx {
     pub instance: wgpu::Instance,
     pub(super) adapter: wgpu::Adapter,
-    pub(super) device: wgpu::Device,
+    pub device: wgpu::Device,
     queue: wgpu::Queue,
     surface: Option<wgpu::Surface>,
 }
@@ -48,7 +51,7 @@ impl Wgx {
             power_preference: wgpu::PowerPreference::HighPerformance,
             force_fallback_adapter: false,
             compatible_surface: surface.as_ref(),
-        })).unwrap();
+        })).expect("couldn't get adapter");
 
 
         let (device, queue) = block_on(adapter.request_device(
@@ -60,7 +63,7 @@ impl Wgx {
                 // shader_validation: true,
             },
             None,
-        )).unwrap();
+        )).expect("couldn't get device");
 
         Self { instance, adapter, device, queue, surface }
     }
@@ -143,7 +146,7 @@ impl Wgx {
 
     // shader
 
-    #[cfg(feature = "glyph")]
+    #[cfg(feature = "spirv")]
     pub fn load_spirv<R:Read+Seek>(&self, mut shader_spirv:R) -> wgpu::ShaderModule {
         let mut data = Vec::new();
         let _ = shader_spirv.read_to_end(&mut data);
@@ -153,9 +156,9 @@ impl Wgx {
         unsafe { self.device.create_shader_module_spirv(&wgpu::ShaderModuleDescriptorSpirV { label: None, source }) }*/
     }
 
-    #[cfg(feature = "glyph")]
+    #[cfg(feature = "spirv")]
     pub fn load_glsl(&self, code:&str, ty:ShaderType) -> wgpu::ShaderModule {
-        self.load_spirv(glsl_to_spirv::compile(&code, ty).unwrap())
+        self.load_spirv(glsl_to_spirv::compile(&code, ty).expect("couldn't load spirv shader"))
     }
 
     pub fn load_wgsl(&self, code:&str) -> wgpu::ShaderModule {
@@ -176,6 +179,13 @@ impl Wgx {
         self.device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout, entries, label: None
         })
+    }
+
+
+    // iced_backend
+    #[cfg(feature = "iced")]
+    pub fn iced_renderer(&self, settings:Settings, format:wgpu::TextureFormat) -> Renderer {
+        Renderer::new(Backend::new(&self.device, settings, format))
     }
 
 

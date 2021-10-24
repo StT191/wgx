@@ -134,7 +134,7 @@ fn main() {
                             (&pipeline, &binding, vertices.slice(..), 0..data.len() as u32),
                         ],
                     );
-                });
+                }).expect("frame error");
 
 
                 println!("{:?}", then.elapsed());
