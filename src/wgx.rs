@@ -203,7 +203,7 @@ impl Wgx {
 
     pub fn render_pipeline(
         &self, format:wgpu::TextureFormat, depth_testing:bool, msaa:u32, alpha_blend:bool,
-        vs_module:&wgpu::ShaderModule, fs_module:&wgpu::ShaderModule,
+        (vs_module, vs_entry_point):(&wgpu::ShaderModule, &str), (fs_module, fs_entry_point):(&wgpu::ShaderModule, &str),
         vertex_layout:wgpu::VertexBufferLayout, topology:wgpu::PrimitiveTopology,
         bind_group_layout:&wgpu::BindGroupLayout,
     ) -> wgpu::RenderPipeline {
@@ -221,7 +221,7 @@ impl Wgx {
 
             vertex: wgpu::VertexState {
                 module: vs_module,
-                entry_point: "main",
+                entry_point: vs_entry_point,
                 buffers: &[vertex_layout],
             },
 
@@ -237,7 +237,7 @@ impl Wgx {
 
             fragment: Some(wgpu::FragmentState {
                 module: fs_module,
-                entry_point: "main",
+                entry_point: fs_entry_point,
 
                 targets: &[wgpu::ColorTargetState {
 

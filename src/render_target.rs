@@ -27,13 +27,15 @@ pub trait RenderTarget {
     fn msaa(&self) -> u32;
 
     fn render_pipeline(
-        &self, wgx: &Wgx, alpha_blend:bool, vs_module:&wgpu::ShaderModule, fs_module:&wgpu::ShaderModule,
+        &self, wgx: &Wgx, alpha_blend:bool,
+        (vs_module, vs_entry_point):(&wgpu::ShaderModule, &str), (fs_module, fs_entry_point):(&wgpu::ShaderModule, &str),
         vertex_layout:wgpu::VertexBufferLayout, topology:wgpu::PrimitiveTopology,
         bind_group_layout:&wgpu::BindGroupLayout,
     ) -> wgpu::RenderPipeline {
         wgx.render_pipeline(
             self.format(), self.depth_testing(), self.msaa(), alpha_blend,
-            vs_module, fs_module, vertex_layout, topology, bind_group_layout
+            (vs_module, vs_entry_point), (fs_module, fs_entry_point),
+            vertex_layout, topology, bind_group_layout
         )
     }
 }

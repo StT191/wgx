@@ -21,7 +21,7 @@ fn main() {
     const ALPHA_BLENDING:bool = true;
 
 
-    let (width, height) = (700, 700);
+    let (width, height) = (1000, 1000);
 
     let event_loop = EventLoop::new();
     let window = Window::new(&event_loop).unwrap();
@@ -33,22 +33,25 @@ fn main() {
 
 
     // pipeline
-    let vs = gx.load_glsl(include_str!("../shaders/proj_2d_vNorm_passCol.vert"), ShaderType::Vertex);
-    let fs = gx.load_glsl(include_str!("../shaders/circle_flat.frag"), ShaderType::Fragment);
+    let shader = gx.load_wgsl(include_str!("../shaders/ellipse.wgsl"));
 
     let layout = gx.binding(&[
         binding!(0, VERTEX, UniformBuffer, 64),
-        binding!(1, FRAGMENT, UniformBuffer, 8),
+        binding!(1, VERTEX_FRAGMENT, UniformBuffer, 16),
         // binding!(1, VERTEX, UniformBuffer, 8),
     ]);
 
     let pipeline = target.render_pipeline(
-        &gx, ALPHA_BLENDING, &vs, &fs,
+        &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
         vertex_desc![0 => Float32x2, 1 => Float32x4],
         Primitive::TriangleList, &layout
     );
 
     let color = Color::RED.f32();
+
+
+    // path
+
 
     // corners
     let c = [
@@ -72,7 +75,7 @@ fn main() {
     let mut pj_buffer = gx.buffer_from_data(BuffUse::UNIFORM | BuffUse::COPY_DST, AsRef::<[f32; 16]>::as_ref(&projection));
     // let mut tf_buffer = gx.buffer_from_data(BuffUse::UNIFORM | BuffUse::COPY_DST, AsRef::<[f32; 16]>::as_ref(&projection));
 
-    let mut dim_buffer = gx.buffer_from_data(BuffUse::UNIFORM | BuffUse::COPY_DST, &[1.0, 1.0]);
+    let mut dim_buffer = gx.buffer_from_data(BuffUse::UNIFORM | BuffUse::COPY_DST, &[1.0_f32; 4]);
 
     // binding
     let binding = gx.bind(&layout, &[
@@ -93,41 +96,41 @@ fn main() {
             },
 
             Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
+
                 target.update(&gx, (size.width, size.height));
 
                 let (width, height) = (size.width as f32, size.height as f32);
 
-                let (w, h) = (width/4.0, height/4.0);
+                let (w, h) = (width/3.0, height/3.0);
 
-
-                let scale:Matrix4::<f32> =
-                    /*Matrix4::from_angle_x(Deg(-60.0)) *
-                    Matrix4::from_angle_y(Deg(60.0)) **/
-                    // Matrix4::from_angle_z(Deg(-45.0)) *
-                    Matrix4::from_nonuniform_scale(1.0, 0.3, 1.0) *
+                let obj_mat:Matrix4::<f32> =
+                    // Matrix4::from_angle_x(Deg(75.0)) *
+                    // Matrix4::from_angle_y(Deg(75.0)) *
+                    // Matrix4::from_angle_z(Deg(45.0)) *
+                    // Matrix4::from_nonuniform_scale(1.0, 1.0, 1.0) *
                     Matrix4::from_nonuniform_scale(w, h, 1.0)
                 ;
 
+                let p_p = Matrix4::from_nonuniform_scale(1.0, 1.0, 0.0);
 
-                let dim_x = (
-                    scale *
-                    Vector4::<f32>::new(1.0, 0.0, 0.0, 0.0)
-                ).magnitude();
+                let dim_x = (obj_mat * Vector4::<f32>::new(1.0, 0.0, 0.0, 0.0)).magnitude();
+                let dim_y = (obj_mat * Vector4::<f32>::new(0.0, 1.0, 0.0, 0.0)).magnitude();
 
-                let dim_y = (
-                    scale *
-                    Vector4::<f32>::new(0.0, 1.0, 0.0, 0.0)
-                ).magnitude();
-
+                let dim_x_p = (p_p * obj_mat * Vector4::<f32>::new(1.0, 0.0, 0.0, 0.0)).magnitude();
+                let dim_y_p = (p_p * obj_mat * Vector4::<f32>::new(0.0, 1.0, 0.0, 0.0)).magnitude();
 
                 // projection
                 let projection =
-                    window_fov_projection(30.0, width, height) *
-                    scale
+                    // window_fov_projection(70.0, width, height) *
+                    flat_window_projection(width, height) *
+                    Matrix4::from_translation(Vector3::<f32>::new(width/2.0, height/2.0, 0.0)) *
+                    obj_mat
                 ;
 
                 gx.write_buffer(&mut pj_buffer, 0, AsRef::<[f32; 16]>::as_ref(&projection));
-                gx.write_buffer(&mut dim_buffer, 0, &[dim_x, dim_y]);
+                gx.write_buffer(&mut dim_buffer, 0, &[dim_x, dim_y, dim_x_p/dim_x, dim_y_p/dim_y]);
+                // gx.write_buffer(&mut dim_buffer, 0, &[dim_x_p, dim_y_p, 1.0, 1.0]);
+                // gx.write_buffer(&mut dim_buffer, 0, &[dim_x, dim_y, 1.0, 1.0]);
             },
 
             Event::WindowEvent {

@@ -70,7 +70,8 @@ fn main() {
 
     // triangle pipeline
     let t_pipeline = target.render_pipeline(
-        &gx, ALPHA_BLENDING, &vs, &fs, vertex_desc![0 => Float32x3, 1 => Float32x2],
+        &gx, ALPHA_BLENDING, (&vs, "main"), (&fs, "main"),
+        vertex_desc![0 => Float32x3, 1 => Float32x2],
         Primitive::TriangleStrip, &layout
     );
 
@@ -86,7 +87,8 @@ fn main() {
 
     // lines pipeline
     let l_pipeline = target.render_pipeline(
-        &gx, ALPHA_BLENDING, &vs, &fs, vertex_desc![0 => Float32x3, 1 => Float32x2],
+        &gx, ALPHA_BLENDING, (&vs, "main"), (&fs, "main"),
+        vertex_desc![0 => Float32x3, 1 => Float32x2],
         Primitive::LineStrip, &layout
     );
 
@@ -124,7 +126,8 @@ fn main() {
 
 
     let i_pipeline = target.render_pipeline(
-        &gx, ALPHA_BLENDING, &vs, &fs, vertex_desc![0 => Float32x3, 1 => Float32x2],
+        &gx, ALPHA_BLENDING, (&vs, "main"), (&fs, "main"),
+        vertex_desc![0 => Float32x3, 1 => Float32x2],
         Primitive::TriangleStrip, &layout
     );
 
@@ -140,7 +143,8 @@ fn main() {
 
     // points pipeline
     let p_pipeline = target.render_pipeline(
-        &gx, ALPHA_BLENDING, &vs, &fs, vertex_desc![0 => Float32x3, 1 => Float32x2],
+        &gx, ALPHA_BLENDING, (&vs, "main"), (&fs, "main"),
+        vertex_desc![0 => Float32x3, 1 => Float32x2],
         Primitive::PointList, &layout
     );
 

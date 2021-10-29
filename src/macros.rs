@@ -37,6 +37,12 @@ macro_rules! binding {
 
 #[macro_export]
 macro_rules! bind {
+    ($loc:expr, Buffer, $buffer:expr) => {
+        wgpu::BindGroupEntry {
+            binding: $loc,
+            resource: $buffer.as_entire_binding(),
+        }
+    };
     ($loc:expr, Buffer, $buffer:expr, $offset:expr, $size:expr) => {
         wgpu::BindGroupEntry {
             binding: $loc,

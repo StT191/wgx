@@ -49,7 +49,8 @@ fn main() {
 
     // pipeline
     let pipeline = target.render_pipeline(
-        &gx, ALPHA_BLENDING, &vs, &fs, vertex_desc![0 => Float32x3, 1 => Float32x2],
+        &gx, ALPHA_BLENDING, (&vs, "main"), (&fs, "main"),
+        vertex_desc![0 => Float32x3, 1 => Float32x2],
         Primitive::TriangleStrip, &layout
     );
 
@@ -79,7 +80,8 @@ fn main() {
     let draw_target = TextureTarget::new(&gx, (width, height), false, 1, TexUse::TEXTURE_BINDING, TEXTURE);
 
     let draw_pipeline = draw_target.render_pipeline(
-        &gx, false, &vs, &fs, vertex_desc![0 => Float32x3, 1 => Float32x2],
+        &gx, false, (&vs, "main"), (&fs, "main"),
+        vertex_desc![0 => Float32x3, 1 => Float32x2],
         Primitive::TriangleStrip, &layout
     );
 
