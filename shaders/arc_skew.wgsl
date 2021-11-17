@@ -15,27 +15,6 @@ struct VertexOutput {
 };
 
 
-// fn x_angle(vec:vec2<f32>, len:f32) -> f32 {
-//     var angle = acos(vec.x / len); // angle towards x axis
-//     if (vec.y < 0.0) { angle = -angle; };
-//     return angle;
-// }
-
-// fn y_angle(vec:vec2<f32>, len:f32) -> f32 {
-//     var angle = acos(vec.y / len); // angle towards y axis
-//     if (vec.x > 0.0) { angle = -angle; };
-//     return angle;
-// }
-
-
-// fn z_rotation(angle: f32) -> mat4x4<f32> {
-//     return mat4x4<f32>(
-//         vec4<f32>(cos(angle), sin(angle), 0.0, 0.0),
-//         vec4<f32>(-sin(angle), cos(angle), 0.0, 0.0),
-//         vec4<f32>(0.0, 0.0, 1.0, 0.0),
-//         vec4<f32>(0.0, 0.0, 0.0, 1.0),
-//     );
-// }
 [[stage(vertex)]]
 fn vs_main(
     [[location(0)]] N: vec2<f32>, // normalized corner
@@ -48,14 +27,6 @@ fn vs_main(
     out.position = clip.matrix * P;
     out.color = color;
 
-    // let X = (pix.matrix * vec4<f32>(1.0, 0.0, 0.0, 1.0)).xy; // x-axis in pixel-space
-    // let x = length(X);
-
-    // var projection = z_rotation(-x_angle(X, length(X))) * pix.matrix; // x-rotation-corrected
-
-    // let d = sqrt(2.0) / 2.0;
-    // let p_2 = acos(d);
-
     let X = (pix.matrix * vec4<f32>(1.0, 0.0, 0.0, 1.0)).xy;
     let Y = (pix.matrix * vec4<f32>(0.0, 1.0, 0.0, 1.0)).xy;
 
@@ -64,11 +35,6 @@ fn vs_main(
     out.skew = dot(X, Y) / (out.dim.x * out.dim.y);
 
     out.R = N;
-
-    // let H = (1.0-f)*Y - f*X;
-    // let W = (1.0-f)*X + f*Y;
-
-    // projection = z_rotation(-y_angle(H, out.dim.y)) * projection; // x-rotation-corrected
 
     return out;
 }
@@ -87,39 +53,19 @@ fn fs_main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
     let N = re*Rn / (in.dim * in.dim);
     let No = N/length(N); // normal
 
-    // let a = abs(dot(in.R, in.dim) / length(in.dim)); // skew affection factor
-
-    // let a = abs(Rn.x + Rn.y) / (sqrt(2.0)); // skew affection factor
-    // let b = abs(-Rn.x + Rn.y) / (sqrt(2.0)); // skew affection factor
     let len = length(in.dim);
     let dim_q = vec2<f32>(-in.dim.x, in.dim.y);
 
     let a = abs(dot(No, in.dim) / len); // skew affection factor
     let b = abs(dot(No, dim_q) / len); // skew affection factor
 
-    // let a = abs(in.R.x + in.R.y) / (length(in.R) * sqrt(2.0)); // skew affection factor
-    // let b = abs(-in.R.x + in.R.y) / (length(in.R) * sqrt(2.0)); // skew affection factor
-
     let a_c = pow(a, 0.25);
     let b_c = pow(b, 2.0);
 
-    // let PI_2 = asin(1.0);
-
-    // let f = (1.0 - in.skew*b) / (1.0 - in.skew*a);
-
-    // let f = pow(1.0 - in.skew*b, 2.0) / pow(1.0 - in.skew*a, 2.0);
-    // let f = sqrt(1.0 - in.skew*b) / sqrt(1.0 - in.skew*a);
-
-    // let f = (1.0 - pow(in.skew*b, 2.0)) / (1.0 - pow(in.skew*a, 2.0));
     let skew = abs(in.skew);
     let sf = select(1.0, -1.0, in.skew < 0.0);
     let skew_c = pow(skew, 1.0);
 
-    // let f = select(
-    //     (1.0 - skew * a) / (1.0 - skew * b),
-    //     (1.0 - skew * b) / (1.0 - skew * a),
-    //     in.skew > 0.0
-    // );
 
     let m = 0.5;
     let n = sqrt(0.5);

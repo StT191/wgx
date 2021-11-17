@@ -32,8 +32,7 @@ fn main() {
 
 
     // global pipeline
-    let vs = gx.load_glsl(include_str!("../shaders/pass_texC.vert"), ShaderType::Vertex);
-    let fs = gx.load_glsl(include_str!("../shaders/texture_flat.frag"), ShaderType::Fragment);
+    let shader = gx.load_wgsl(include_str!("../shaders/flat_texture.wgsl"));
 
 
     let layout = gx.binding(&[
@@ -43,7 +42,7 @@ fn main() {
 
 
     let pipeline = target.render_pipeline(
-        &gx, ALPHA_BLENDING, (&vs, "main"), (&fs, "main"),
+        &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
         vertex_desc![0 => Float32x3, 1 => Float32x2],
         Primitive::TriangleList, &layout
     );

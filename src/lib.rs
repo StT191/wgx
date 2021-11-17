@@ -13,7 +13,10 @@ pub use macros::*;
 
 // common types
 
-pub use cgmath::{prelude::*};
+pub use cgmath::prelude::*;
+
+mod projection;
+pub use projection::*;
 
 mod byte_slice;
 
@@ -35,11 +38,12 @@ mod render_target;
 pub use render_target::*;
 
 
-// extensions
-
+// spirv
 #[cfg(feature = "spirv")]
 pub use glsl_to_spirv::ShaderType;
 
+
+// glyph-extemsion
 #[cfg(feature = "glyph")]
 pub use wgpu_glyph::Text;
 
@@ -48,21 +52,21 @@ mod glyph_extension;
 #[cfg(feature = "glyph")]
 pub use glyph_extension::*;
 
+#[cfg(feature = "glyph")]
+mod text_input;
+#[cfg(feature = "glyph")]
+pub use text_input::*;
+
 
 // iced
-
 #[cfg(feature = "iced")]
 mod iced;
 #[cfg(feature = "iced")]
 pub use iced::Iced;
 
 
-// extra modules
 
-mod projection;
-pub use projection::*;
 
-mod text_input;
-pub use text_input::*;
+
 
 

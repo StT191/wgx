@@ -10,10 +10,7 @@ struct VertexOutput {
     [[builtin(position)]] position: vec4<f32>;
     [[location(0), interpolate(flat)]] color: vec4<f32>;
     [[location(1), interpolate(perspective)]] E: vec2<f32>;
-    [[location(2), interpolate(flat)]] pr0: vec4<f32>;
-    [[location(3), interpolate(flat)]] pr1: vec4<f32>;
-    [[location(4), interpolate(flat)]] pr2: vec4<f32>;
-    [[location(5), interpolate(flat)]] pr3: vec4<f32>;
+    [[location(2), interpolate(flat)]] prj: mat4x4<f32>;
 };
 
 
@@ -43,12 +40,7 @@ fn vs_main(
 
     let O = (pix.matrix * vec4<f32>(0.0, 0.0, 0.0, 1.0)).xy; // origin
 
-    let projection = translation(-O.x, -O.y, 0.0) * pix.matrix;
-
-    out.pr0 = projection[0];
-    out.pr1 = projection[1];
-    out.pr2 = projection[2];
-    out.pr3 = projection[3];
+    out.prj = translation(-O.x, -O.y, 0.0) * pix.matrix;;
 
     return out;
 }
@@ -65,51 +57,20 @@ fn fs_main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
         // return vec4<f32>(1.0, 1.0, 0.0, 1.0);
     }
 
-
     // get pixel distance to rim
-    let prj = mat4x4<f32>(in.pr0, in.pr1, in.pr2, in.pr3);
-
-    let R = homogen_2d(prj * vec4<f32>(in.E, 0.0, 1.0)); // R in pixel space
-    // let r = length(R); // length of R in pixel space
+    let R = homogen_2d(in.prj * vec4<f32>(in.E, 0.0, 1.0)); // R in pixel space
+    let r = length(R); // length of R in pixel space
 
     // R at rim
-    var Ep = in.E * 1.0/e; // R at rim in unit circle
-    var Rp = homogen_2d(prj * vec4<f32>(Ep, 0.0, 1.0)); // R at rim in pixel space
-    var rp = length(Rp);
-    var dr = distance(R, Rp); // radial distance to rim
+    let Ep = in.E * 1.0/e; // R at rim in unit circle
+    let Rp = homogen_2d(in.prj * vec4<f32>(Ep, 0.0, 1.0)); // R at rim in pixel space
+    let rp = length(Rp);
 
-    // { // look if opposite side is closer (in case of perspective skewing)
+    let T = Rp - homogen_2d(in.prj * vec4<f32>(Ep + normal_2d(Ep), 0.0, 1.0)); // tangent in pixel space
 
-    //     let Rp0 = homogen_2d(prj * vec4<f32>(-Ep, 0.0, 1.0)); // R at rim in pixel space
-    //     let rp0 = length(Rp0);
-    //     let dr0 = distance(R, Rp0);
 
-    //     if (dr0 < dr) { Ep = -Ep; Rp = Rp0; rp = rp0; dr = dr0; }
-    // }
+    let ds = (rp - r) * sin(acos(dot(Rp, T) / (rp*length(T)))); // skew corrected pixel distance to edge
 
-    var ds = dr;
-
-    // for(var i:i32 = 0; i < 10; i = i + 1) {
-
-        let Et = normal_2d(Ep); // tangent-vector
-
-        let T = Rp - homogen_2d(prj * vec4<f32>(Ep + Et, 0.0, 1.0)); // tangent in pixel space
-        let t = length(T);
-
-        let cos_fi = dot(Rp, T) / (rp*t);
-
-        // reassign
-        // Ep = normalize(Ep + Et * cos_fi * dr/t ); // new E vector
-        // Rp = homogen_2d(prj * vec4<f32>(Ep, 0.0, 1.0)); // new Rp vector
-
-        // rp = length(Rp);
-        // dr = min(distance(R, Rp), dr * sin(acos(cos_fi)));
-        // dr = distance(R, Rp);
-
-        ds = dr * sin(acos(cos_fi));
-
-        // if (dr < ds) { ds = dr; }
-    // }
 
     var color = in.color;
 

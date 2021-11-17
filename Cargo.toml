@@ -10,10 +10,10 @@ name = "wgx"
 doctest = false
 
 [features]
-default = ["glyph", "spirv", "iced"]
+default = ["glyph", "iced"]
 glyph = ["wgpu_glyph"]
-spirv = ["glsl-to-spirv", "wgpu/spirv"]
 iced = ["iced_winit", "iced_wgpu"]
+spirv = ["glsl-to-spirv", "wgpu/spirv"]
 
 [dependencies]
 wgpu = { version = "0.11" }
