@@ -28,7 +28,7 @@ fn main() {
     window.set_inner_size(PhysicalSize::<u32>::from((width, height)));
     window.set_title("WgFx");
 
-    let mut gx = Wgx::new(Some(&window));
+    let mut gx = Wgx::new(Some(&window), 0, None);
     let mut target = gx.surface_target((width, height), DEPTH_TESTING, MSAA).expect("render target failed");
 
 
@@ -43,28 +43,36 @@ fn main() {
 
     let pipeline = target.render_pipeline(
         &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
-        vertex_desc![0 => Float32x2, 1 => Float32x4],
-        Primitive::TriangleList, &layout
+        &[vertex_desc!(Vertex, 0 => Float32x2, 1 => Float32x4)],
+        Primitive::TriangleList, &[], &[&layout]
     );
 
     let color = Color::RED.f32();
 
 
     // path
-
+    let q = f32::sqrt(2.0);
+    let z = 0.0;
 
     // corners
     let c = [
-        ([-1.0, -1.0f32], color),
-        ([ 1.0, -1.0],    color),
-        ([ 1.0,  1.0],    color),
-        ([-1.0,  1.0],    color),
+        ([ z,  z], color),
+        ([-q,  z], color),
+        ([ z, -q], color),
+        ([ q,  z], color),
+        ([ z,  q], color),
     ];
 
     // vertices
+    // let data = [
+    //     c[0], c[1], c[2],
+    //     c[0], c[2], c[3],
+    // ];
     let data = [
-        c[0], c[1], c[2],
-        c[0], c[2], c[3],
+        c[1], c[0], c[2],
+        // c[2], c[0], c[3],
+        c[3], c[0], c[4],
+        // c[4], c[0], c[1],
     ];
     let vertices = gx.buffer_from_data(BuffUse::VERTEX, &data[..]);
 
@@ -174,19 +182,20 @@ fn main() {
 
             Event::RedrawRequested(_) => {
 
-                // let then = Instant::now();
+                let then = Instant::now();
 
                 target.with_encoder_frame(&gx, |encoder, attachment| {
-                    encoder.draw(
-                        attachment,
-                        Some(Color::GREEN),
-                        &[
-                            (&pipeline, &binding, vertices.slice(..), 0..data.len() as u32),
-                        ],
-                    );
+
+                    encoder.with_render_pass(attachment, Some(Color::GREEN), |mut rpass| {
+                        rpass.set_pipeline(&pipeline);
+                        rpass.set_bind_group(0, &binding, &[]);
+                        rpass.set_vertex_buffer(0, vertices.slice(..));
+                        rpass.draw(0..data.len() as u32, 0..1);
+                    });
+
                 }).expect("frame error");
 
-                // println!("{:?}", then.elapsed());
+                println!("{:?}", then.elapsed());
             },
 
             _ => {}

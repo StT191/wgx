@@ -29,13 +29,14 @@ pub trait RenderTarget {
     fn render_pipeline(
         &self, wgx: &Wgx, alpha_blend:bool,
         (vs_module, vs_entry_point):(&wgpu::ShaderModule, &str), (fs_module, fs_entry_point):(&wgpu::ShaderModule, &str),
-        vertex_layout:wgpu::VertexBufferLayout, topology:wgpu::PrimitiveTopology,
-        bind_group_layout:&wgpu::BindGroupLayout,
+        vertex_layouts:&[wgpu::VertexBufferLayout], topology:wgpu::PrimitiveTopology,
+        push_constant_ranges:&[wgpu::PushConstantRange],
+        bind_group_layouts:&[&wgpu::BindGroupLayout],
     ) -> wgpu::RenderPipeline {
         wgx.render_pipeline(
             self.format(), self.depth_testing(), self.msaa(), alpha_blend,
             (vs_module, vs_entry_point), (fs_module, fs_entry_point),
-            vertex_layout, topology, bind_group_layout
+            vertex_layouts, topology, push_constant_ranges, bind_group_layouts
         )
     }
 }
@@ -215,8 +216,9 @@ impl SurfaceTarget {
         self.msaa_texture_view = msaa_texture_view;
     }
 
-    pub fn with_encoder_frame<'a, F>(&mut self, wgx:&Wgx, handler: F) -> Result<(), wgpu::SurfaceError>
-        where F: 'a + FnOnce(&mut wgpu::CommandEncoder, &RenderAttachment)
+    pub fn with_encoder_frame(
+        &mut self, wgx:&Wgx, handler: impl FnOnce(&mut wgpu::CommandEncoder, &RenderAttachment)
+    ) -> Result<(), wgpu::SurfaceError>
     {
         self.current_frame = Some(self.surface.get_current_texture()?);
         self.current_frame_view = Some(self.current_frame.as_ref().unwrap().texture.create_default_view());

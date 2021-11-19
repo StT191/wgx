@@ -35,7 +35,7 @@ fn main() {
 
 
     // wgx setup
-    let mut gx = Wgx::new(Some(&window));
+    let mut gx = Wgx::new(Some(&window), 0, None);
     let mut target = gx.surface_target((1200, 1000), DEPTH_TESTING, MSAA).expect("render target failed");
 
 
@@ -130,8 +130,10 @@ fn main() {
 
                 target.with_encoder_frame(&gx, |encoder, attachment| {
 
-                    encoder.draw(attachment, Some(Color::GREEN), &[]);
+                    encoder.render_pass(attachment, Some(Color::GREEN));
+
                     encoder.draw_glyphs(&gx, attachment, &mut glyphs, trf, None, Some(&mut staging_belt));
+
                     staging_belt.finish();
 
                 }).expect("frame error");

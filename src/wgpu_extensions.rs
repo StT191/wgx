@@ -1,5 +1,6 @@
 
-use std::{ops::Range, num::NonZeroU32};
+// use core::ops::Range;
+use std::{num::NonZeroU32};
 use crate::{Color, RenderAttachment};
 
 
@@ -15,25 +16,30 @@ impl DefaultViewExtension<wgpu::TextureView> for wgpu::Texture {
 }
 
 
-
 pub trait EncoderExtension {
+
     fn buffer_to_buffer(
         &mut self, src_buffer:&wgpu::Buffer, src_offset:wgpu::BufferAddress,
         dst_buffer:&wgpu::Buffer, dst_offset:wgpu::BufferAddress, size:wgpu::BufferAddress,
     );
+
     fn buffer_to_texture(
         &mut self,
         buffer:&wgpu::Buffer, bf_extend:(u32, u32, u64),
         texture:&wgpu::Texture, tx_extend:(u32, u32, u32, u32)
     );
+
     fn texture_to_buffer(
         &mut self,
         texture:&wgpu::Texture, tx_extend:(u32, u32, u32, u32),
         buffer:&wgpu::Buffer, bf_extend:(u32, u32, u64),
     );
-    fn draw(
-        &mut self, attachment:&RenderAttachment, color:Option<Color>,
-        draws:&[(&wgpu::RenderPipeline, &wgpu::BindGroup, wgpu::BufferSlice, Range<u32>)]
+
+    fn render_pass<'a>(&'a mut self, attachment:&'a RenderAttachment, color:Option<Color>) -> wgpu::RenderPass<'a>;
+
+    fn with_render_pass<'a>(
+        &'a mut self, attachment:&'a RenderAttachment, color:Option<Color>,
+        handler: impl FnOnce(wgpu::RenderPass<'a>)
     );
 }
 
@@ -50,6 +56,7 @@ impl EncoderExtension for wgpu::CommandEncoder {
         self.copy_buffer_to_buffer(src_buffer, src_offset, dst_buffer, dst_offset, size);
     }
 
+
     fn buffer_to_texture(
         &mut self,
         buffer:&wgpu::Buffer, (bf_w, bf_h, offset):(u32, u32, u64),
@@ -63,6 +70,7 @@ impl EncoderExtension for wgpu::CommandEncoder {
             wgpu::Extent3d {width: w, height: h, depth_or_array_layers: 1},
         );
     }
+
 
     fn texture_to_buffer(
         &mut self,
@@ -79,11 +87,9 @@ impl EncoderExtension for wgpu::CommandEncoder {
     }
 
 
-    fn draw(
-        &mut self, attachment:&RenderAttachment, color:Option<Color>,
-        draws:&[(&wgpu::RenderPipeline, &wgpu::BindGroup, wgpu::BufferSlice, Range<u32>)]
-    ) {
-        let mut rpass = self.begin_render_pass(&wgpu::RenderPassDescriptor {
+    fn render_pass<'a>(&'a mut self, attachment:&'a RenderAttachment, color:Option<Color>) -> wgpu::RenderPass<'a>
+    {
+        self.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
             color_attachments: &[wgpu::RenderPassColorAttachment {
                 view: if let Some(ms_at) = attachment.msaa { ms_at } else { attachment.view },
@@ -108,33 +114,47 @@ impl EncoderExtension for wgpu::CommandEncoder {
                     store: true
                 }),*/
             })} else { None },
-        });
-
-        /*let mut l_render_pipeline = None;
-        let mut l_bind_group = None;
-        let mut l_vertices = None;*/
-
-        for (render_pipeline, bind_group, vertices, range) in draws {
-
-            // if l_render_pipeline != Some(render_pipeline) {
-            rpass.set_pipeline(render_pipeline);
-                /*l_render_pipeline = Some(render_pipeline);
-            }*/
-
-            // if l_bind_group != Some(bind_group) {
-            rpass.set_bind_group(0, bind_group, &[]);
-                /*l_bind_group = Some(bind_group);
-            }*/
-
-            // if l_vertices != Some(vertices) {
-            rpass.set_vertex_buffer(0, *vertices);
-                /*l_vertices = Some(vertices);
-            }*/
-
-            rpass.draw(range.clone(), 0..1);
-        }
+        })
     }
 
+
+    fn with_render_pass<'a>(
+        &'a mut self, attachment:&'a RenderAttachment, color:Option<Color>,
+        handler: impl FnOnce(wgpu::RenderPass<'a>)
+    ) {
+        handler(self.render_pass(attachment, color));
+    }
 }
 
 
+
+// render pass
+
+/*pub trait Drawable<'a> {
+    fn draw(&'a self, render_pass:&mut wgpu::RenderPass<'a>);
+}
+
+
+// commit draw commands, pass the render pass
+pub trait RenderPassExtension<'a> {
+    fn pass<T: Drawable<'a>>(self, drawable: &'a T) -> Self;
+}
+
+impl<'a> RenderPassExtension<'a> for wgpu::RenderPass<'a> {
+    fn pass<T: Drawable<'a>>(mut self, drawable: &'a T) -> Self {
+        drawable.draw(&mut self);
+        self
+    }
+}
+
+
+// impl for drawables
+
+impl<'a> Drawable<'a> for (&'a wgpu::RenderPipeline, &'a wgpu::BindGroup, wgpu::BufferSlice<'a>, Range<u32>) {
+    fn draw(&'a self, rpass:&mut wgpu::RenderPass<'a>) {
+        rpass.set_pipeline(self.0);
+        rpass.set_bind_group(0, self.1, &[]);
+        rpass.set_vertex_buffer(0, self.2);
+        rpass.draw(self.3.clone(), 0..1);
+    }
+}*/

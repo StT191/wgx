@@ -35,6 +35,7 @@ macro_rules! binding {
     };
 }
 
+
 #[macro_export]
 macro_rules! bind {
     ($loc:expr, Buffer, $buffer:expr) => {
@@ -64,12 +65,23 @@ macro_rules! bind {
 
 #[macro_export]
 macro_rules! vertex_desc {
-    ($($loc:expr => $fmt:ident),*) => {
+    ($step:ident, $($loc:expr => $fmt:ident),*) => {
         wgpu::VertexBufferLayout {
             array_stride: ($(wgpu::VertexFormat::$fmt.size() + )* 0) as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
+            step_mode: wgpu::VertexStepMode::$step,
             attributes: &wgpu::vertex_attr_array!([] ; 0; $($loc => $fmt ,)*),
         }
+    };
+}
+
+
+#[macro_export]
+macro_rules! push_constants {
+    ($($range:expr => $stage:ident),*) => {
+        &[$(wgpu::PushConstantRange {
+            stages: wgpu::ShaderStages::$stage,
+            range: $range,
+        },)*]
     };
 }
 

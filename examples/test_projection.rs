@@ -29,7 +29,7 @@ fn main() {
     window.set_title("WgFx");
 
 
-    let mut gx = Wgx::new(Some(&window));
+    let mut gx = Wgx::new(Some(&window), 0, None);
     let mut target = gx.surface_target((800, 500), DEPTH_TESTING, MSAA).expect("render target failed");
 
 
@@ -44,8 +44,8 @@ fn main() {
 
     let pipeline = target.render_pipeline(
         &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
-        vertex_desc![0 => Float32x3, 1 => Float32x2],
-        Primitive::TriangleList, &layout
+        &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
+        Primitive::TriangleList, push_constants!(), &[&layout]
     );
 
 
@@ -194,12 +194,14 @@ fn main() {
 
 
                 target.with_encoder_frame(&gx, |encoder, attachment| {
-                    encoder.draw(attachment,
-                        Some(Color::GREEN),
-                        &[
-                            (&pipeline, &binding, vertices.slice(..), 0..data.len() as u32),
-                        ],
-                    );
+
+                    encoder.with_render_pass(attachment, Some(Color::GREEN), |mut rpass| {
+                        rpass.set_pipeline(&pipeline);
+                        rpass.set_bind_group(0, &binding, &[]);
+                        rpass.set_vertex_buffer(0, vertices.slice(..));
+                        rpass.draw(0..data.len() as u32, 0..1);
+                    });
+
                 }).expect("frame error");
 
 

@@ -1,7 +1,10 @@
 
 // passing external types
 pub use wgpu::{
-    BufferUsages as BuffUse, TextureUsages as TexUse, PrimitiveTopology as Primitive
+    BufferUsages as BuffUse,
+    TextureUsages as TexUse,
+    PrimitiveTopology as Primitive,
+    ShaderStages as Shader,
 };
 
 

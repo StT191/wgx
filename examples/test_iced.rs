@@ -112,7 +112,7 @@ fn main() {
 
 
     // wgx setup
-    let mut gx = Wgx::new(Some(&window));
+    let mut gx = Wgx::new(Some(&window), 0, None);
     let mut target = gx.surface_target((width, height), DEPTH_TESTING, MSAA).expect("render target failed");
 
 
@@ -178,7 +178,7 @@ fn main() {
 
                 target.with_encoder_frame(&gx, |mut encoder, attachment| {
 
-                    encoder.draw(attachment, Some(gui.program().color), &[]);
+                    encoder.render_pass(attachment, Some(gui.program().color));
 
                     gui.draw(&gx, &mut encoder, attachment);
 

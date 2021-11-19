@@ -37,7 +37,7 @@ fn main() {
     window.set_title("WgFx");
 
 
-    let mut gx = Wgx::new(Some(&window));
+    let mut gx = Wgx::new(Some(&window), 0, None);
     let mut target = gx.surface_target((width, heigh), DEPTH_TESTING, MSAA).expect("render target failed");
 
 
@@ -70,8 +70,8 @@ fn main() {
     // triangle pipeline
     let t_pipeline = target.render_pipeline(
         &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
-        vertex_desc![0 => Float32x3, 1 => Float32x2],
-        Primitive::TriangleStrip, &layout
+        &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
+        Primitive::TriangleStrip, &[], &[&layout]
     );
 
     let t_data = [
@@ -87,8 +87,8 @@ fn main() {
     // lines pipeline
     let l_pipeline = target.render_pipeline(
         &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
-        vertex_desc![0 => Float32x3, 1 => Float32x2],
-        Primitive::LineStrip, &layout
+        &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
+        Primitive::LineStrip, &[], &[&layout]
     );
 
     let l_data = [
@@ -126,8 +126,8 @@ fn main() {
 
     let i_pipeline = target.render_pipeline(
         &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
-        vertex_desc![0 => Float32x3, 1 => Float32x2],
-        Primitive::TriangleStrip, &layout
+        &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
+        Primitive::TriangleStrip, &[], &[&layout]
     );
 
     let i_data = [
@@ -143,8 +143,8 @@ fn main() {
     // points pipeline
     let p_pipeline = target.render_pipeline(
         &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
-        vertex_desc![0 => Float32x3, 1 => Float32x2],
-        Primitive::PointList, &layout
+        &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
+        Primitive::PointList, &[], &[&layout]
     );
 
     let p_data = [
@@ -210,15 +210,29 @@ fn main() {
 
                 target.with_encoder_frame(&gx, |encoder, attachment| {
 
-                    encoder.draw(attachment,
-                        Some(Color::GREEN),
-                        &[
-                            (&t_pipeline, &binding, t_vertices.slice(..), 0..t_data.len() as u32),
-                            (&l_pipeline, &binding, l_vertices.slice(..), 0..l_data.len() as u32),
-                            (&i_pipeline, &img_binding, i_vertices.slice(..), 0..i_data.len() as u32),
-                            (&p_pipeline, &binding, p_vertices.slice(..), 0..p_data.len() as u32),
-                        ]
-                    );
+                    encoder.with_render_pass(attachment, Some(Color::GREEN), |mut rpass| {
+
+                        rpass.set_bind_group(0, &binding, &[]);
+
+                        rpass.set_pipeline(&t_pipeline);
+                        rpass.set_vertex_buffer(0, t_vertices.slice(..));
+                        rpass.draw(0..t_data.len() as u32, 0..1);
+
+                        rpass.set_pipeline(&l_pipeline);
+                        rpass.set_vertex_buffer(0, l_vertices.slice(..));
+                        rpass.draw(0..l_data.len() as u32, 0..1);
+
+                        rpass.set_pipeline(&p_pipeline);
+                        rpass.set_vertex_buffer(0, p_vertices.slice(..));
+                        rpass.draw(0..p_data.len() as u32, 0..1);
+
+
+                        rpass.set_bind_group(0, &img_binding, &[]);
+
+                        rpass.set_pipeline(&i_pipeline);
+                        rpass.set_vertex_buffer(0, i_vertices.slice(..));
+                        rpass.draw(0..i_data.len() as u32, 0..1);
+                    });
 
                     encoder.draw_glyphs(&gx, attachment, &mut glyphs, trf, None, None);
 

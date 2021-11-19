@@ -37,7 +37,9 @@ pub struct Wgx {
 
 impl Wgx {
 
-    pub fn new<W: HasRawWindowHandle>(window:Option<&W>) -> Self {
+    pub fn new<W: HasRawWindowHandle>(
+        window:Option<&W>, max_push_constant_size: u32, features: Option<wgpu::Features>,
+    ) -> Self {
 
         let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY);
 
@@ -54,13 +56,20 @@ impl Wgx {
         })).expect("couldn't get adapter");
 
 
+        let mut features = if let Some(ft) = features { ft } else { wgpu::Features::empty() };
+
+        if max_push_constant_size > 0 {
+            features |= wgpu::Features::PUSH_CONSTANTS
+        }
+
         let (device, queue) = block_on(adapter.request_device(
             &wgpu::DeviceDescriptor {
                 label: None,
-                features: wgpu::Features::empty(),
-                // features: wgpu::Features::SPIRV_SHADER_PASSTHROUGH,
-                limits: wgpu::Limits::default(),
-                // shader_validation: true,
+                features,
+                limits: wgpu::Limits {
+                    max_push_constant_size,
+                    ..Default::default()
+                }
             },
             None,
         )).expect("couldn't get device");
@@ -191,7 +200,7 @@ impl Wgx {
 
     // command encoder
 
-    pub fn with_encoder<'a, F>(&self, handler: F) where F: 'a + FnOnce(&mut wgpu::CommandEncoder)
+    pub fn with_encoder(&self, handler: impl FnOnce(&mut wgpu::CommandEncoder))
     {
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
         handler(&mut encoder);
@@ -204,13 +213,13 @@ impl Wgx {
     pub fn render_pipeline(
         &self, format:wgpu::TextureFormat, depth_testing:bool, msaa:u32, alpha_blend:bool,
         (vs_module, vs_entry_point):(&wgpu::ShaderModule, &str), (fs_module, fs_entry_point):(&wgpu::ShaderModule, &str),
-        vertex_layout:wgpu::VertexBufferLayout, topology:wgpu::PrimitiveTopology,
-        bind_group_layout:&wgpu::BindGroupLayout,
+        vertex_layouts:&[wgpu::VertexBufferLayout], topology:wgpu::PrimitiveTopology,
+        push_constant_ranges:&[wgpu::PushConstantRange],
+        bind_group_layouts:&[&wgpu::BindGroupLayout],
     ) -> wgpu::RenderPipeline {
 
         let pipeline_layout = self.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: None, push_constant_ranges: &[],
-            bind_group_layouts: &[bind_group_layout],
+            label: None, push_constant_ranges, bind_group_layouts
         });
 
         self.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -222,7 +231,7 @@ impl Wgx {
             vertex: wgpu::VertexState {
                 module: vs_module,
                 entry_point: vs_entry_point,
-                buffers: &[vertex_layout],
+                buffers: vertex_layouts,
             },
 
             primitive: wgpu::PrimitiveState {
