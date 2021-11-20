@@ -103,6 +103,23 @@ fn main() {
     let l_vertices = gx.buffer_from_data(BuffUse::VERTEX, &l_data[..]);
 
 
+    // points pipeline
+    let p_pipeline = target.render_pipeline(
+        &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
+        &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
+        Primitive::PointList, &[], &[&layout]
+    );
+
+    let p_data = [
+        ([ 0.25,  0.25, 0.0f32], [1.0, 0.0f32]),
+        ([-0.25,  0.25, 0.0], [0.5, 0.0]),
+        ([ 0.25, -0.25, 0.0], [1.0, 0.0]),
+        ([-0.25, -0.25, 0.0], [0.5, 0.0]),
+    ];
+
+    let p_vertices = gx.buffer_from_data(BuffUse::VERTEX, &p_data[..]);
+
+
     // picture pipeline
     let img = image::open("img/logo_red.png")
         .expect("failed loading image")
@@ -140,21 +157,33 @@ fn main() {
     let i_vertices = gx.buffer_from_data(BuffUse::VERTEX, &i_data[..]);
 
 
-    // points pipeline
-    let p_pipeline = target.render_pipeline(
-        &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
-        &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        Primitive::PointList, &[], &[&layout]
-    );
+    // render bundles
+    let bundles = [target.render_bundle(&gx, |mut rpass| {
 
-    let p_data = [
-        ([ 0.25,  0.25, 0.0f32], [1.0, 0.0f32]),
-        ([-0.25,  0.25, 0.0], [0.0, 0.0]),
-        ([ 0.25, -0.25, 0.0], [1.0, 1.0]),
-        ([-0.25, -0.25, 0.0], [0.0, 1.0]),
-    ];
+        rpass.set_bind_group(0, &binding, &[]);
 
-    let p_vertices = gx.buffer_from_data(BuffUse::VERTEX, &p_data[..]);
+        rpass.set_pipeline(&t_pipeline);
+        rpass.set_vertex_buffer(0, t_vertices.slice(..));
+        rpass.draw(0..t_data.len() as u32, 0..1);
+
+        rpass.set_pipeline(&l_pipeline);
+        rpass.set_vertex_buffer(0, l_vertices.slice(..));
+        rpass.draw(0..l_data.len() as u32, 0..1);
+
+
+        rpass.set_bind_group(0, &img_binding, &[]);
+
+        rpass.set_pipeline(&i_pipeline);
+        rpass.set_vertex_buffer(0, i_vertices.slice(..));
+        rpass.draw(0..i_data.len() as u32, 0..1);
+
+
+        rpass.set_bind_group(0, &binding, &[]);
+
+        rpass.set_pipeline(&p_pipeline);
+        rpass.set_vertex_buffer(0, p_vertices.slice(..));
+        rpass.draw(0..p_data.len() as u32, 0..1);
+    })];
 
 
     // text_render
@@ -162,7 +191,10 @@ fn main() {
 
     let mut glyphs = gx.glyph_brush(OUTPUT, font_data).expect("invalid font");
 
-    let projection = unit_fov_projection(30.0, width as f32 / heigh as f32, sf*1000.0);
+    let trf =
+        unit_fov_projection(30.0, width as f32 / heigh as f32, sf*1000.0) *
+        Matrix4::from_translation((-sf*1200.0, sf*900.0, 0.0).into()) *
+        Matrix4::from_scale(3.0);
 
 
     event_loop.run(move |event, _, control_flow| {
@@ -198,46 +230,10 @@ fn main() {
                     None, Some((sf*200.0, f32::INFINITY)), None
                 );
 
-                let trf =
-                    projection *
-                    // Matrix4::from_translation((0.0, 0.0, 0.0).into()) *
-                    // Matrix4::from_angle_z(Deg(45.0)) *
-                    // Matrix4::from_angle_y(Deg(88.0)) *
-                    Matrix4::from_translation((-sf*1200.0, sf*900.0, 0.0).into()) *
-                    // Matrix4::from_angle_x(Deg(45.0)) *
-                    Matrix4::from_scale(3.0);
-
-
                 target.with_encoder_frame(&gx, |encoder, attachment| {
-
-                    encoder.with_render_pass(attachment, Some(Color::GREEN), |mut rpass| {
-
-                        rpass.set_bind_group(0, &binding, &[]);
-
-                        rpass.set_pipeline(&t_pipeline);
-                        rpass.set_vertex_buffer(0, t_vertices.slice(..));
-                        rpass.draw(0..t_data.len() as u32, 0..1);
-
-                        rpass.set_pipeline(&l_pipeline);
-                        rpass.set_vertex_buffer(0, l_vertices.slice(..));
-                        rpass.draw(0..l_data.len() as u32, 0..1);
-
-                        rpass.set_pipeline(&p_pipeline);
-                        rpass.set_vertex_buffer(0, p_vertices.slice(..));
-                        rpass.draw(0..p_data.len() as u32, 0..1);
-
-
-                        rpass.set_bind_group(0, &img_binding, &[]);
-
-                        rpass.set_pipeline(&i_pipeline);
-                        rpass.set_vertex_buffer(0, i_vertices.slice(..));
-                        rpass.draw(0..i_data.len() as u32, 0..1);
-                    });
-
+                    encoder.render_bundles(attachment, Some(Color::GREEN), &bundles);
                     encoder.draw_glyphs(&gx, attachment, &mut glyphs, trf, None, None);
-
                 }).expect("frame error");
-
 
                 println!("{:?}", then.elapsed());
             },

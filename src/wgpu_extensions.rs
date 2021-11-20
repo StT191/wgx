@@ -41,6 +41,11 @@ pub trait EncoderExtension {
         &'a mut self, attachment:&'a RenderAttachment, color:Option<Color>,
         handler: impl FnOnce(wgpu::RenderPass<'a>)
     );
+
+    fn render_bundles<'a>(
+        &'a mut self, attachment:&'a RenderAttachment, color:Option<Color>,
+        bundles: impl IntoIterator<Item = &'a wgpu::RenderBundle>
+    );
 }
 
 
@@ -123,6 +128,14 @@ impl EncoderExtension for wgpu::CommandEncoder {
         handler: impl FnOnce(wgpu::RenderPass<'a>)
     ) {
         handler(self.render_pass(attachment, color));
+    }
+
+
+    fn render_bundles<'a>(
+        &'a mut self, attachment:&'a RenderAttachment, color:Option<Color>,
+        bundles: impl IntoIterator<Item = &'a wgpu::RenderBundle>
+    ) {
+        self.render_pass(attachment, color).execute_bundles(bundles.into_iter());
     }
 }
 

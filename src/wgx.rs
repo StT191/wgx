@@ -204,7 +204,23 @@ impl Wgx {
     {
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
         handler(&mut encoder);
-        self.queue.submit(Some(encoder.finish()));
+        self.queue.submit([encoder.finish()]);
+    }
+
+
+    // render_bundle
+
+    pub fn render_bundle_encoder(&self, formats: &[wgpu::TextureFormat], depth_testing:bool, msaa:u32)
+        -> wgpu::RenderBundleEncoder
+    {
+        self.device.create_render_bundle_encoder(&wgpu::RenderBundleEncoderDescriptor {
+            label: None,
+            color_formats: formats,
+            depth_stencil: if depth_testing { Some(wgpu::RenderBundleDepthStencil {
+                format: DEPTH, depth_read_only: false, stencil_read_only: false,
+            })} else { None },
+            sample_count: msaa,
+        })
     }
 
 

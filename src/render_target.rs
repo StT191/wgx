@@ -26,8 +26,18 @@ pub trait RenderTarget {
     fn depth_testing(&self) -> bool;
     fn msaa(&self) -> u32;
 
+    fn render_bundle_encoder<'a>(&self, wgx:&'a Wgx) -> wgpu::RenderBundleEncoder<'a> {
+        wgx.render_bundle_encoder(&[self.format()], self.depth_testing(), self.msaa())
+    }
+
+    fn render_bundle<'a>(&self, wgx:&'a Wgx, handler: impl FnOnce(&mut wgpu::RenderBundleEncoder<'a>)) -> wgpu::RenderBundle {
+        let mut encoder = self.render_bundle_encoder(wgx);
+        handler(&mut encoder);
+        encoder.finish(&wgpu::RenderBundleDescriptor::default())
+    }
+
     fn render_pipeline(
-        &self, wgx: &Wgx, alpha_blend:bool,
+        &self, wgx:&Wgx, alpha_blend:bool,
         (vs_module, vs_entry_point):(&wgpu::ShaderModule, &str), (fs_module, fs_entry_point):(&wgpu::ShaderModule, &str),
         vertex_layouts:&[wgpu::VertexBufferLayout], topology:wgpu::PrimitiveTopology,
         push_constant_ranges:&[wgpu::PushConstantRange],

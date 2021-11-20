@@ -94,6 +94,13 @@ fn main() {
     ]);
 
 
+    // render bundles
+    let bundles = [target.render_bundle(&gx, |mut rpass| {
+        rpass.set_pipeline(&pipeline);
+        rpass.set_bind_group(0, &binding, &[]);
+        rpass.set_vertex_buffer(0, vertices.slice(..));
+        rpass.draw(0..data.len() as u32, 0..1);
+    })];
 
     // event loop
 
@@ -124,18 +131,9 @@ fn main() {
 
                 let then = Instant::now();
 
-
                 target.with_encoder_frame(&gx, |encoder, attachment| {
-
-                    encoder.with_render_pass(attachment, Some(Color::GREEN), |mut rpass| {
-                        rpass.set_pipeline(&pipeline);
-                        rpass.set_bind_group(0, &binding, &[]);
-                        rpass.set_vertex_buffer(0, vertices.slice(..));
-                        rpass.draw(0..data.len() as u32, 0..1);
-                    });
-
+                    encoder.render_bundles(attachment, Some(Color::GREEN), &bundles);
                 }).expect("frame error");
-
 
                 println!("{:?}", then.elapsed());
             },
