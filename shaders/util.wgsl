@@ -16,7 +16,7 @@ fn z_rotation(angle: f32) -> mat4x4<f32> {
 }
 
 fn translation(x:f32, y:f32, z:f32) -> mat4x4<f32> {
-    return mat4x4<f32>(vec4<f32>(1.0, 0.0, 0.0, x), vec4<f32>(0.0, 1.0, 0.0, y), vec4<f32>(0.0, 0.0, 1.0, z), vec4<f32>(0.0, 0.0, 0.0, 1.0));
+    return mat4x4<f32>(vec4<f32>(1.0, 0.0, 0.0, 0.0), vec4<f32>(0.0, 1.0, 0.0, 0.0), vec4<f32>(0.0, 0.0, 1.0, 0.0), vec4<f32>(x, y, z, 1.0));
 }
 
 fn normal_2d(vec:vec2<f32>) -> vec2<f32> {

@@ -120,9 +120,6 @@ impl EncoderGlyphDrawExtension for wgpu::CommandEncoder<> {
             tmp_belt.as_mut().unwrap()
         };
 
-
-        let transform = transform * Matrix4::from_nonuniform_scale(1.0, -1.0, 1.0);
-
         let result = if let Some(region) = region {
             glypths.draw_queued_with_transform_and_scissoring(
                 &wgx.device, staging_belt, self, attachment.view, *transform.as_ref(),
@@ -162,8 +159,6 @@ impl EncoderGlyphDrawExtension for wgpu::CommandEncoder<> {
             tmp_belt.as_mut().unwrap()
         };
 
-
-        let transform = transform * Matrix4::from_nonuniform_scale(1.0, -1.0, 1.0);
 
         let result = if let Some(region) = region {
             glypths.draw_queued_with_transform_and_scissoring(

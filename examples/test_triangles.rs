@@ -95,7 +95,7 @@ fn main() {
 
 
     // render bundles
-    let bundles = [target.render_bundle(&gx, |mut rpass| {
+    let bundles = [target.render_bundle(&gx, |rpass| {
         rpass.set_pipeline(&pipeline);
         rpass.set_bind_group(0, &binding, &[]);
         rpass.set_vertex_buffer(0, vertices.slice(..));

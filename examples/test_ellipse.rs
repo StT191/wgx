@@ -122,7 +122,7 @@ fn main() {
                 // projection
                 let projection =
                     // window_fov_projection(70.0, width, height) *
-                    flat_window_projection(width, height) *
+                    flat_window_projection(width, height, 0.0) *
                     Matrix4::from_translation(Vector3::<f32>::new(width/2.0, height/2.0, 0.0)) *
                     obj_mat
                 ;

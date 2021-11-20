@@ -15,7 +15,7 @@ struct VertexOutput {
 
 
 fn translation(x:f32, y:f32, z:f32) -> mat4x4<f32> {
-    return mat4x4<f32>(vec4<f32>(1.0, 0.0, 0.0, x), vec4<f32>(0.0, 1.0, 0.0, y), vec4<f32>(0.0, 0.0, 1.0, z), vec4<f32>(0.0, 0.0, 0.0, 1.0));
+    return mat4x4<f32>(vec4<f32>(1.0, 0.0, 0.0, 0.0), vec4<f32>(0.0, 1.0, 0.0, 0.0), vec4<f32>(0.0, 0.0, 1.0, 0.0), vec4<f32>(x, y, z, 1.0));
 }
 
 fn normal_2d(vec:vec2<f32>) -> vec2<f32> {
@@ -38,9 +38,9 @@ fn vs_main(
     out.color = color;
     out.E = E;
 
-    let O = (pix.matrix * vec4<f32>(0.0, 0.0, 0.0, 1.0)).xy; // origin
+    let O = homogen_2d(pix.matrix * vec4<f32>(0.0, 0.0, 0.0, 1.0)); // origin
 
-    out.prj = translation(-O.x, -O.y, 0.0) * pix.matrix;;
+    out.prj = translation(-O.x, -O.y, 0.0) * pix.matrix;
 
     return out;
 }
@@ -48,7 +48,6 @@ fn vs_main(
 
 [[stage(fragment)]]
 fn fs_main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
-
 
     let e = length(in.E);
 
@@ -69,12 +68,12 @@ fn fs_main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
     let T = Rp - homogen_2d(in.prj * vec4<f32>(Ep + normal_2d(Ep), 0.0, 1.0)); // tangent in pixel space
 
 
-    let ds = (rp - r) * sin(acos(dot(Rp, T) / (rp*length(T)))); // skew corrected pixel distance to edge
+    let ds = (rp - r) * sin(acos(dot(R, T) / (r*length(T)))); // skew corrected pixel distance to edge
 
 
     var color = in.color;
 
-    let g = 1.0 * sqrt(2.0); // fade threshold
+    let g = 1.0; // fade threshold
 
     if (ds < g) {
         color.a = color.a * (ds / g);

@@ -70,9 +70,9 @@ fn main() {
     // ];
     let data = [
         c[1], c[0], c[2],
-        // c[2], c[0], c[3],
+        c[2], c[0], c[3],
         c[3], c[0], c[4],
-        // c[4], c[0], c[1],
+        c[4], c[0], c[1],
     ];
     let vertices = gx.buffer_from_data(BuffUse::VERTEX, &data[..]);
 
@@ -107,19 +107,19 @@ fn main() {
     let (mut width, mut height) = (width as f32, height as f32);
     let (mut w, mut h) = (0.33, 0.33);
 
-    let mut obj_matrix = Matrix4::from_nonuniform_scale(w*width, h*height, 1.0);
+    let mut obj_scale_matrix = Matrix4::from_nonuniform_scale(w*width, h*height, 1.0);
 
     let mut rot_matrix = Matrix4::<f32>::identity();
 
     let projection =
-        window_fov_projection(30.0, width, height)
-        // flat_window_projection(width, height) *
-        // Matrix4::from_translation(Vector3::<f32>::new(width/2.0, height/2.0, 0.0))
+        window_fov_projection(45.0, width, height)
+        // flat_window_projection(width, height, 0.0) *
+        // Matrix4::from_translation((width/2.0, height/2.0, 0.0).into())
     ;
 
-    let mut clip_matrix = projection * rot_matrix * obj_matrix;
+    let mut clip_matrix = projection * rot_matrix * obj_scale_matrix;
 
-    let mut pixel_matrix = Matrix4::from_nonuniform_scale(width/2.0, height/2.0, 0.0) * clip_matrix;
+    let mut pixel_matrix = Matrix4::from_nonuniform_scale(width/2.0, height/2.0, 1.0) * clip_matrix;
 
 
     // event loop
@@ -139,10 +139,10 @@ fn main() {
                 height = size.height as f32;
 
                 // projection
-                obj_matrix = Matrix4::from_nonuniform_scale(w*width, h*height, 1.0);
+                obj_scale_matrix = Matrix4::from_nonuniform_scale(w*width, h*height, 1.0);
 
-                clip_matrix = projection * rot_matrix * obj_matrix;
-                pixel_matrix = Matrix4::from_nonuniform_scale(width/2.0, height/2.0, 0.0) * clip_matrix;
+                clip_matrix = projection * rot_matrix * obj_scale_matrix;
+                pixel_matrix = Matrix4::from_nonuniform_scale(width/2.0, height/2.0, 1.0) * clip_matrix;
 
                 gx.write_buffer(&mut clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&clip_matrix));
                 gx.write_buffer(&mut pix_buffer, 0, AsRef::<[f32; 16]>::as_ref(&pixel_matrix));
@@ -153,14 +153,12 @@ fn main() {
             }, ..}, ..} => {
                 let mut redraw = true;
                 match keycode {
-                    VirtualKeyCode::I => { rot_matrix = Matrix4::from_angle_x(Deg(-DA)) * rot_matrix; },
-                    VirtualKeyCode::K => { rot_matrix = Matrix4::from_angle_x(Deg( DA)) * rot_matrix; },
-                    VirtualKeyCode::J => { rot_matrix = Matrix4::from_angle_y(Deg(-DA)) * rot_matrix; },
-                    VirtualKeyCode::L => { rot_matrix = Matrix4::from_angle_y(Deg( DA)) * rot_matrix; },
-                    // VirtualKeyCode::U => { rot_matrix = Matrix4::from_angle_z(Deg( DA)) * rot_matrix; },
-                    // VirtualKeyCode::O => { rot_matrix = Matrix4::from_angle_z(Deg(-DA)) * rot_matrix; },
-                    VirtualKeyCode::U => { rot_matrix = Matrix4::from_angle_z(Deg(-DA)) * rot_matrix; }, // on flat pojection
-                    VirtualKeyCode::O => { rot_matrix = Matrix4::from_angle_z(Deg( DA)) * rot_matrix; }, // on flat pojection
+                    VirtualKeyCode::I => { rot_matrix = Matrix4::from_angle_x(Deg( DA)) * rot_matrix; },
+                    VirtualKeyCode::K => { rot_matrix = Matrix4::from_angle_x(Deg(-DA)) * rot_matrix; },
+                    VirtualKeyCode::J => { rot_matrix = Matrix4::from_angle_y(Deg( DA)) * rot_matrix; },
+                    VirtualKeyCode::L => { rot_matrix = Matrix4::from_angle_y(Deg(-DA)) * rot_matrix; },
+                    VirtualKeyCode::U => { rot_matrix = Matrix4::from_angle_z(Deg( DA)) * rot_matrix; }, // on flat pojection
+                    VirtualKeyCode::O => { rot_matrix = Matrix4::from_angle_z(Deg(-DA)) * rot_matrix; }, // on flat pojection
 
                     VirtualKeyCode::W => { h += DT; },
                     VirtualKeyCode::S => { h -= DT; },
@@ -176,10 +174,10 @@ fn main() {
                     _ => { redraw = false; }
                 } {
                     if redraw {
-                        obj_matrix = Matrix4::from_nonuniform_scale(w*width, h*height, 1.0);
+                        obj_scale_matrix = Matrix4::from_nonuniform_scale(w*width, h*height, 1.0);
 
-                        clip_matrix = projection * rot_matrix * obj_matrix;
-                        pixel_matrix = Matrix4::from_nonuniform_scale(width/2.0, height/2.0, 0.0) * clip_matrix;
+                        clip_matrix = projection * rot_matrix * obj_scale_matrix;
+                        pixel_matrix = Matrix4::from_nonuniform_scale(width/2.0, height/2.0, 1.0) * clip_matrix;
 
                         gx.write_buffer(&mut clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&clip_matrix));
                         gx.write_buffer(&mut pix_buffer, 0, AsRef::<[f32; 16]>::as_ref(&pixel_matrix));

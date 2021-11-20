@@ -158,7 +158,7 @@ fn main() {
 
 
     // render bundles
-    let bundles = [target.render_bundle(&gx, |mut rpass| {
+    let bundles = [target.render_bundle(&gx, |rpass| {
 
         rpass.set_bind_group(0, &binding, &[]);
 
@@ -194,7 +194,7 @@ fn main() {
     let trf =
         unit_fov_projection(30.0, width as f32 / heigh as f32, sf*1000.0) *
         Matrix4::from_translation((-sf*1200.0, sf*900.0, 0.0).into()) *
-        Matrix4::from_scale(3.0);
+        Matrix4::from_nonuniform_scale(3.0, -3.0, 3.0);
 
 
     event_loop.run(move |event, _, control_flow| {

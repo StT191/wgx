@@ -116,15 +116,14 @@ fn main() {
 
 
                 let trf =
-                    flat_window_projection(width, height) *
+                    flat_window_projection(width, height, 0.0) *
                     // window_fov_projection(30.0, width, height) *
                     // Matrix4::from_translation((0.0, 0.0, 0.0).into()) *
                     // Matrix4::from_angle_z(Deg(45.0)) *
                     // Matrix4::from_angle_y(Deg(88.0)) *
                     // Matrix4::from_translation((-1200.0, 900.0, 0.0).into()) *
-                    Matrix4::from_translation((20.0, 20.0, 0.0).into()) *
+                    Matrix4::from_translation((20.0, 20.0, 0.0).into())
                     // Matrix4::from_angle_x(Deg(45.0)) *
-                    Matrix4::from_nonuniform_scale(1.0, -1.0, 1.0)
                 ;
 
 
