@@ -10,20 +10,24 @@ name = "wgx"
 doctest = false
 
 [features]
-default = ["glyph", "iced"]
+# default = ["glyph", "iced"]
 glyph = ["wgpu_glyph"]
 iced = ["iced_winit", "iced_wgpu"]
 spirv = ["glsl-to-spirv", "wgpu/spirv"]
+
 
 [dependencies]
 wgpu = { version = "0.11" }
 futures = "0.3"
 raw-window-handle = "0.3"
 cgmath = "0.18"
+
+# optional
 glsl-to-spirv = { version = "0.1", optional = true }
 wgpu_glyph = { version = "0.15", optional = true }
 iced_winit = { git = "https://github.com/iced-rs/iced/", rev = "20177e4", optional = true }
 iced_wgpu = { git = "https://github.com/iced-rs/iced/", rev = "20177e4", optional = true }
+
 
 [dev-dependencies]
 winit = "0.25"
