@@ -45,9 +45,9 @@ fn main() {
     let shader = gx.load_wgsl(include_str!("../shaders/flat_texture.wgsl"));
 
     // layout
-    let layout = gx.binding(&[
-        binding!(0, FRAGMENT, SampledTexture),
-        binding!(1, FRAGMENT, Sampler)
+    let layout = gx.layout(&[
+        binding!(0, Shader::FRAGMENT, SampledTexture),
+        binding!(1, Shader::FRAGMENT, Sampler)
     ]);
 
 
@@ -71,7 +71,7 @@ fn main() {
     let t_pipeline = target.render_pipeline(
         &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
         &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        Primitive::TriangleStrip, &[], &[&layout]
+        Primitive::TriangleStrip, Some((&[], &[&layout]))
     );
 
     let t_data = [
@@ -88,7 +88,7 @@ fn main() {
     let l_pipeline = target.render_pipeline(
         &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
         &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        Primitive::LineStrip, &[], &[&layout]
+        Primitive::LineStrip, Some((&[], &[&layout]))
     );
 
     let l_data = [
@@ -107,7 +107,7 @@ fn main() {
     let p_pipeline = target.render_pipeline(
         &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
         &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        Primitive::PointList, &[], &[&layout]
+        Primitive::PointList, Some((&[], &[&layout]))
     );
 
     let p_data = [
@@ -144,7 +144,7 @@ fn main() {
     let i_pipeline = target.render_pipeline(
         &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
         &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        Primitive::TriangleStrip, &[], &[&layout]
+        Primitive::TriangleStrip, Some((&[], &[&layout]))
     );
 
     let i_data = [

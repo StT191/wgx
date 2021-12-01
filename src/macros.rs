@@ -1,10 +1,10 @@
 
 #[macro_export]
 macro_rules! binding {
-    ($loc:expr, $stage:ident, UniformBuffer, $min_size:expr) => {
+    ($loc:expr, $stage:expr, UniformBuffer, $min_size:expr) => {
         wgpu::BindGroupLayoutEntry {
             binding: $loc,
-            visibility: wgpu::ShaderStages::$stage,
+            visibility: $stage,
             ty: wgpu::BindingType::Buffer {
                 ty: wgpu::BufferBindingType::Uniform,
                 has_dynamic_offset: false,
@@ -13,10 +13,22 @@ macro_rules! binding {
             count: None,
         }
     };
-    ($loc:expr, $stage:ident, SampledTexture) => {
+    ($loc:expr, $stage:expr, StorageBuffer, $min_size:expr, $ro:expr) => {
         wgpu::BindGroupLayoutEntry {
             binding: $loc,
-            visibility: wgpu::ShaderStages::$stage,
+            visibility: $stage,
+            ty: wgpu::BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Storage { read_only: $ro },
+                has_dynamic_offset: false,
+                min_binding_size: core::num::NonZeroU64::new($min_size),
+            },
+            count: None,
+        }
+    };
+    ($loc:expr, $stage:expr, SampledTexture) => {
+        wgpu::BindGroupLayoutEntry {
+            binding: $loc,
+            visibility: $stage,
             ty: wgpu::BindingType::Texture {
                 sample_type: wgpu::TextureSampleType::Float { filterable: true },
                 view_dimension: wgpu::TextureViewDimension::D2,
@@ -25,10 +37,10 @@ macro_rules! binding {
             count: None,
         }
     };
-    ($loc:expr, $stage:ident, Sampler) => {
+    ($loc:expr, $stage:expr, Sampler) => {
         wgpu::BindGroupLayoutEntry {
             binding: $loc,
-            visibility: wgpu::ShaderStages::$stage,
+            visibility: $stage,
             ty: wgpu::BindingType::Sampler { comparison: false, filtering: true },
             count: None,
         }
@@ -77,9 +89,9 @@ macro_rules! vertex_desc {
 
 #[macro_export]
 macro_rules! push_constants {
-    ($($range:expr => $stage:ident),*) => {
+    ($($range:expr => $stage:expr),*) => {
         &[$(wgpu::PushConstantRange {
-            stages: wgpu::ShaderStages::$stage,
+            stages: $stage,
             range: $range,
         },)*]
     };

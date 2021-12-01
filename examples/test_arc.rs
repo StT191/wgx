@@ -35,16 +35,10 @@ fn main() {
     // pipeline
     let shader = gx.load_wgsl(include_str!("../shaders/arc.wgsl"));
 
-    let layout = gx.binding(&[
-        binding!(0, VERTEX, UniformBuffer, 64),
-        binding!(1, VERTEX, UniformBuffer, 64),
-        binding!(2, VERTEX, UniformBuffer, 8),
-    ]);
-
     let pipeline = target.render_pipeline(
         &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
         &[vertex_desc!(Instance, 0 => Float32x3, 1 => Float32x3, 2 => Float32x3, 3 => Float32, 4 => Uint32)],
-        Primitive::TriangleList, &[], &[&layout]
+        Primitive::TriangleList, None,
     );
 
     let red = Color::RED.u8();
@@ -98,7 +92,7 @@ fn main() {
 
 
     // binding
-    let binding = gx.bind(&layout, &[
+    let binding = gx.bind(&pipeline.get_bind_group_layout(0), &[
         bind!(0, Buffer, &world_buffer),
         bind!(1, Buffer, &clip_buffer),
         bind!(2, Buffer, &viewport_buffer),

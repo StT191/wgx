@@ -40,13 +40,12 @@ pub trait RenderTarget {
         &self, wgx:&Wgx, alpha_blend:bool,
         (vs_module, vs_entry_point):(&wgpu::ShaderModule, &str), (fs_module, fs_entry_point):(&wgpu::ShaderModule, &str),
         vertex_layouts:&[wgpu::VertexBufferLayout], topology:wgpu::PrimitiveTopology,
-        push_constant_ranges:&[wgpu::PushConstantRange],
-        bind_group_layouts:&[&wgpu::BindGroupLayout],
+        layout:Option<(&[wgpu::PushConstantRange], &[&wgpu::BindGroupLayout])>
     ) -> wgpu::RenderPipeline {
         wgx.render_pipeline(
             self.format(), self.depth_testing(), self.msaa(), alpha_blend,
             (vs_module, vs_entry_point), (fs_module, fs_entry_point),
-            vertex_layouts, topology, push_constant_ranges, bind_group_layouts
+            vertex_layouts, topology, layout
         )
     }
 }

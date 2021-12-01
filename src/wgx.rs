@@ -178,7 +178,7 @@ impl Wgx {
 
     // bind group
 
-    pub fn binding(&self, entries:&[wgpu::BindGroupLayoutEntry]) -> wgpu::BindGroupLayout {
+    pub fn layout(&self, entries:&[wgpu::BindGroupLayoutEntry]) -> wgpu::BindGroupLayout {
         self.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries, label: None
         })
@@ -208,7 +208,7 @@ impl Wgx {
     }
 
 
-    // render_bundle
+    // render bundle
 
     pub fn render_bundle_encoder(&self, formats: &[wgpu::TextureFormat], depth_testing:bool, msaa:u32)
         -> wgpu::RenderBundleEncoder
@@ -224,25 +224,49 @@ impl Wgx {
     }
 
 
-    // render_pipeline
+    // compute pipeline
+
+    pub fn compute_pipeline(
+        &self, (module, entry_point):(&wgpu::ShaderModule, &str),
+        layout:Option<(&[wgpu::PushConstantRange], &[&wgpu::BindGroupLayout])>
+    ) -> wgpu::ComputePipeline {
+
+        let layout = if let Some(layout) = layout {
+            Some(self.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: None, push_constant_ranges: layout.0, bind_group_layouts: layout.1
+            }))
+        }
+        else { None };
+
+        self.device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: None,
+            layout: layout.as_ref(),
+            module, entry_point,
+        })
+    }
+
+
+    // render pipeline
 
     pub fn render_pipeline(
         &self, format:wgpu::TextureFormat, depth_testing:bool, msaa:u32, alpha_blend:bool,
         (vs_module, vs_entry_point):(&wgpu::ShaderModule, &str), (fs_module, fs_entry_point):(&wgpu::ShaderModule, &str),
         vertex_layouts:&[wgpu::VertexBufferLayout], topology:wgpu::PrimitiveTopology,
-        push_constant_ranges:&[wgpu::PushConstantRange],
-        bind_group_layouts:&[&wgpu::BindGroupLayout],
+        layout:Option<(&[wgpu::PushConstantRange], &[&wgpu::BindGroupLayout])>
     ) -> wgpu::RenderPipeline {
 
-        let pipeline_layout = self.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: None, push_constant_ranges, bind_group_layouts
-        });
+        let layout = if let Some(layout) = layout {
+            Some(self.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: None, push_constant_ranges: layout.0, bind_group_layouts: layout.1
+            }))
+        }
+        else { None };
 
         self.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
 
             label: None,
 
-            layout: Some(&pipeline_layout),
+            layout: layout.as_ref(),
 
             vertex: wgpu::VertexState {
                 module: vs_module,

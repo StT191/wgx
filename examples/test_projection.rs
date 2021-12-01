@@ -36,16 +36,10 @@ fn main() {
     // global pipeline
     let shader = gx.load_wgsl(include_str!("../shaders/projection_texture.wgsl"));
 
-    let layout = gx.binding(&[
-        binding!(0, VERTEX, UniformBuffer, 64),
-        binding!(1, FRAGMENT, SampledTexture),
-        binding!(2, FRAGMENT, Sampler),
-    ]);
-
     let pipeline = target.render_pipeline(
         &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
         &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        Primitive::TriangleList, push_constants!(), &[&layout]
+        Primitive::TriangleList, None,
     );
 
 
@@ -112,7 +106,7 @@ fn main() {
     let pj_buffer = gx.buffer_from_data(BuffUse::UNIFORM | BuffUse::COPY_DST, AsRef::<[f32; 16]>::as_ref(&projection));
 
 
-    let binding = gx.bind(&layout, &[
+    let binding = gx.bind(&pipeline.get_bind_group_layout(0), &[
         bind!(0, Buffer, &pj_buffer, 0, None),
         bind!(1, TextureView, &texture_view),
         bind!(2, Sampler, &sampler),

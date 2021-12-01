@@ -36,17 +36,17 @@ fn main() {
     let shader = gx.load_wgsl(include_str!("../shaders/wavy.wgsl"));
 
 
-    let layout = gx.binding(&[
-        binding!(0, FRAGMENT, UniformBuffer, 8),
-        binding!(1, FRAGMENT, UniformBuffer, 8),
-        // binding!(2, FRAGMENT, UniformBuffer, 4),
+    let layout = gx.layout(&[
+        binding!(0, Shader::FRAGMENT, UniformBuffer, 8),
+        binding!(1, Shader::FRAGMENT, UniformBuffer, 8),
+        // binding!(2, Shader::FRAGMENT, UniformBuffer, 4),
     ]);
 
 
     let pipeline = target.render_pipeline(
         &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
         &[vertex_desc!(Vertex, 0 => Float32x2)],
-        Primitive::TriangleList, push_constants![0..4 => FRAGMENT], &[&layout]
+        Primitive::TriangleList, Some((push_constants![0..4 => Shader::FRAGMENT], &[&layout]))
     );
 
     // vertices

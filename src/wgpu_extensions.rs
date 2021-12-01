@@ -35,6 +35,10 @@ pub trait EncoderExtension {
         buffer:&wgpu::Buffer, bf_extend:(u32, u32, u64),
     );
 
+    fn compute_pass<'a>(&'a mut self) -> wgpu::ComputePass<'a>;
+
+    fn with_compute_pass<'a>(&'a mut self, handler: impl FnOnce(wgpu::ComputePass<'a>));
+
     fn render_pass<'a>(&'a mut self, attachment:&'a RenderAttachment, color:Option<Color>) -> wgpu::RenderPass<'a>;
 
     fn with_render_pass<'a>(
@@ -92,6 +96,16 @@ impl EncoderExtension for wgpu::CommandEncoder {
     }
 
 
+    fn compute_pass<'a>(&'a mut self) -> wgpu::ComputePass<'a> {
+        self.begin_compute_pass(&wgpu::ComputePassDescriptor { label: None })
+    }
+
+
+    fn with_compute_pass<'a>(&'a mut self, handler: impl FnOnce(wgpu::ComputePass<'a>)) {
+        handler(self.compute_pass());
+    }
+
+
     fn render_pass<'a>(&'a mut self, attachment:&'a RenderAttachment, color:Option<Color>) -> wgpu::RenderPass<'a>
     {
         self.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -138,36 +152,3 @@ impl EncoderExtension for wgpu::CommandEncoder {
         self.render_pass(attachment, color).execute_bundles(bundles.into_iter());
     }
 }
-
-
-
-// render pass
-
-/*pub trait Drawable<'a> {
-    fn draw(&'a self, render_pass:&mut wgpu::RenderPass<'a>);
-}
-
-
-// commit draw commands, pass the render pass
-pub trait RenderPassExtension<'a> {
-    fn pass<T: Drawable<'a>>(self, drawable: &'a T) -> Self;
-}
-
-impl<'a> RenderPassExtension<'a> for wgpu::RenderPass<'a> {
-    fn pass<T: Drawable<'a>>(mut self, drawable: &'a T) -> Self {
-        drawable.draw(&mut self);
-        self
-    }
-}
-
-
-// impl for drawables
-
-impl<'a> Drawable<'a> for (&'a wgpu::RenderPipeline, &'a wgpu::BindGroup, wgpu::BufferSlice<'a>, Range<u32>) {
-    fn draw(&'a self, rpass:&mut wgpu::RenderPass<'a>) {
-        rpass.set_pipeline(self.0);
-        rpass.set_bind_group(0, self.1, &[]);
-        rpass.set_vertex_buffer(0, self.2);
-        rpass.draw(self.3.clone(), 0..1);
-    }
-}*/

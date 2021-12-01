@@ -34,17 +34,10 @@ fn main() {
     // global pipeline
     let shader = gx.load_wgsl(include_str!("../shaders/flat_texture.wgsl"));
 
-
-    let layout = gx.binding(&[
-        binding!(0, FRAGMENT, SampledTexture),
-        binding!(1, FRAGMENT, Sampler)
-    ]);
-
-
     let pipeline = target.render_pipeline(
         &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
         &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        Primitive::TriangleList, &[], &[&layout]
+        Primitive::TriangleList, None,
     );
 
     // first render
@@ -88,7 +81,7 @@ fn main() {
     let texture_view = texture.create_default_view();
     let sampler = gx.sampler();
 
-    let binding = gx.bind(&layout, &[
+    let binding = gx.bind(&pipeline.get_bind_group_layout(0), &[
         bind!(0, TextureView, &texture_view),
         bind!(1, Sampler, &sampler),
     ]);

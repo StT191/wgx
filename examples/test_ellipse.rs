@@ -35,23 +35,16 @@ fn main() {
     // pipeline
     let shader = gx.load_wgsl(include_str!("../shaders/ellipse.wgsl"));
 
-    let layout = gx.binding(&[
-        binding!(0, VERTEX, UniformBuffer, 64),
-        binding!(1, VERTEX_FRAGMENT, UniformBuffer, 16),
-        // binding!(1, VERTEX, UniformBuffer, 8),
-    ]);
-
     let pipeline = target.render_pipeline(
         &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
         &[vertex_desc!(Vertex, 0 => Float32x2, 1 => Float32x4)],
-        Primitive::TriangleList, &[], &[&layout]
+        Primitive::TriangleList, None,
     );
-
-    let color = Color::RED.f32();
 
 
     // path
 
+    let color = Color::RED.f32();
 
     // corners
     let c = [
@@ -78,7 +71,7 @@ fn main() {
     let mut dim_buffer = gx.buffer_from_data(BuffUse::UNIFORM | BuffUse::COPY_DST, &[1.0_f32; 4]);
 
     // binding
-    let binding = gx.bind(&layout, &[
+    let binding = gx.bind(&pipeline.get_bind_group_layout(0), &[
         bind!(0, Buffer, &pj_buffer, 0, None),
         // bind!(1, Buffer, tf_buffer.slice(..)),
         bind!(1, Buffer, &dim_buffer, 0, None),
