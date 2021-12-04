@@ -28,25 +28,26 @@ fn main() {
     window.set_inner_size(PhysicalSize::<u32>::from((width, height)));
     window.set_title("WgFx");
 
-    let mut gx = Wgx::new(Some(&window), Features::VERTEX_WRITABLE_STORAGE, limits!{});
+    let mut gx = Wgx::new(Some(&window), Features::empty(), limits!{});
 
     let mut target = gx.surface_target((width, height), DEPTH_TESTING, MSAA).expect("render target failed");
 
 
     // pipeline
-    let shader = gx.load_wgsl(include_str!("../shaders/arc_cp.wgsl"));
-
-    let cp_pipeline = gx.compute_pipeline((&shader, "cp_main"), None);
+    let shader = gx.load_wgsl(include_str!("../shaders/arc_vin.wgsl"));
 
     let pipeline = target.render_pipeline(
         &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
-        &[vertex_desc!(Vertex, 0 => Float32x4, 1 => Float32x4)],
+        &[
+            vertex_desc!(Instance, 0 => Float32x3, 1 => Float32x3, 2 => Float32x3, 3 => Float32x4),
+            vertex_desc!(Vertex, 4 => Float32x4),
+        ],
         Primitive::TriangleList, None,
     );
 
 
-    let red = Color::RED.u8();
-    let blue = Color::BLUE.u8();
+    let red = Color::RED.f32();
+    let blue = Color::BLUE.f32();
 
     // corners
     let c = [
@@ -71,13 +72,29 @@ fn main() {
         instance_data.push(instance_data[3]);
     }
 
-    let steps = 64 as u32;
 
-    let vertex_len = instance_data.len() as u32 * 3 * steps;
+    let steps = 64;
+    let steps_f = steps as f32;
 
-    let instance_buffer = gx.buffer_from_data(BuffUse::STORAGE | BuffUse::COPY_DST, &instance_data);
-    let vertex_buffer = gx.buffer(BuffUse::STORAGE | BuffUse::VERTEX, (vertex_len * 32) as u64, false);
-    // let step_buffer = gx.buffer_from_data(BuffUse::UNIFORM | BuffUse::COPY_DST, &[steps]);
+    let mut vertex_data:Vec<[f32;4]> = Vec::with_capacity(3 * steps as usize);
+
+    let pi0 = std::f32::consts::FRAC_PI_2;
+
+    for j in 0..steps {
+
+        let fi0 = j as f32 / steps_f * pi0;
+        let fi1 = (j as f32 + 1.0) / steps_f * pi0;
+
+        vertex_data.push([f32::cos(fi0), f32::sin(fi0), 0.0, 1.0]);
+        vertex_data.push([          0.0,           0.0, 0.0, 1.0]);
+        vertex_data.push([f32::cos(fi1), f32::sin(fi1), 0.0, 1.0]);
+    }
+
+
+
+    let instance_buffer = gx.buffer_from_data(BuffUse::VERTEX, &instance_data);
+    let vertex_buffer = gx.buffer_from_data(BuffUse::VERTEX, &vertex_data);
+    // let step_buffer = gx.buffer_from_data(BuffUse::UNIFORM, &[steps as u32]);
 
 
     // projection
@@ -90,14 +107,20 @@ fn main() {
     let binding = gx.bind(&pipeline.get_bind_group_layout(0), &[
         // bind!(0, Buffer, &world_buffer),
         bind!(1, Buffer, &clip_buffer),
+        // bind!(2, Buffer, &step_buffer),
         // bind!(2, Buffer, &viewport_buffer),
     ]);
 
-    let binding_cp = gx.bind(&cp_pipeline.get_bind_group_layout(0), &[
-        bind!(3, Buffer, &instance_buffer),
-        bind!(4, Buffer, &vertex_buffer),
-        // bind!(5, Buffer, &step_buffer),
-    ]);
+
+    // render bundles
+    let bundles = [target.render_bundle(&gx, |rpass| {
+        rpass.set_pipeline(&pipeline);
+        rpass.set_bind_group(0, &binding, &[]);
+        rpass.set_vertex_buffer(0, instance_buffer.slice(..));
+        rpass.set_vertex_buffer(1, vertex_buffer.slice(..));
+        rpass.draw(0..vertex_data.len() as u32, 0..instance_data.len() as u32);
+    })];
+
 
     // matrix
     const DA:f32 = 3.0;
@@ -185,20 +208,7 @@ fn main() {
                 let then = Instant::now();
 
                 target.with_encoder_frame(&gx, |encoder, attachment| {
-
-                    encoder.with_compute_pass(|mut cpass| {
-                        cpass.set_pipeline(&cp_pipeline);
-                        cpass.set_bind_group(0, &binding_cp, &[]);
-                        cpass.dispatch(instance_data.len() as u32, steps, 1);
-                    });
-
-                    encoder.with_render_pass(attachment, Some(Color::GREEN), |mut rpass| {
-                        rpass.set_pipeline(&pipeline);
-                        rpass.set_bind_group(0, &binding, &[]);
-                        rpass.set_vertex_buffer(0, vertex_buffer.slice(..));
-                        rpass.draw(0..vertex_len as u32, 0..1);
-                    });
-
+                    encoder.render_bundles(attachment, Some(Color::GREEN), &bundles);
                 }).expect("frame error");
 
                 println!("{:?}", then.elapsed());
