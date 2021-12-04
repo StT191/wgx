@@ -38,7 +38,7 @@ pub struct Wgx {
 impl Wgx {
 
     pub fn new<W: HasRawWindowHandle>(
-        window:Option<&W>, max_push_constant_size: u32, features: Option<wgpu::Features>,
+        window:Option<&W>, features:wgpu::Features, limits:wgpu::Limits,
     ) -> Self {
 
         let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY);
@@ -56,22 +56,8 @@ impl Wgx {
         })).expect("couldn't get adapter");
 
 
-        let mut features = if let Some(ft) = features { ft } else { wgpu::Features::empty() };
-
-        if max_push_constant_size > 0 {
-            features |= wgpu::Features::PUSH_CONSTANTS
-        }
-
         let (device, queue) = block_on(adapter.request_device(
-            &wgpu::DeviceDescriptor {
-                label: None,
-                features,
-                limits: wgpu::Limits {
-                    max_push_constant_size,
-                    ..Default::default()
-                }
-            },
-            None,
+            &wgpu::DeviceDescriptor {label: None, features, limits}, None,
         )).expect("couldn't get device");
 
         Self { instance, adapter, device, queue, surface }

@@ -8,8 +8,7 @@ fn translation(x:f32, y:f32, z:f32) -> mat4x4<f32> {
     return mat4x4<f32>(vec4<f32>(1.0, 0.0, 0.0, 0.0), vec4<f32>(0.0, 1.0, 0.0, 0.0), vec4<f32>(0.0, 0.0, 1.0, 0.0), vec4<f32>(x, y, z, 1.0));
 }
 
-fn from_plane(O:vec3<f32>, X:vec3<f32>, Y:vec3<f32>) -> mat4x4<f32> {
-    let Z = normalize(cross(Y, X)); // left-handed
+fn from_vecs(O:vec3<f32>, X:vec3<f32>, Y:vec3<f32>, Z:vec3<f32>) -> mat4x4<f32> {
     return mat4x4<f32>(vec4<f32>(X, 0.0), vec4<f32>(Y, 0.0), vec4<f32>(Z, 0.0), vec4<f32>(O, 1.0));
 }
 

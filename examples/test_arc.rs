@@ -28,7 +28,7 @@ fn main() {
     window.set_inner_size(PhysicalSize::<u32>::from((width, height)));
     window.set_title("WgFx");
 
-    let mut gx = Wgx::new(Some(&window), 0, None);
+    let mut gx = Wgx::new(Some(&window), Features::empty(), limits!{});
     let mut target = gx.surface_target((width, height), DEPTH_TESTING, MSAA).expect("render target failed");
 
 
@@ -120,7 +120,7 @@ fn main() {
     let world_matrix = rot_matrix * Matrix4::from_nonuniform_scale(w*width, h*height, 1.0);
 
     let projection =
-        window_fov_projection(30.0, width, height)
+        window_fov_projection(60.0, width, height)
         // flat_window_projection(width, height, 0.0) *
         // Matrix4::from_translation((width/2.0, height/2.0, 0.0).into())
     ;

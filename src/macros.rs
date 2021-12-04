@@ -1,5 +1,16 @@
 
 #[macro_export]
+macro_rules! limits {
+    ($($key:ident: $value:expr),*) => {
+        wgpu::Limits {
+            $($key: $value, )*
+            ..Default::default()
+        }
+    };
+}
+
+
+#[macro_export]
 macro_rules! binding {
     ($loc:expr, $stage:expr, UniformBuffer, $min_size:expr) => {
         wgpu::BindGroupLayoutEntry {

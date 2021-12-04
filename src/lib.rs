@@ -5,6 +5,7 @@ pub use wgpu::{
     TextureUsages as TexUse,
     PrimitiveTopology as Primitive,
     ShaderStages as Shader,
+    Features,
 };
 
 

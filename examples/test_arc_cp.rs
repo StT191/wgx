@@ -18,7 +18,7 @@ fn main() {
 
     const DEPTH_TESTING:bool = false;
     const MSAA:u32 = 4;
-    const ALPHA_BLENDING:bool = true;
+    const ALPHA_BLENDING:bool = false;
 
 
     let (width, height) = (1000, 1000);
@@ -28,27 +28,20 @@ fn main() {
     window.set_inner_size(PhysicalSize::<u32>::from((width, height)));
     window.set_title("WgFx");
 
-    let mut gx = Wgx::new(Some(&window), 0, Some(wgpu::Features::VERTEX_WRITABLE_STORAGE));
+    let mut gx = Wgx::new(Some(&window), Features::VERTEX_WRITABLE_STORAGE, limits!{});
+
     let mut target = gx.surface_target((width, height), DEPTH_TESTING, MSAA).expect("render target failed");
 
 
     // pipeline
     let shader = gx.load_wgsl(include_str!("../shaders/arc_cp.wgsl"));
 
-    let layout = gx.layout(&[
-        binding!(0, Shader::all(), UniformBuffer, 64),
-        binding!(1, Shader::all(), UniformBuffer, 64),
-        binding!(2, Shader::all(), UniformBuffer, 8),
-        binding!(3, Shader::all(), StorageBuffer, 64, true),
-        binding!(4, Shader::all(), StorageBuffer, 64, false),
-    ]);
-
     let cp_pipeline = gx.compute_pipeline((&shader, "cp_main"), None);
 
     let pipeline = target.render_pipeline(
         &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
-        &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Uint32)],
-        Primitive::TriangleList, Some((&[], &[&layout])),
+        &[vertex_desc!(Vertex, 0 => Float32x4, 1 => Float32x4)],
+        Primitive::TriangleList, None,
     );
 
 
@@ -64,63 +57,41 @@ fn main() {
         [ 0.0,  1.0, 0.0],
     ];
 
-    let a:f32 = 40.0;
-    let b:f32 = 0.2;
-
-    // let a:f32 = 0.2;
-    // let b:f32 = 0.2;
-
     let mut instance_data = vec![
-        // (c[1], c[0], c[2], 50.0 as f32, blue),
-        // (c[2], c[0], c[3], 50.0, blue),
-        (c[1], c[0], c[2], a, blue),
-        (c[2], c[0], c[3], b, blue),
-        (c[3], c[0], c[4], a, blue),
-        (c[4], c[0], c[1], b, blue),
-        // (c[1], c[0], c[2], 1.0/a, blue),
-        // (c[2], c[0], c[3], 1.0/a, blue),
-        // (c[3], c[0], c[4], 1.0/b, blue),
-        // (c[4], c[0], c[1], 1.0/b, blue),
-        // (c[3], c[0], c[4], -1.0 as f32, red),
-        // (c[4], c[0], c[1], 0.0, red),
+        (c[1], c[0], c[2], blue),
+        (c[2], c[0], c[3], red),
+        (c[3], c[0], c[4], blue),
+        (c[4], c[0], c[1], red),
     ];
 
-    /*for _ in 0..1000 {
-        instance_data.push(instance_data[0]);
-        instance_data.push(instance_data[1]);
-        instance_data.push(instance_data[2]);
-        instance_data.push(instance_data[3]);
-    }*/
 
+    let steps = 64 as u32;
+
+    let vertex_len = instance_data.len() as u32 * 3 * steps;
 
     let instance_buffer = gx.buffer_from_data(BuffUse::STORAGE | BuffUse::COPY_DST, &instance_data);
-    let vertex_buffer = gx.buffer(BuffUse::STORAGE | BuffUse::VERTEX, 4*1000, false);
+    let vertex_buffer = gx.buffer(BuffUse::STORAGE | BuffUse::VERTEX, (vertex_len * 32) as u64, false);
+    // let step_buffer = gx.buffer_from_data(BuffUse::UNIFORM | BuffUse::COPY_DST, &[steps]);
 
 
     // projection
-    let mut world_buffer = gx.buffer(BuffUse::UNIFORM | BuffUse::COPY_DST, 64, false);
+    // let mut world_buffer = gx.buffer(BuffUse::UNIFORM | BuffUse::COPY_DST, 64, false);
     let mut clip_buffer = gx.buffer(BuffUse::UNIFORM | BuffUse::COPY_DST, 64, false);
-    let mut viewport_buffer = gx.buffer(BuffUse::UNIFORM | BuffUse::COPY_DST, 8, false);
+    // let mut viewport_buffer = gx.buffer(BuffUse::UNIFORM | BuffUse::COPY_DST, 8, false);
 
 
     // binding
-    let binding = gx.bind(&layout, &[
-        bind!(0, Buffer, &world_buffer),
+    let binding = gx.bind(&pipeline.get_bind_group_layout(0), &[
+        // bind!(0, Buffer, &world_buffer),
         bind!(1, Buffer, &clip_buffer),
-        bind!(2, Buffer, &viewport_buffer),
-        bind!(3, Buffer, &instance_buffer),
-        bind!(4, Buffer, &vertex_buffer),
+        // bind!(2, Buffer, &viewport_buffer),
     ]);
 
-
-    // render bundles
-    let bundles = [target.render_bundle(&gx, |rpass| {
-        rpass.set_pipeline(&pipeline);
-        rpass.set_bind_group(0, &binding, &[]);
-        rpass.set_vertex_buffer(0, vertex_buffer.slice(..));
-        rpass.draw(0..(instance_data.len() * 3) as u32, 0..1);
-    })];
-
+    let binding_cp = gx.bind(&cp_pipeline.get_bind_group_layout(0), &[
+        bind!(3, Buffer, &instance_buffer),
+        bind!(4, Buffer, &vertex_buffer),
+        // bind!(5, Buffer, &step_buffer),
+    ]);
 
     // matrix
     const DA:f32 = 3.0;
@@ -131,17 +102,17 @@ fn main() {
 
     let mut rot_matrix = Matrix4::<f32>::identity();
 
-    let world_matrix = rot_matrix * Matrix4::from_nonuniform_scale(w*width, h*height, 1.0);
-
     let projection =
         window_fov_projection(30.0, width, height)
         // flat_window_projection(width, height, 0.0) *
         // Matrix4::from_translation((width/2.0, height/2.0, 0.0).into())
     ;
 
-    gx.write_buffer(&mut world_buffer, 0, AsRef::<[f32; 16]>::as_ref(&world_matrix));
-    gx.write_buffer(&mut clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&projection));
-    gx.write_buffer(&mut viewport_buffer, 0, &[width, height]);
+    let clip_matrix = projection * rot_matrix * Matrix4::from_nonuniform_scale(w*width, h*height, 1.0);
+
+    // gx.write_buffer(&mut world_buffer, 0, AsRef::<[f32; 16]>::as_ref(&world_matrix));
+    gx.write_buffer(&mut clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&clip_matrix));
+    // gx.write_buffer(&mut viewport_buffer, 0, &[width, height]);
 
 
     // event loop
@@ -161,10 +132,10 @@ fn main() {
                 height = size.height as f32;
 
                 // projection
-                let world_matrix = rot_matrix * Matrix4::from_nonuniform_scale(w*width, h*height, 1.0);
+                let clip_matrix = projection * rot_matrix * Matrix4::from_nonuniform_scale(w*width, h*height, 1.0);
 
-                gx.write_buffer(&mut world_buffer, 0, AsRef::<[f32; 16]>::as_ref(&world_matrix));
-                gx.write_buffer(&mut viewport_buffer, 0, &[width, height]);
+                gx.write_buffer(&mut clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&clip_matrix));
+                // gx.write_buffer(&mut viewport_buffer, 0, &[width, height]);
             },
 
             Event::WindowEvent { event:WindowEvent::KeyboardInput { input: KeyboardInput {
@@ -194,9 +165,9 @@ fn main() {
                 } {
                     if redraw {
 
-                        let world_matrix = rot_matrix * Matrix4::from_nonuniform_scale(w*width, h*height, 1.0);
+                        let clip_matrix = projection * rot_matrix * Matrix4::from_nonuniform_scale(w*width, h*height, 1.0);
 
-                        gx.write_buffer(&mut world_buffer, 0, AsRef::<[f32; 16]>::as_ref(&world_matrix));
+                        gx.write_buffer(&mut clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&clip_matrix));
 
                         window.request_redraw();
                     }
@@ -211,11 +182,16 @@ fn main() {
 
                     encoder.with_compute_pass(|mut cpass| {
                         cpass.set_pipeline(&cp_pipeline);
-                        cpass.set_bind_group(0, &binding, &[]);
-                        cpass.dispatch(instance_data.len() as u32, 1, 1);
+                        cpass.set_bind_group(0, &binding_cp, &[]);
+                        cpass.dispatch(instance_data.len() as u32, steps, 1);
                     });
 
-                    encoder.render_bundles(attachment, Some(Color::GREEN), &bundles);
+                    encoder.with_render_pass(attachment, Some(Color::GREEN), |mut rpass| {
+                        rpass.set_pipeline(&pipeline);
+                        rpass.set_bind_group(0, &binding, &[]);
+                        rpass.set_vertex_buffer(0, vertex_buffer.slice(..));
+                        rpass.draw(0..vertex_len as u32, 0..1);
+                    });
 
                 }).expect("frame error");
 

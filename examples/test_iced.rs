@@ -112,7 +112,7 @@ fn main() {
 
 
     // wgx setup
-    let mut gx = Wgx::new(Some(&window), 0, None);
+    let mut gx = Wgx::new(Some(&window), Features::empty(), limits!{});
     let mut target = gx.surface_target((width, height), DEPTH_TESTING, MSAA).expect("render target failed");
 
 
