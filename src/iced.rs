@@ -60,7 +60,7 @@ impl <P:'static + iced_winit::Program<Renderer=Renderer>>Iced<P> {
     }
 
 
-    pub fn event(&mut self, event:WindowEvent) {
+    pub fn event(&mut self, event:&WindowEvent) {
         match event {
             WindowEvent::Resized(size) => {
                 self.viewport = Viewport::with_physical_size(
@@ -71,14 +71,14 @@ impl <P:'static + iced_winit::Program<Renderer=Renderer>>Iced<P> {
             WindowEvent::ScaleFactorChanged { scale_factor, ref new_inner_size } => {
                 self.viewport = Viewport::with_physical_size(
                     Size::new(new_inner_size.width, new_inner_size.height),
-                    scale_factor,
+                    *scale_factor,
                 );
             }
             WindowEvent::CursorMoved { position, .. } => {
-                self.cursor = position;
+                self.cursor = *position;
             }
             WindowEvent::ModifiersChanged(modifiers) => {
-                self.modifiers = modifiers;
+                self.modifiers = *modifiers;
             }
             _ => (),
         }

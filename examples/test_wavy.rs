@@ -89,31 +89,21 @@ fn main() {
     })];*/
 
 
-    // frame rate
-    let frame_time = Duration::from_micros(1_000_000 / 45);
-    let min_time = Duration::from_millis(1);
+    // frame rate and counter
 
-    let mut next_redraw = Instant::now() + frame_time;
-    let mut last_delta = Duration::from_micros(0);
-
-    // count frames
-    let count_time = Duration::from_secs(5);
-    let mut last_sec = Instant::now();
-
-    let mut count = 0;
-    let mut delta_count = 0;
-    let mut delta_sum = Duration::from_micros(0);
+    let mut frame_timer = frames::FrameTimer::from_frame_rate(60, 1);
+    let mut frame_counter = frames::FrameCounter::from_secs(5.0);
 
 
     // event loop
     event_loop.run(move |event, _, control_flow| {
 
-        *control_flow = ControlFlow::WaitUntil(next_redraw); // next frame
+        *control_flow = ControlFlow::WaitUntil(frame_timer.next_redraw); // next frame
 
         match event {
 
             Event::NewEvents(_) => {
-                if (Instant::now() >= next_redraw) {
+                if (frame_timer.needs_redraw()) {
                     window.request_redraw(); // request frame
                 }
             },
@@ -167,25 +157,14 @@ fn main() {
 
             Event::RedrawRequested(_) => {
 
-                // calc next frame time
-                let now = Instant::now();
+                // next frame time
+                let shift = frame_timer.next();
 
-                if (now >= next_redraw) {
-
-                    let delta = now - next_redraw;
-
-                    delta_count += 1;
-                    delta_sum += delta;
-
-                    if (frame_time > delta + min_time) {
-                        last_delta = delta;
-                    }
+                if (shift.was_next_frame) {
+                    frame_counter.add_delta_time(shift.delta_time);
                 }
 
-                next_redraw = now + frame_time - last_delta;
-
-                *control_flow = ControlFlow::WaitUntil(next_redraw);
-
+                *control_flow = ControlFlow::WaitUntil(frame_timer.next_redraw);
 
                 // draw
                 // gx.write_buffer(&mut t_buffer, 0, &[time.elapsed().as_secs_f32()]);
@@ -207,24 +186,13 @@ fn main() {
 
 
                 // statistics
-                count += 1;
+                frame_counter.add_frame();
 
-                let elapsed = last_sec.elapsed();
+                let res = frame_counter.tick();
 
-                if (elapsed >= count_time) {
-                    last_sec = Instant::now();
-
-                    println!(
-                        "frames/sec: {:?}, delta: {:?}",
-                        count as f32 / elapsed.as_secs_f32(),
-                        (delta_sum / delta_count).as_secs_f32() / frame_time.as_secs_f32()
-                    );
-
-                    count = 0;
-                    delta_count = 0;
-                    delta_sum = Duration::from_micros(0);
+                if let Some(count) = res {
+                    println!("{:?}", count);
                 }
-
             },
 
             _ => {}

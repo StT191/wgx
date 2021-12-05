@@ -151,7 +151,7 @@ fn main() {
                     _ => (),
                 }
 
-                gui.event(event);
+                gui.event(&event);
             }
 
             Event::MainEventsCleared => {
