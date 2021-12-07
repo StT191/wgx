@@ -43,6 +43,9 @@ mod render_target;
 pub use render_target::*;
 
 
+pub mod wav_obj;
+
+
 // spirv
 #[cfg(feature = "spirv")]
 pub use glsl_to_spirv::ShaderType;
