@@ -102,11 +102,11 @@ fn main() {
 
                 glyphs.add_text(
                     vec![
-                        Text::new(&text_input.text_before_curser()).with_scale(100.0)
+                        Text::new(&text_input.text_before_curser()).with_scale(65.0)
                         .with_color(Color::from([0x2,0x2,0x12])),
-                        Text::new("|").with_scale(100.0)
+                        Text::new("|").with_scale(65.0)
                         .with_color(Color::WHITE),
-                        Text::new(text_input.text_after_curser()).with_scale(100.0)
+                        Text::new(text_input.text_after_curser()).with_scale(65.0)
                         .with_color(Color::from([0x2,0x2,0x12])),
                     ],
                     None, Some((width - 40.0, f32::INFINITY)),

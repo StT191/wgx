@@ -19,8 +19,8 @@ use wgx::*;
 
 use iced_wgpu::Renderer;
 use iced_winit::{
-    slider, Alignment, Column, Command, Element, Length, Program, Row,
-    Slider, Text, text_input, TextInput
+    Alignment, Command, Element, Length, Program,
+    widget::{Column, Row, Text, text_input, TextInput, slider, Slider}
 };
 
 

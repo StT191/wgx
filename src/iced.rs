@@ -39,11 +39,11 @@ impl <P:'static + iced_winit::Program<Renderer=Renderer>>Iced<P> {
 
         let program_state = State::new(
             program, viewport.logical_size(),
-            conversion::cursor_position(cursor, viewport.scale_factor()),
+            // conversion::cursor_position(cursor, viewport.scale_factor()),
             &mut renderer, &mut debug,
         );
 
-        let interaction = program_state.primitive().1;
+        let interaction = program_state.mouse_interaction();
 
         Self {
             renderer, program_state, viewport, window, cursor, interaction,
@@ -96,7 +96,8 @@ impl <P:'static + iced_winit::Program<Renderer=Renderer>>Iced<P> {
     }
 
 
-    fn update_cursor(&mut self, interaction:Interaction) {
+    fn update_cursor(&mut self) {
+        let interaction = self.program_state.mouse_interaction();
         if self.interaction != interaction {
             self.window.set_cursor_icon(conversion::mouse_interaction(interaction));
             self.interaction = interaction;
@@ -119,7 +120,7 @@ impl <P:'static + iced_winit::Program<Renderer=Renderer>>Iced<P> {
             );
 
             /*if command.is_some() { self.window.request_redraw() }
-            else { self.update_cursor(self.program_state.primitive().1) }*/
+            else { self.update_cursor() }*/
 
             self.window.request_redraw();
 
@@ -131,17 +132,23 @@ impl <P:'static + iced_winit::Program<Renderer=Renderer>>Iced<P> {
 
     pub fn draw(&mut self, gx:&Wgx, encoder:&mut CommandEncoder, attachment:&RenderAttachment) {
 
-        let interaction = self.renderer.backend_mut().draw(
-            &gx.device,
-            &mut self.staging_belt,
-            encoder, attachment.view,
-            &self.viewport,
-            self.program_state.primitive(),
-            &self.debug.overlay(),
-        );
+        // borrow before the closure
+        let (staging_belt, viewport, debug) = (&mut self.staging_belt, &self.viewport, &self.debug);
+
+        self.renderer.with_primitives(|backend, primitive| {
+            backend.present(
+                &gx.device,
+                staging_belt,
+                encoder,
+                attachment.view,
+                primitive,
+                viewport,
+                &debug.overlay(),
+            );
+        });
 
         self.staging_belt.finish();
 
-        self.update_cursor(interaction);
+        self.update_cursor();
     }
 }

@@ -25,10 +25,10 @@ cgmath = "0.18"
 # optional
 glsl-to-spirv = { version = "0.1", optional = true }
 wgpu_glyph = { version = "0.15", optional = true }
-iced_winit = { git = "https://github.com/iced-rs/iced/", rev = "20177e4", optional = true }
-iced_wgpu = { git = "https://github.com/iced-rs/iced/", rev = "20177e4", optional = true }
+iced_winit = { git = "https://github.com/iced-rs/iced/", rev = "6f3a608", optional = true }
+iced_wgpu = { git = "https://github.com/iced-rs/iced/", rev = "6f3a608", optional = true }
 
 
 [dev-dependencies]
-winit = "0.25"
+winit = "0.26"
 image = "0.23"
