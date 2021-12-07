@@ -1,6 +1,5 @@
 #![allow(unused)]
 
-// imports
 use cgmath::*;
 use std::{time::{Instant}};
 
@@ -13,7 +12,6 @@ use winit::{
 use wgx::*;
 
 
-// main
 fn main() {
 
     const DEPTH_TESTING:bool = false;
@@ -28,9 +26,8 @@ fn main() {
     window.set_inner_size(PhysicalSize::<u32>::from((width, height)));
     window.set_title("WgFx");
 
-    let mut gx = Wgx::new(Some(&window), Features::empty(), limits!{});
-
-    let mut target = gx.surface_target((width, height), DEPTH_TESTING, MSAA).expect("render target failed");
+    let mut gx = Wgx::new(Some(&window), Features::empty(), limits!{}).unwrap();
+    let mut target = gx.surface_target((width, height), DEPTH_TESTING, MSAA).unwrap();
 
 
     // pipeline
@@ -109,8 +106,9 @@ fn main() {
 
     let mut rot_matrix = Matrix4::<f32>::identity();
 
+    let fov = FovProjection::window(30.0, width, height);
     let projection =
-        window_fov_projection(30.0, width, height)
+        fov.projection * fov.translation
         // flat_window_projection(width, height, 0.0) *
         // Matrix4::from_translation((width/2.0, height/2.0, 0.0).into())
     ;

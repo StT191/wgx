@@ -1,9 +1,8 @@
 #![allow(unused)]
 
-// imports
 use image;
 
-use std::{time::{Instant}, fs::read};
+use std::{time::{Instant}};
 
 use winit::{
     dpi::PhysicalSize,
@@ -12,10 +11,8 @@ use winit::{
 };
 
 use wgx::*;
-use cgmath::*;
 
 
-// main
 fn main() {
 
     const DEPTH_TESTING:bool = false;
@@ -37,8 +34,8 @@ fn main() {
     window.set_title("WgFx");
 
 
-    let mut gx = Wgx::new(Some(&window), Features::empty(), limits!{});
-    let mut target = gx.surface_target((width, heigh), DEPTH_TESTING, MSAA).expect("render target failed");
+    let mut gx = Wgx::new(Some(&window), Features::empty(), limits!{}).unwrap();
+    let mut target = gx.surface_target((width, heigh), DEPTH_TESTING, MSAA).unwrap();
 
 
     // global pipeline
@@ -186,17 +183,6 @@ fn main() {
     })];
 
 
-    // text_render
-    let font_data = read("fonts/font_active.ttf").expect("failed loading font");
-
-    let mut glyphs = gx.glyph_brush(OUTPUT, font_data).expect("invalid font");
-
-    let trf =
-        unit_fov_projection(30.0, width as f32 / heigh as f32, sf*1000.0) *
-        Matrix4::from_translation((-sf*1200.0, sf*900.0, 0.0).into()) *
-        Matrix4::from_nonuniform_scale(3.0, -3.0, 3.0);
-
-
     event_loop.run(move |event, _, control_flow| {
 
         *control_flow = ControlFlow::Wait;
@@ -224,15 +210,8 @@ fn main() {
 
                 let then = Instant::now();
 
-                glyphs.add_text(
-                    vec![Text::new("Hey Ho!\nWhat is going on? Anyway?")
-                    .with_scale(sf*50.0).with_color(Color::from([0x2,0x2,0x12]))],
-                    None, Some((sf*200.0, f32::INFINITY)), None
-                );
-
                 target.with_encoder_frame(&gx, |encoder, attachment| {
                     encoder.render_bundles(attachment, Some(Color::GREEN), &bundles);
-                    encoder.draw_glyphs(&gx, attachment, &mut glyphs, trf, None, None);
                 }).expect("frame error");
 
                 println!("{:?}", then.elapsed());

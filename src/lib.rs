@@ -71,7 +71,16 @@ pub use iced::Iced;
 
 
 
+// error handling
 
+pub mod error {
+    // Results and error Handling
+    pub type Error = String;
 
+    // map most errors to Error
+    pub fn error(err: impl std::fmt::Display) -> Error {
+        err.to_string()
+    }
 
-
+    pub type Res<T> = Result<T, Error>;
+}

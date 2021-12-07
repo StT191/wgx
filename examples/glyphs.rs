@@ -30,13 +30,13 @@ fn main() {
 
 
     let window = Window::new(&event_loop).unwrap();
-    window.set_inner_size(PhysicalSize::<u32>::from((1200, 1000)));
+    window.set_inner_size(PhysicalSize::<u32>::from((1200u32, 1000u32)));
     window.set_title("WgFx");
 
 
     // wgx setup
-    let mut gx = Wgx::new(Some(&window), Features::empty(), limits!{});
-    let mut target = gx.surface_target((1200, 1000), DEPTH_TESTING, MSAA).expect("render target failed");
+    let mut gx = Wgx::new(Some(&window), Features::empty(), limits!{}).unwrap();
+    let mut target = gx.surface_target((1200, 1000), DEPTH_TESTING, MSAA).unwrap();
 
 
     // text_render

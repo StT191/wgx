@@ -31,8 +31,8 @@ fn main() {
     window.set_title("WgFx");
 
 
-    let mut gx = Wgx::new(Some(&window), Features::empty(), limits!{});
-    let mut target = gx.surface_target((width, height), DEPTH_TESTING, MSAA).expect("render target failed");
+    let mut gx = Wgx::new(Some(&window), Features::empty(), limits!{}).unwrap();
+    let mut target = gx.surface_target((width, height), DEPTH_TESTING, MSAA).unwrap();
 
 
     // shaders
@@ -84,7 +84,7 @@ fn main() {
 
     target.with_encoder_frame(&gx, |encoder, attachment| { // !! ecoder witout draw to attachment produces hang!
 
-        encoder.with_render_pass(&draw_target.attachment(), Some(Color::YELLOW), |mut rpass| {
+        encoder.with_render_pass(&draw_target.attachment().unwrap(), Some(Color::YELLOW), |mut rpass| {
             rpass.set_pipeline(&draw_pipeline);
             rpass.set_bind_group(0, &draw_binding, &[]);
             rpass.set_vertex_buffer(0, vertices.slice(..));
@@ -99,7 +99,7 @@ fn main() {
 
     // binding
     let binding = gx.bind(&draw_pipeline.get_bind_group_layout(0), &[
-        bind!(0, TextureView, &draw_target.attachment().view),
+        bind!(0, TextureView, &draw_target.attachment().unwrap().view),
         bind!(1, Sampler, &sampler),
     ]);
 

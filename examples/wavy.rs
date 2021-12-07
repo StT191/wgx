@@ -1,6 +1,5 @@
 #![allow(unused)]
 
-// imports
 use cgmath::*;
 use std::{time::{Instant, Duration}};
 
@@ -13,7 +12,6 @@ use winit::{
 use wgx::*;
 
 
-// main
 fn main() {
 
     const DEPTH_TESTING:bool = false;
@@ -28,9 +26,8 @@ fn main() {
     window.set_inner_size(PhysicalSize::<u32>::from((width, height)));
     window.set_title("WgFx");
 
-    let mut gx = Wgx::new(Some(&window), Features::PUSH_CONSTANTS, limits!{max_push_constant_size: 4});
-
-    let mut target = gx.surface_target((width, height), DEPTH_TESTING, MSAA).expect("render target failed");
+    let mut gx = Wgx::new(Some(&window), Features::PUSH_CONSTANTS, limits!{max_push_constant_size: 4}).unwrap();
+    let mut target = gx.surface_target((width, height), DEPTH_TESTING, MSAA).unwrap();
 
 
     // pipeline

@@ -1,5 +1,5 @@
 
-use crate::{Wgx, OUTPUT, TexUse, DefaultViewExtension};
+use crate::{Wgx, OUTPUT, TexUse, DefaultViewExtension, error::*};
 
 
 // cloneable surface configuration
@@ -19,7 +19,7 @@ pub struct RenderAttachment<'a> {
 
 pub trait RenderTarget {
 
-    fn attachment(&self) -> RenderAttachment;
+    fn attachment(&self) -> Res<RenderAttachment>;
 
     fn format(&self) -> wgpu::TextureFormat;
     fn size(&self) -> (u32, u32);
@@ -74,12 +74,12 @@ pub struct TextureTarget {
 
 impl RenderTarget for TextureTarget {
 
-    fn attachment(&self) -> RenderAttachment {
-        RenderAttachment {
+    fn attachment(&self) -> Res<RenderAttachment> {
+        Ok(RenderAttachment {
             view: &self.texture_view,
             depth: self.depth_texture_view.as_ref(),
             msaa: self.msaa_texture_view.as_ref(),
-        }
+        })
     }
 
     fn format(&self) -> wgpu::TextureFormat { self.format }
@@ -169,12 +169,12 @@ pub struct SurfaceTarget {
 
 impl RenderTarget for SurfaceTarget {
 
-    fn attachment(&self) -> RenderAttachment {
-        RenderAttachment {
-            view: &self.current_frame_view.as_ref().expect("no current frame view"),
+    fn attachment(&self) -> Res<RenderAttachment> {
+        Ok(RenderAttachment {
+            view: self.current_frame_view.as_ref().ok_or("no current frame view")?,
             depth: self.depth_texture_view.as_ref(),
             msaa: self.msaa_texture_view.as_ref(),
-        }
+        })
     }
 
     fn format(&self) -> wgpu::TextureFormat { OUTPUT }
@@ -186,14 +186,13 @@ impl RenderTarget for SurfaceTarget {
 
 impl SurfaceTarget {
 
-    pub(super) fn new(wgx:&Wgx, surface:wgpu::Surface, (width, height):(u32, u32), depth_testing:bool, msaa:u32)
-        -> Result<Self, String>
+    pub(super) fn new(wgx:&Wgx, surface:wgpu::Surface, (width, height):(u32, u32), depth_testing:bool, msaa:u32) -> Res<Self>
     {
         let mut config = SURFACE_CONFIGURATION.clone();
         config.width = width;
         config.height = height;
 
-        config.format = surface.get_preferred_format(&wgx.adapter).expect("couldn't get default format");
+        config.format = surface.get_preferred_format(&wgx.adapter).ok_or("couldn't get default format")?;
 
         surface.configure(&wgx.device, &config);
 
@@ -227,16 +226,18 @@ impl SurfaceTarget {
 
     pub fn with_encoder_frame(
         &mut self, wgx:&Wgx, handler: impl FnOnce(&mut wgpu::CommandEncoder, &RenderAttachment)
-    ) -> Result<(), wgpu::SurfaceError>
+    ) -> Res<()>
     {
-        self.current_frame = Some(self.surface.get_current_texture()?);
+        self.current_frame = Some(self.surface.get_current_texture().map_err(error)?);
         self.current_frame_view = Some(self.current_frame.as_ref().unwrap().texture.create_default_view());
 
-        wgx.with_encoder(|mut encoder| handler(&mut encoder, &self.attachment()));
+        let attachment = self.attachment()?;
+
+        wgx.with_encoder(|mut encoder| handler(&mut encoder, &attachment));
 
         self.current_frame_view = None;
 
-        let current_frame = self.current_frame.take().unwrap();
+        let current_frame = self.current_frame.take().ok_or("couldn't get current frame")?;
         current_frame.present();
 
         Ok(())

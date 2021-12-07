@@ -1,6 +1,5 @@
 #![allow(unused)]
 
-// imports
 use std::{time::{Instant}};
 
 use winit::{
@@ -12,7 +11,6 @@ use winit::{
 use wgx::*;
 
 
-// main
 fn main() {
 
     const DEPTH_TESTING:bool = true;
@@ -27,8 +25,8 @@ fn main() {
     window.set_title("WgFx");
 
 
-    let mut gx = Wgx::new(Some(&window), Features::empty(), limits!{});
-    let mut target = gx.surface_target((600, 600), DEPTH_TESTING, MSAA).expect("render target failed");
+    let mut gx = Wgx::new(Some(&window), Features::empty(), limits!{}).unwrap();
+    let mut target = gx.surface_target((600, 600), DEPTH_TESTING, MSAA).unwrap();
 
 
     // global pipeline

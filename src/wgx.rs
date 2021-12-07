@@ -14,7 +14,7 @@ use std::num::NonZeroU32;
 use wgpu::util::DeviceExt;
 use raw_window_handle::HasRawWindowHandle;
 use crate::byte_slice::AsByteSlice;
-use crate::*;
+use crate::{*, error::*};
 
 
 
@@ -39,7 +39,7 @@ impl Wgx {
 
     pub fn new<W: HasRawWindowHandle>(
         window:Option<&W>, features:wgpu::Features, limits:wgpu::Limits,
-    ) -> Self {
+    ) -> Res<Self> {
 
         let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY);
 
@@ -53,21 +53,20 @@ impl Wgx {
             power_preference: wgpu::PowerPreference::HighPerformance,
             force_fallback_adapter: false,
             compatible_surface: surface.as_ref(),
-        })).expect("couldn't get adapter");
+        })).ok_or("couldn't get device")?;
 
 
         let (device, queue) = block_on(adapter.request_device(
             &wgpu::DeviceDescriptor {label: None, features, limits}, None,
-        )).expect("couldn't get device");
+        )).map_err(error)?;
 
-        Self { instance, adapter, device, queue, surface }
+        Ok(Self { instance, adapter, device, queue, surface })
     }
 
 
-    pub fn surface_target(&mut self, size:(u32, u32), depth_testing:bool, msaa:u32)
-        -> Result<SurfaceTarget, String>
+    pub fn surface_target(&mut self, size:(u32, u32), depth_testing:bool, msaa:u32) -> Res<SurfaceTarget>
     {
-        let surface = self.surface.take().ok_or("no surface".to_string())?;
+        let surface = self.surface.take().ok_or("no surface")?;
 
         SurfaceTarget::new(self, surface, size, depth_testing, msaa)
     }
@@ -152,8 +151,8 @@ impl Wgx {
     }
 
     #[cfg(feature = "spirv")]
-    pub fn load_glsl(&self, code:&str, ty:ShaderType) -> wgpu::ShaderModule {
-        self.load_spirv(glsl_to_spirv::compile(&code, ty).expect("couldn't load spirv shader"))
+    pub fn load_glsl(&self, code:&str, ty:ShaderType) -> Res<wgpu::ShaderModule> {
+        self.load_spirv(glsl_to_spirv::compile(&code, ty)?)
     }
 
     pub fn load_wgsl(&self, code:&str) -> wgpu::ShaderModule {

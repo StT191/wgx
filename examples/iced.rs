@@ -1,6 +1,5 @@
 #![allow(unused)]
 
-// imports
 // use std::{time::{Instant}};
 
 use iced_wgpu::Settings;
@@ -86,7 +85,6 @@ impl Program for Controls {
 
 
 
-// main
 fn main() {
 
     const DEPTH_TESTING:bool = false;
@@ -112,8 +110,8 @@ fn main() {
 
 
     // wgx setup
-    let mut gx = Wgx::new(Some(&window), Features::empty(), limits!{});
-    let mut target = gx.surface_target((width, height), DEPTH_TESTING, MSAA).expect("render target failed");
+    let mut gx = Wgx::new(Some(&window), Features::empty(), limits!{}).unwrap();
+    let mut target = gx.surface_target((width, height), DEPTH_TESTING, MSAA).unwrap();
 
 
     // iced setup
