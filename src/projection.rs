@@ -2,21 +2,6 @@
 use crate::error::*;
 use cgmath::*;
 
-// utilities
-
-#[macro_export]
-macro_rules! apply {
-    ($matrix:expr, $value:expr) => {
-        $matrix = $value * $matrix
-    }
-}
-
-
-pub fn within<S:BaseFloat>(outer:&Matrix4<S>, inner:&Matrix4<S>) -> Res<Matrix4<S>> {
-    Ok(outer.invert().ok_or("couldn't invert matrix")? * inner * outer)
-}
-
-
 
 // projections
 
@@ -58,9 +43,51 @@ impl FovProjection {
 }
 
 
-
-
 pub fn flat_window_projection(width:f32, height:f32, depth:f32) -> Matrix4<f32> {
     Matrix4::from_translation((-1.0, 1.0, 0.0).into()) *
     Matrix4::from_nonuniform_scale(2.0/width, -2.0/height, if depth == 0.0 { 0.0 } else { 1.0/depth})
+}
+
+
+
+// utilities
+
+#[macro_export]
+macro_rules! apply {
+    ($matrix:expr, $value:expr) => {
+        $matrix = $value * $matrix
+    }
+}
+
+
+pub fn normal_from_triangle<S:BaseFloat, V: Into<Vector3<S>> + Copy >(o:V, a:V, b:V) -> Vector3<S> {
+    (a.into() - o.into()).cross(b.into() - o.into()).normalize()
+}
+
+
+
+// cgmath extension
+
+pub trait Vector4Extension {
+    fn homogenize(self) -> Self;
+}
+
+impl<S:BaseFloat> Vector4Extension for Vector4<S> {
+
+    fn homogenize(self) -> Self {
+        Self { x: self.x/self.w, y: self.y/self.w, z: self.z/self.w, w: self.w/self.w }
+    }
+}
+
+
+
+pub trait Matrix4Extension<S:BaseFloat> {
+    fn within(&self, outer:&Matrix4<S>) -> Res<Matrix4<S>>;
+}
+
+impl<S:BaseFloat> Matrix4Extension<S> for Matrix4<S> {
+
+    fn within(&self, outer:&Matrix4<S>) -> Res<Matrix4<S>> {
+        Ok(outer.invert().ok_or("couldn't invert matrix")? * self * outer)
+    }
 }

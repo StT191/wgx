@@ -31,13 +31,16 @@ fn main() {
 
 
   // pipeline
-  let shader = gx.load_wgsl(include_str!("../shaders/standard_texture.wgsl"));
+  let shader = gx.load_wgsl(include_str!("../shaders/standard_instance_texture.wgsl"));
 
 
   // triangle pipeline
   let pipeline = target.render_pipeline(
     &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
-    &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x3, 2 => Float32x3)],
+    &[
+      vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x3, 2 => Float32x3),
+      vertex_desc!(Instance, 3 => Float32x4, 4 => Float32x4, 5 => Float32x4, 6 => Float32x4)
+    ],
     Primitive::TriangleList, None
   );
 
@@ -75,9 +78,87 @@ fn main() {
   ]);
 
 
-  let triangles = wav_obj::parse(include_str!("../obj/deer.obj")).expect("couldn't parse wav obj");
+  // vertexes
 
-  let vertex_buffer = gx.buffer_from_data(BuffUse::VERTEX, &triangles);
+  let steps = 64usize;
+  let step_a = steps as f32 / std::f32::consts::FRAC_PI_2; // step angle
+
+
+  let mut vertex_data:Vec<[[f32;3];3]> = Vec::with_capacity(2 * 2 * 3 * steps * steps);
+
+  let v_c = [1.0, 1.0, 0.0];
+
+  for k in 0..steps {
+
+    let fi_a0 = k as f32 / step_a;
+    let fi_a1 = (k as f32 + 1.0) / step_a;
+
+    let cos_a0 = f32::cos(fi_a0);
+    let cos_a1 = f32::cos(fi_a1);
+
+    let sin_a0 = f32::sin(fi_a0);
+    let sin_a1 = f32::sin(fi_a1);
+
+    for j in 0..steps {
+
+      let fi_b0 = j as f32 / step_a;
+      let fi_b1 = (j as f32 + 1.0) / step_a;
+
+      let cos_b0 = f32::cos(fi_b0);
+      let cos_b1 = f32::cos(fi_b1);
+
+      let sin_b0 = f32::sin(fi_b0);
+      let sin_b1 = f32::sin(fi_b1);
+
+      let a = [cos_a0*sin_b0, sin_a0, cos_a0*cos_b0];
+      let b = [cos_a1*sin_b0, sin_a1, cos_a1*cos_b0];
+
+      let c = [cos_a1*sin_b1, sin_a1, cos_a1*cos_b1];
+      let d = [cos_a0*sin_b1, sin_a0, cos_a0*cos_b1];
+
+      let n1 = normal_from_triangle(a, d, c).into();
+      let n2 = normal_from_triangle(a, c, b).into();
+
+      vertex_data.push([a, v_c, n1]);
+      vertex_data.push([d, v_c, n1]);
+      vertex_data.push([c, v_c, n1]);
+
+      vertex_data.push([a, v_c, n2]);
+      vertex_data.push([c, v_c, n2]);
+      vertex_data.push([b, v_c, n2]);
+    }
+  }
+
+
+  let vertex_buffer = gx.buffer_from_data(BuffUse::VERTEX, &vertex_data);
+
+  // let triangles = wav_obj::parse(include_str!("../obj/deer.obj")).expect("couldn't parse wav obj");
+  // let vertex_buffer = gx.buffer_from_data(BuffUse::VERTEX, &triangles);
+
+
+  // let instance_data = [
+  //   Matrix4::<f32>::from_angle_x(Deg(0.0)),
+  //   Matrix4::<f32>::from_angle_x(Deg(90.0)),
+  //   Matrix4::<f32>::from_angle_x(Deg(180.0)),
+  //   Matrix4::<f32>::from_angle_x(Deg(270.0)),
+  //   Matrix4::<f32>::from_angle_x(Deg(0.0))   * Matrix4::from_angle_y(Deg(180.0)),
+  //   Matrix4::<f32>::from_angle_x(Deg(90.0))  * Matrix4::from_angle_y(Deg(180.0)),
+  //   Matrix4::<f32>::from_angle_x(Deg(180.0)) * Matrix4::from_angle_y(Deg(180.0)),
+  //   Matrix4::<f32>::from_angle_x(Deg(270.0)) * Matrix4::from_angle_y(Deg(180.0)),
+  // ];
+
+  let instance_data = [
+    Matrix4::<f32>::from_nonuniform_scale( 1.0, 1.0, 1.0),
+    Matrix4::<f32>::from_nonuniform_scale(-1.0, 1.0, 1.0),
+    Matrix4::<f32>::from_nonuniform_scale( 1.0,-1.0, 1.0),
+    Matrix4::<f32>::from_nonuniform_scale(-1.0,-1.0, 1.0),
+    Matrix4::<f32>::from_nonuniform_scale( 1.0, 1.0,-1.0),
+    Matrix4::<f32>::from_nonuniform_scale(-1.0, 1.0,-1.0),
+    Matrix4::<f32>::from_nonuniform_scale( 1.0,-1.0,-1.0),
+    Matrix4::<f32>::from_nonuniform_scale(-1.0,-1.0,-1.0),
+  ];
+
+  let instance_buffer = gx.buffer_from_data(BuffUse::VERTEX, &instance_data);
 
 
   // render bundles
@@ -85,9 +166,10 @@ fn main() {
     rpass.set_pipeline(&pipeline);
     rpass.set_bind_group(0, &binding, &[]);
     rpass.set_vertex_buffer(0, vertex_buffer.slice(..));
-    rpass.draw(0..triangles.len() as u32 * 3, 0..1);
+    rpass.set_vertex_buffer(1, instance_buffer.slice(..));
+    rpass.draw(0..vertex_data.len() as u32, 0..instance_data.len() as u32);
+    // rpass.draw(0..triangles.len() as u32 * 3, 0..1);
   })];
-
 
 
   // matrix
@@ -108,17 +190,15 @@ fn main() {
 
   let obj_mat =
     // Matrix4::identity()
-    Matrix4::from_scale(0.55) *
-    Matrix4::from_translation((0.0, -0.7 * height, 0.0).into())
+    Matrix4::from_scale(0.25 * height)
+    // Matrix4::from_translation((0.0, -0.7 * height, 0.0).into())
   ;
 
   let light_matrix = Matrix4::<f32>::from_angle_x(Deg(-45.0)) * Matrix4::from_angle_y(Deg(45.0));
 
   // let clip_matrix = projection * rot_matrix * Matrix4::from_nonuniform_scale(w*width, h*height, 1.0);
 
-  let mut rot_matrix_x = Matrix4::identity();
-  let mut rot_matrix_y = Matrix4::identity();
-  let mut rot_matrix_z = Matrix4::identity();
+  let mut rot_matrix = Matrix4::identity();
   let mut world_matrix = Matrix4::identity();
 
   let clip_matrix = projection * obj_mat;
@@ -149,7 +229,7 @@ fn main() {
         projection = fov.projection * fov.translation;
 
         // projection
-        let clip_matrix = projection * rot_matrix_x * rot_matrix_y * rot_matrix_z * world_matrix * obj_mat;
+        let clip_matrix = projection * rot_matrix * world_matrix * obj_mat;
 
         gx.write_buffer(&mut clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&clip_matrix));
         // gx.write_buffer(&mut viewport_buffer, 0, &[width, height]);
@@ -168,12 +248,12 @@ fn main() {
           // VirtualKeyCode::U => { apply!(world_matrix, within(&camera_correction, &Matrix4::from_angle_z(Deg( DA))).expect("no inversion")); },
           // VirtualKeyCode::O => { apply!(world_matrix, within(&camera_correction, &Matrix4::from_angle_z(Deg(-DA))).expect("no inversion")); },
 
-          VirtualKeyCode::I => { apply!(rot_matrix_x, Matrix4::from_angle_x(Deg( DA))); },
-          VirtualKeyCode::K => { apply!(rot_matrix_x, Matrix4::from_angle_x(Deg(-DA))); },
-          VirtualKeyCode::J => { apply!(rot_matrix_y, Matrix4::from_angle_y(Deg( DA))); },
-          VirtualKeyCode::L => { apply!(rot_matrix_y, Matrix4::from_angle_y(Deg(-DA))); },
-          VirtualKeyCode::U => { apply!(rot_matrix_z, Matrix4::from_angle_z(Deg( DA))); },
-          VirtualKeyCode::O => { apply!(rot_matrix_z, Matrix4::from_angle_z(Deg(-DA))); },
+          VirtualKeyCode::I => { apply!(rot_matrix, Matrix4::from_angle_x(Deg( DA))); },
+          VirtualKeyCode::K => { apply!(rot_matrix, Matrix4::from_angle_x(Deg(-DA))); },
+          VirtualKeyCode::J => { apply!(rot_matrix, Matrix4::from_angle_y(Deg( DA))); },
+          VirtualKeyCode::L => { apply!(rot_matrix, Matrix4::from_angle_y(Deg(-DA))); },
+          VirtualKeyCode::U => { apply!(rot_matrix, Matrix4::from_angle_z(Deg( DA))); },
+          VirtualKeyCode::O => { apply!(rot_matrix, Matrix4::from_angle_z(Deg(-DA))); },
 
           VirtualKeyCode::A => { apply!(world_matrix, Matrix4::from_translation((-DS, 0.0, 0.0).into())); },
           VirtualKeyCode::D => { apply!(world_matrix, Matrix4::from_translation(( DS, 0.0, 0.0).into())); },
@@ -186,9 +266,7 @@ fn main() {
           VirtualKeyCode::X => { apply!(world_matrix, Matrix4::from_scale(1.1)); },
 
           VirtualKeyCode::R => {
-            rot_matrix_x = Matrix4::identity();
-            rot_matrix_y = Matrix4::identity();
-            rot_matrix_z = Matrix4::identity();
+            rot_matrix = Matrix4::identity();
             world_matrix = Matrix4::identity();
             // scale = 1.0;
             // w = 0.4;
@@ -199,8 +277,8 @@ fn main() {
         } {
           if redraw {
 
-            let clip_matrix = projection * rot_matrix_x * rot_matrix_y * rot_matrix_z * world_matrix * obj_mat;
-            let light_matrix = rot_matrix_x * rot_matrix_y * rot_matrix_z * light_matrix;
+            let clip_matrix = projection * rot_matrix * world_matrix * obj_mat;
+            let light_matrix = rot_matrix * light_matrix;
 
             gx.write_buffer(&mut clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&clip_matrix));
             gx.write_buffer(&mut light_buffer, 0, AsRef::<[f32; 16]>::as_ref(&light_matrix));
@@ -212,13 +290,13 @@ fn main() {
 
       Event::RedrawRequested(_) => {
 
-        // let then = Instant::now();
+        let then = Instant::now();
 
         target.with_encoder_frame(&gx, |encoder, attachment| {
           encoder.render_bundles(attachment, Some(Color::BLACK), &bundles);
         }).expect("frame error");
 
-        // println!("{:?}", then.elapsed());
+        println!("{:?}", then.elapsed());
       },
 
       _ => {}

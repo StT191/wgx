@@ -17,13 +17,19 @@ fn vs_main(
     [[location(0)]] position: vec3<f32>,
     [[location(1)]] tex_coord: vec3<f32>,
     [[location(2)]] normal: vec3<f32>,
+    [[location(3)]] m0: vec4<f32>,
+    [[location(4)]] m1: vec4<f32>,
+    [[location(5)]] m2: vec4<f32>,
+    [[location(6)]] m3: vec4<f32>,
 ) -> VertexOutput {
     var out: VertexOutput;
 
-    out.position = clip.m * vec4<f32>(position, 1.0);
+    let inst_mat = mat4x4<f32>(m0, m1, m2, m3);
+
+    out.position = clip.m * inst_mat * vec4<f32>(position, 1.0);
     out.tex_coord = tex_coord.xy;
     // out.fl = abs(-(light.m * vec4<f32>(normal, 1.0)).z);
-    out.fl = -(light.m * vec4<f32>(normal, 1.0)).z;
+    out.fl = -(light.m * inst_mat * vec4<f32>(normal, 1.0)).z;
 
     return out;
 }
@@ -34,7 +40,7 @@ fn vs_main(
 
 
 // let shade = vec2<f32>(0.1, 0.0);
-let shade = vec2<f32>(0.1, 0.1);
+let shade = vec2<f32>(0.05, 0.3);
 
 
 [[stage(fragment)]]

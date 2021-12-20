@@ -101,13 +101,14 @@ fn main() {
   // let mut scale = 1.0;
   // let (mut w, mut h) = (0.4, 0.4);
 
-  let fov = FovProjection::window(fov_deg, width, height);
+  let mut fov = FovProjection::window(fov_deg, width, height);
   let mut projection = fov.projection * fov.translation;
 
   let camera_correction = fov.translation;
 
   let obj_mat =
     // Matrix4::identity()
+    Matrix4::from_angle_y(Deg(-90.0)) *
     Matrix4::from_scale(0.55) *
     Matrix4::from_translation((0.0, -0.7 * height, 0.0).into())
   ;
@@ -116,16 +117,21 @@ fn main() {
 
   // let clip_matrix = projection * rot_matrix * Matrix4::from_nonuniform_scale(w*width, h*height, 1.0);
 
+  let mut rot = Vector2::new(0.0, 0.0);
+
+  let mut trans = Vector3::new(0.0, 0.0, 0.0);
+
   let mut rot_matrix_x = Matrix4::identity();
   let mut rot_matrix_y = Matrix4::identity();
-  let mut rot_matrix_z = Matrix4::identity();
+
   let mut world_matrix = Matrix4::identity();
 
-  let clip_matrix = projection * obj_mat;
+  let clip_matrix = projection * rot_matrix_x * rot_matrix_y * world_matrix * obj_mat;
+  let light_rot_matrix = (rot_matrix_x * rot_matrix_y) * light_matrix;
 
   // gx.write_buffer(&mut world_buffer, 0, AsRef::<[f32; 16]>::as_ref(&world_matrix));
   gx.write_buffer(&mut clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&clip_matrix));
-  gx.write_buffer(&mut light_buffer, 0, AsRef::<[f32; 16]>::as_ref(&(light_matrix)));
+  gx.write_buffer(&mut light_buffer, 0, AsRef::<[f32; 16]>::as_ref(&(light_rot_matrix)));
   // gx.write_buffer(&mut viewport_buffer, 0, &[width, height]);
 
 
@@ -145,11 +151,11 @@ fn main() {
         width = size.width as f32;
         height = size.height as f32;
 
-        let fov = FovProjection::window(fov_deg, width, height);
+        fov = FovProjection::window(fov_deg, width, height);
         projection = fov.projection * fov.translation;
 
         // projection
-        let clip_matrix = projection * rot_matrix_x * rot_matrix_y * rot_matrix_z * world_matrix * obj_mat;
+        let clip_matrix = projection * rot_matrix_x * rot_matrix_y * world_matrix * obj_mat;
 
         gx.write_buffer(&mut clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&clip_matrix));
         // gx.write_buffer(&mut viewport_buffer, 0, &[width, height]);
@@ -168,12 +174,12 @@ fn main() {
           // VirtualKeyCode::U => { apply!(world_matrix, within(&camera_correction, &Matrix4::from_angle_z(Deg( DA))).expect("no inversion")); },
           // VirtualKeyCode::O => { apply!(world_matrix, within(&camera_correction, &Matrix4::from_angle_z(Deg(-DA))).expect("no inversion")); },
 
-          VirtualKeyCode::I => { apply!(rot_matrix_x, Matrix4::from_angle_x(Deg( DA))); },
-          VirtualKeyCode::K => { apply!(rot_matrix_x, Matrix4::from_angle_x(Deg(-DA))); },
-          VirtualKeyCode::J => { apply!(rot_matrix_y, Matrix4::from_angle_y(Deg( DA))); },
-          VirtualKeyCode::L => { apply!(rot_matrix_y, Matrix4::from_angle_y(Deg(-DA))); },
-          VirtualKeyCode::U => { apply!(rot_matrix_z, Matrix4::from_angle_z(Deg( DA))); },
-          VirtualKeyCode::O => { apply!(rot_matrix_z, Matrix4::from_angle_z(Deg(-DA))); },
+          VirtualKeyCode::I => { apply!(rot_matrix_x, Matrix4::from_angle_x(Deg( DA)).within(&fov.translation).expect("inverse")); },
+          VirtualKeyCode::K => { apply!(rot_matrix_x, Matrix4::from_angle_x(Deg(-DA)).within(&fov.translation).expect("inverse")); },
+          VirtualKeyCode::J => { apply!(rot_matrix_y, Matrix4::from_angle_y(Deg( DA)).within(&fov.translation).expect("inverse")); },
+          VirtualKeyCode::L => { apply!(rot_matrix_y, Matrix4::from_angle_y(Deg(-DA)).within(&fov.translation).expect("inverse")); },
+          // VirtualKeyCode::U => { apply!(rot_matrix, Matrix4::from_angle_z(Deg( DA))); },
+          // VirtualKeyCode::O => { apply!(rot_matrix, Matrix4::from_angle_z(Deg(-DA))); },
 
           VirtualKeyCode::A => { apply!(world_matrix, Matrix4::from_translation((-DS, 0.0, 0.0).into())); },
           VirtualKeyCode::D => { apply!(world_matrix, Matrix4::from_translation(( DS, 0.0, 0.0).into())); },
@@ -188,7 +194,6 @@ fn main() {
           VirtualKeyCode::R => {
             rot_matrix_x = Matrix4::identity();
             rot_matrix_y = Matrix4::identity();
-            rot_matrix_z = Matrix4::identity();
             world_matrix = Matrix4::identity();
             // scale = 1.0;
             // w = 0.4;
@@ -199,11 +204,11 @@ fn main() {
         } {
           if redraw {
 
-            let clip_matrix = projection * rot_matrix_x * rot_matrix_y * rot_matrix_z * world_matrix * obj_mat;
-            let light_matrix = rot_matrix_x * rot_matrix_y * rot_matrix_z * light_matrix;
+            let clip_matrix = projection * rot_matrix_x * rot_matrix_y * world_matrix * obj_mat;
+            let light_rot_matrix = (rot_matrix_x * rot_matrix_y) * light_matrix;
 
             gx.write_buffer(&mut clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&clip_matrix));
-            gx.write_buffer(&mut light_buffer, 0, AsRef::<[f32; 16]>::as_ref(&light_matrix));
+            gx.write_buffer(&mut light_buffer, 0, AsRef::<[f32; 16]>::as_ref(&light_rot_matrix));
 
             window.request_redraw();
           }

@@ -1,7 +1,7 @@
 
 
 use crate::error::*;
-
+use crate::normal_from_triangle;
 
 use std::str::{FromStr};
 
@@ -49,10 +49,6 @@ fn parse_face<'a>(line:&mut impl Iterator<Item=&'a str>) -> Res<Vec<(usize, Opti
 }
 
 
-
-use cgmath::*;
-
-
 pub fn parse(raw:&str) -> Res<Vec<[[[f32;3];3];3]>> {
 
     let mut vertices:Vec<[f32;3]> = Vec::new();
@@ -98,11 +94,8 @@ pub fn parse(raw:&str) -> Res<Vec<[[[f32;3];3];3]>> {
         }
 
         if calc_normals {
-            let o = Vector3::from(trgs[0][0]);
-            let a = Vector3::from(trgs[1][0]);
-            let b = Vector3::from(trgs[2][0]);
 
-            let normal = (a - o).cross(b - o).normalize().into();
+            let normal = normal_from_triangle(trgs[0][0], trgs[1][0], trgs[2][0]).into();
 
             for trg in trgs.iter_mut() { trg[2] = normal; }
         }
