@@ -17,26 +17,26 @@ fn from_scale(x:f32, y:f32, z:f32) -> mat4x4<f32> {
 }
 
 // homogenisation
-fn homogen_2d(vec:vec4<f32>) -> vec2<f32> {
-    return vec2<f32>(vec.x/vec.w, vec.y/vec.w);
+fn homogen_2d(v:vec4<f32>) -> vec2<f32> {
+    return vec2<f32>(v.x/v.w, v.y/v.w);
 }
 
-fn homogen_3d(vec:vec4<f32>) -> vec3<f32> {
-    return vec3<f32>(vec.x/vec.w, vec.y/vec.w, vec.z/vec.w);
+fn homogen_3d(v:vec4<f32>) -> vec3<f32> {
+    return vec3<f32>(v.x/v.w, v.y/v.w, v.z/v.w);
 }
 
 
 // 2d
-fn normal_2d(vec:vec2<f32>) -> vec2<f32> {
-    return vec2<f32>(vec.y, -vec.x);
+fn normal_2d(v:vec2<f32>) -> vec2<f32> {
+    return vec2<f32>(v.y, -v.x);
 }
 
-fn x_angle(vec:vec2<f32>, len:f32) -> f32 { // angle towards x axis
-    var angle = acos(vec.x / len); if (vec.y < 0.0) { angle = -angle; }; return angle;
+fn x_angle(v:vec2<f32>, len:f32) -> f32 { // angle towards x axis
+    var angle = acos(v.x / len); if (v.y < 0.0) { angle = -angle; }; return angle;
 }
 
-fn y_angle(vec:vec2<f32>, len:f32) -> f32 { // angle towards y axis
-    var angle = acos(vec.y / len); if (vec.x > 0.0) { angle = -angle; }; return angle;
+fn y_angle(v:vec2<f32>, len:f32) -> f32 { // angle towards y axis
+    var angle = acos(v.y / len); if (v.x > 0.0) { angle = -angle; }; return angle;
 }
 
 fn rotation_2d(angle: f32) -> mat2x2<f32> {

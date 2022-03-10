@@ -1,5 +1,5 @@
 
-[[block]] struct Matrix { matrix: mat4x4<f32>; };
+struct Matrix { matrix: mat4x4<f32>; };
 
 [[group(0), binding(0)]] var<uniform> projection: Matrix;
 

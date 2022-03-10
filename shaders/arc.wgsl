@@ -1,7 +1,7 @@
 
 // locals
-[[block]] struct Matrix { m: mat4x4<f32>; };
-[[block]] struct Vec2 { v: vec2<f32>; };
+struct Matrix { m: mat4x4<f32>; };
+struct Vec2 { v: vec2<f32>; };
 
 [[group(0), binding(0)]] var<uniform> world: Matrix;
 [[group(0), binding(1)]] var<uniform> clip: Matrix;
@@ -27,14 +27,14 @@ fn from_translation(x:f32, y:f32, z:f32) -> mat4x4<f32> {
 fn from_scale(x:f32, y:f32, z:f32) -> mat4x4<f32> {
     return mat4x4<f32>(vec4<f32>(x, 0.0, 0.0, 0.0), vec4<f32>(0.0, y, 0.0, 0.0), vec4<f32>(0.0, 0.0, z, 0.0), vec4<f32>(0.0, 0.0, 0.0, 1.0));
 }
-fn normal_2d(vec:vec2<f32>) -> vec2<f32> {
-    return vec2<f32>(vec.y, -vec.x);
+fn normal_2d(v:vec2<f32>) -> vec2<f32> {
+    return vec2<f32>(v.y, -v.x);
 }
-fn homogen_2d(vec:vec4<f32>) -> vec2<f32> {
-    return vec2<f32>(vec.x/vec.w, vec.y/vec.w);
+fn homogen_2d(v:vec4<f32>) -> vec2<f32> {
+    return vec2<f32>(v.x/v.w, v.y/v.w);
 }
-fn homogen_3d(vec:vec4<f32>) -> vec3<f32> {
-    return vec3<f32>(vec.x/vec.w, vec.y/vec.w, vec.z/vec.w);
+fn homogen_3d(v:vec4<f32>) -> vec3<f32> {
+    return vec3<f32>(v.x/v.w, v.y/v.w, v.z/v.w);
 }
 
 
@@ -59,6 +59,7 @@ fn vs_main(
             case 0: { out.position = clip.m * world.m * vec4<f32>(P0, 1.0); break; }
             case 1: { out.position = clip.m * world.m * vec4<f32>(P1, 1.0); break; }
             case 2: { out.position = clip.m * world.m * vec4<f32>(P2, 1.0); break; }
+            default: {}
         }
 
         return out;
@@ -75,6 +76,7 @@ fn vs_main(
             case 0: { out.position = clip.m * vec4<f32>(O+q*X, 1.0); out.E = vec2<f32>(q,   0.0); break; }
             case 1: { out.position = clip.m * vec4<f32>(O,     1.0); out.E = vec2<f32>(0.0, 0.0); break; }
             case 2: { out.position = clip.m * vec4<f32>(O+q*Y, 1.0); out.E = vec2<f32>(0.0,   q); break; }
+            default: {}
         }
     }
     else {
@@ -82,6 +84,7 @@ fn vs_main(
             case 0: { out.position = clip.m * vec4<f32>(O+X, 1.0); out.E = vec2<f32>(0.0, 1.0); break; }
             case 1: { out.position = clip.m * vec4<f32>(O,   1.0); out.E = vec2<f32>(1.0, 1.0); break; }
             case 2: { out.position = clip.m * vec4<f32>(O+Y, 1.0); out.E = vec2<f32>(1.0, 0.0); break; }
+            default: {}
         }
     }
 

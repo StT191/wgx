@@ -205,6 +205,7 @@ impl Wgx {
                 format: DEPTH, depth_read_only: false, stencil_read_only: false,
             })} else { None },
             sample_count: msaa,
+            multiview: None,
         })
     }
 
@@ -264,7 +265,7 @@ impl Wgx {
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
                 cull_mode: None,
-                clamp_depth: false,
+                unclipped_depth: false,
                 polygon_mode: wgpu::PolygonMode::Fill,
                 conservative: false,
             },
@@ -309,7 +310,9 @@ impl Wgx {
                 count: msaa,
                 mask: !0,
                 alpha_to_coverage_enabled: false,
-            }
+            },
+
+            multiview: None,
 
         })
     }

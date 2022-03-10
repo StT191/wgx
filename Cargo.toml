@@ -2,8 +2,7 @@
 name = "wgx"
 version = "0.1.0"
 authors = ["Stefan Tammer <st.tammer@gmail.com>"]
-edition = "2018"
-resolver = "2"
+edition = "2021"
 
 [lib]
 name = "wgx"
@@ -17,18 +16,18 @@ spirv = ["glsl-to-spirv", "wgpu/spirv"]
 
 
 [dependencies]
-wgpu = { version = "0.11" }
+wgpu = { version = "0.12" }
 futures = "0.3"
-raw-window-handle = "0.3"
+raw-window-handle = "0.4"
 cgmath = "0.18"
 
 # optional
 glsl-to-spirv = { version = "0.1", optional = true }
-wgpu_glyph = { version = "0.15", optional = true }
-iced_winit = { git = "https://github.com/iced-rs/iced/", rev = "6f3a608", optional = true }
-iced_wgpu = { git = "https://github.com/iced-rs/iced/", rev = "6f3a608", optional = true }
+wgpu_glyph = { version = "0.16", optional = true }
+iced_winit = { git = "https://github.com/iced-rs/iced/", rev = "a53fa91", optional = true }
+iced_wgpu = { git = "https://github.com/iced-rs/iced/", rev = "a53fa91", optional = true }
 
 
 [dev-dependencies]
 winit = "0.26"
-image = "0.23"
+image = "0.24"

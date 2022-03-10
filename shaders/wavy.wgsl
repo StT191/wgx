@@ -1,7 +1,7 @@
 
 // locals
-[[block]] struct Float { f: f32; };
-[[block]] struct Vec2 { v: vec2<f32>; };
+struct Float { f: f32; };
+struct Vec2 { v: vec2<f32>; };
 
 [[group(0), binding(0)]] var<uniform> viewport: Vec2;
 [[group(0), binding(1)]] var<uniform> scale: Vec2;

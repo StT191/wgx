@@ -52,7 +52,7 @@ macro_rules! binding {
         wgpu::BindGroupLayoutEntry {
             binding: $loc,
             visibility: $stage,
-            ty: wgpu::BindingType::Sampler { comparison: false, filtering: true },
+            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
             count: None,
         }
     };
