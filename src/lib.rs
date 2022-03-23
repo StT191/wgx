@@ -51,7 +51,7 @@ pub mod wav_obj;
 pub use glsl_to_spirv::ShaderType;
 
 
-// glyph-extemsion
+// glyph-extension
 #[cfg(feature = "glyph")]
 pub use wgpu_glyph::Text;
 

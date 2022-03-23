@@ -91,10 +91,10 @@ fn main() {
 
 
   // matrix
-  const DA:f32 = 5.0;
+  const DA:f32 = 1.0;
   const DS:f32 = 50.0;
 
-  let fov_deg = 45.0;
+  let fov_deg = 20.0;
 
   let (mut width, mut height) = (width as f32, height as f32);
 
@@ -174,10 +174,10 @@ fn main() {
           // VirtualKeyCode::U => { apply!(world_matrix, within(&camera_correction, &Matrix4::from_angle_z(Deg( DA))).expect("no inversion")); },
           // VirtualKeyCode::O => { apply!(world_matrix, within(&camera_correction, &Matrix4::from_angle_z(Deg(-DA))).expect("no inversion")); },
 
-          VirtualKeyCode::I => { apply!(rot_matrix_x, Matrix4::from_angle_x(Deg( DA)).within(&fov.translation).expect("inverse")); },
-          VirtualKeyCode::K => { apply!(rot_matrix_x, Matrix4::from_angle_x(Deg(-DA)).within(&fov.translation).expect("inverse")); },
-          VirtualKeyCode::J => { apply!(rot_matrix_y, Matrix4::from_angle_y(Deg( DA)).within(&fov.translation).expect("inverse")); },
-          VirtualKeyCode::L => { apply!(rot_matrix_y, Matrix4::from_angle_y(Deg(-DA)).within(&fov.translation).expect("inverse")); },
+          VirtualKeyCode::I => { apply!(rot_matrix_x, Matrix4::from_angle_x(Deg( DA))); },
+          VirtualKeyCode::K => { apply!(rot_matrix_x, Matrix4::from_angle_x(Deg(-DA))); },
+          VirtualKeyCode::J => { apply!(rot_matrix_y, Matrix4::from_angle_y(Deg( DA))); },
+          VirtualKeyCode::L => { apply!(rot_matrix_y, Matrix4::from_angle_y(Deg(-DA))); },
           // VirtualKeyCode::U => { apply!(rot_matrix, Matrix4::from_angle_z(Deg( DA))); },
           // VirtualKeyCode::O => { apply!(rot_matrix, Matrix4::from_angle_z(Deg(-DA))); },
 
@@ -204,7 +204,7 @@ fn main() {
         } {
           if redraw {
 
-            let clip_matrix = projection * rot_matrix_x * rot_matrix_y * world_matrix * obj_mat;
+            let clip_matrix = projection * (rot_matrix_x * rot_matrix_y).within(&fov.translation).expect("inverse") * world_matrix * obj_mat;
             let light_rot_matrix = (rot_matrix_x * rot_matrix_y) * light_matrix;
 
             gx.write_buffer(&mut clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&clip_matrix));

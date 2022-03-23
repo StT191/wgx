@@ -194,7 +194,8 @@ fn main() {
     // Matrix4::from_translation((0.0, -0.7 * height, 0.0).into())
   ;
 
-  let light_matrix = Matrix4::<f32>::from_angle_x(Deg(-45.0)) * Matrix4::from_angle_y(Deg(45.0));
+  // let light_matrix = Matrix4::<f32>::from_angle_x(Deg(-45.0)) * Matrix4::from_angle_y(Deg(45.0));
+  let light_matrix = Matrix4::<f32>::identity();
 
   // let clip_matrix = projection * rot_matrix * Matrix4::from_nonuniform_scale(w*width, h*height, 1.0);
 
@@ -278,7 +279,8 @@ fn main() {
           if redraw {
 
             let clip_matrix = projection * rot_matrix * world_matrix * obj_mat;
-            let light_matrix = rot_matrix * light_matrix;
+            // let light_matrix = rot_matrix * light_matrix;
+            let light_matrix = light_matrix;
 
             gx.write_buffer(&mut clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&clip_matrix));
             gx.write_buffer(&mut light_buffer, 0, AsRef::<[f32; 16]>::as_ref(&light_matrix));

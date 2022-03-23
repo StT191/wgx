@@ -40,7 +40,7 @@ fn vs_main(
 
 
 // let shade = vec2<f32>(0.1, 0.0);
-let shade = vec2<f32>(0.05, 0.3);
+let shade = vec2<f32>(0.03, 0.03);
 
 
 [[stage(fragment)]]
