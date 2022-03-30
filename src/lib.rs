@@ -1,6 +1,7 @@
 
 // passing external types
 pub use wgpu::{
+    self,
     BufferUsages as BuffUse,
     TextureUsages as TexUse,
     PrimitiveTopology as Primitive,
@@ -17,7 +18,7 @@ pub use macros::*;
 
 // common types
 
-pub use cgmath::prelude::*;
+pub use cgmath::{self, prelude::*};
 
 mod projection;
 pub use projection::*;
@@ -53,7 +54,7 @@ pub use glsl_to_spirv::ShaderType;
 
 // glyph-extension
 #[cfg(feature = "glyph")]
-pub use wgpu_glyph::Text;
+pub use wgpu_glyph::{self, Text};
 
 #[cfg(feature = "glyph")]
 mod glyph_extension;
@@ -71,6 +72,10 @@ pub use text_input::*;
 mod iced;
 #[cfg(feature = "iced")]
 pub use iced::Iced;
+#[cfg(feature = "iced")]
+pub use iced_wgpu;
+#[cfg(feature = "iced")]
+pub use iced_winit;
 
 
 
