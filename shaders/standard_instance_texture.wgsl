@@ -39,8 +39,7 @@ fn vs_main(
 [[group(0), binding(3)]] var color_sampler: sampler;
 
 
-// let shade = vec2<f32>(0.1, 0.0);
-let shade = vec2<f32>(0.03, 0.03);
+let shade = vec2<f32>(0.15, 0.15);
 
 
 [[stage(fragment)]]

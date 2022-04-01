@@ -81,12 +81,14 @@ fn main() {
   // vertexes
 
   let steps = 64usize;
-  let step_a = steps as f32 / std::f32::consts::FRAC_PI_2; // step angle
+  let smooth = true;
 
+  let step_a = steps as f32 / std::f32::consts::FRAC_PI_2; // step angle
 
   let mut vertex_data:Vec<[[f32;3];3]> = Vec::with_capacity(2 * 2 * 3 * steps * steps);
 
-  let v_c = [1.0, 1.0, 0.0];
+  let t_c = [1.0, 1.0, 0.0];
+
 
   for k in 0..steps {
 
@@ -116,16 +118,26 @@ fn main() {
       let c = [cos_a1*sin_b1, sin_a1, cos_a1*cos_b1];
       let d = [cos_a0*sin_b1, sin_a0, cos_a0*cos_b1];
 
-      let n1 = normal_from_triangle(a, d, c).into();
-      let n2 = normal_from_triangle(a, c, b).into();
+      if (smooth) {
+        vertex_data.push([a, t_c, a]);
+        vertex_data.push([d, t_c, d]);
+        vertex_data.push([c, t_c, c]);
 
-      vertex_data.push([a, v_c, n1]);
-      vertex_data.push([d, v_c, n1]);
-      vertex_data.push([c, v_c, n1]);
+        vertex_data.push([a, t_c, a]);
+        vertex_data.push([c, t_c, c]);
+        vertex_data.push([b, t_c, b]);
+      }
+      else {
+        let n = normal_from_triangle(a, d, c).into();
 
-      vertex_data.push([a, v_c, n2]);
-      vertex_data.push([c, v_c, n2]);
-      vertex_data.push([b, v_c, n2]);
+        vertex_data.push([a, t_c, n]);
+        vertex_data.push([d, t_c, n]);
+        vertex_data.push([c, t_c, n]);
+
+        vertex_data.push([a, t_c, n]);
+        vertex_data.push([c, t_c, n]);
+        vertex_data.push([b, t_c, n]);
+      }
     }
   }
 
