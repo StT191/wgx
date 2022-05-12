@@ -1,28 +1,16 @@
 
-#[cfg(feature = "spirv")]
-use glsl_to_spirv::ShaderType;
-
-#[cfg(feature = "spirv")]
-use std::io::{Read, Seek};
-
 #[cfg(feature = "iced")]
 use iced_wgpu::{Renderer, Backend, Settings};
-
-use futures::executor::block_on;
 use std::num::NonZeroU32;
-
 use wgpu::util::DeviceExt;
 use raw_window_handle::HasRawWindowHandle;
-use crate::byte_slice::AsByteSlice;
-use crate::{*, error::*};
-
+use crate::{*, byte_slice::AsByteSlice, error::*};
 
 
 // Default Texture Formats
-
-pub const OUTPUT:wgpu::TextureFormat = wgpu::TextureFormat::Bgra8UnormSrgb;
 pub const TEXTURE:wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
 pub const DEPTH: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
+
 
 // wgx
 
@@ -37,11 +25,11 @@ pub struct Wgx {
 
 impl Wgx {
 
-    pub fn new<W: HasRawWindowHandle>(
+    pub async fn new<W: HasRawWindowHandle>(
         window:Option<&W>, features:wgpu::Features, limits:wgpu::Limits,
     ) -> Res<Self> {
 
-        let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY);
+        let instance = wgpu::Instance::new(wgpu::Backends::all());
 
         let surface = if let Some(window) = window {
            unsafe { Some(instance.create_surface(window)) }
@@ -49,16 +37,16 @@ impl Wgx {
         else { None };
 
 
-        let adapter = block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
+        let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions {
             power_preference: wgpu::PowerPreference::HighPerformance,
             force_fallback_adapter: false,
             compatible_surface: surface.as_ref(),
-        })).ok_or("couldn't get device")?;
+        }).await.ok_or("couldn't get adapter")?;
 
 
-        let (device, queue) = block_on(adapter.request_device(
+        let (device, queue) = adapter.request_device(
             &wgpu::DeviceDescriptor {label: None, features, limits}, None,
-        )).map_err(error)?;
+        ).await.map_err(error)?;
 
         Ok(Self { instance, adapter, device, queue, surface })
     }
@@ -139,21 +127,6 @@ impl Wgx {
 
 
     // shader
-
-    #[cfg(feature = "spirv")]
-    pub fn load_spirv<R:Read+Seek>(&self, mut shader_spirv:R) -> wgpu::ShaderModule {
-        let mut data = Vec::new();
-        let _ = shader_spirv.read_to_end(&mut data);
-        let source = wgpu::util::make_spirv(&data);
-        self.device.create_shader_module(&wgpu::ShaderModuleDescriptor { label: None, source })
-        /*let source = wgpu::util::make_spirv_raw(&data);
-        unsafe { self.device.create_shader_module_spirv(&wgpu::ShaderModuleDescriptorSpirV { label: None, source }) }*/
-    }
-
-    #[cfg(feature = "spirv")]
-    pub fn load_glsl(&self, code:&str, ty:ShaderType) -> Res<wgpu::ShaderModule> {
-        self.load_spirv(glsl_to_spirv::compile(&code, ty)?)
-    }
 
     pub fn load_wgsl(&self, code:&str) -> wgpu::ShaderModule {
         let source = wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(code));

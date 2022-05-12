@@ -1,18 +1,15 @@
 #![allow(unused)]
 
 // use std::{time::{Instant}};
-
+use futures::executor::block_on;
 use iced_wgpu::Settings;
 use iced_winit::winit;
-
 use crate::winit::{
     dpi::{PhysicalSize},
     event_loop::{ControlFlow, EventLoop},
     window::{Window, Icon}, event::*,
 };
-
-use wgx::*;
-// use cgmath::*;
+use wgx::{*, /*cgmath::**/};
 
 
 // gui
@@ -110,7 +107,7 @@ fn main() {
 
 
     // wgx setup
-    let mut gx = Wgx::new(Some(&window), Features::empty(), limits!{}).unwrap();
+    let mut gx = block_on(Wgx::new(Some(&window), Features::empty(), limits!{})).unwrap();
     let mut target = gx.surface_target((width, height), DEPTH_TESTING, MSAA).unwrap();
 
 

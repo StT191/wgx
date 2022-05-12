@@ -1,39 +1,25 @@
 
-// passing external types
+// passs wgpu types
 pub use wgpu::{
     self,
     BufferUsages as BuffUse,
     TextureUsages as TexUse,
     PrimitiveTopology as Primitive,
     ShaderStages as Shader,
-    Features,
+    Features, Limits,
 };
 
-
 // macros
-
 mod macros;
 pub use macros::*;
 
-
 // common types
-
-pub use cgmath::{self, prelude::*};
-
-mod projection;
-pub use projection::*;
-
 mod byte_slice;
 
 mod color;
 pub use color::*;
 
-// pub mod refs;
-
-pub mod frames;
-
 // wgx
-
 mod wgpu_extensions;
 pub use wgpu_extensions::*;
 
@@ -44,15 +30,26 @@ mod render_target;
 pub use render_target::*;
 
 
+// features
+
+#[cfg(feature = "projection")]
+pub use cgmath::{self, prelude::*};
+
+#[cfg(feature = "projection")]
+mod projection;
+#[cfg(feature = "projection")]
+pub use projection::*;
+
+
+#[cfg(feature = "wav_obj")]
 pub mod wav_obj;
 
 
-// spirv
-#[cfg(feature = "spirv")]
-pub use glsl_to_spirv::ShaderType;
+#[cfg(feature = "frames")]
+pub mod frames;
 
 
-// glyph-extension
+// glyph
 #[cfg(feature = "glyph")]
 pub use wgpu_glyph::{self, Text};
 
@@ -61,9 +58,9 @@ mod glyph_extension;
 #[cfg(feature = "glyph")]
 pub use glyph_extension::*;
 
-#[cfg(feature = "glyph")]
+#[cfg(feature = "simple_text_input")]
 mod text_input;
-#[cfg(feature = "glyph")]
+#[cfg(feature = "simple_text_input")]
 pub use text_input::*;
 
 

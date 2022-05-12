@@ -1,15 +1,13 @@
 #![allow(unused)]
 
-use cgmath::*;
 use std::{time::{Instant, Duration}};
-
+use futures::executor::block_on;
 use winit::{
     dpi::PhysicalSize,
     event_loop::{ControlFlow, EventLoop},
     window::Window, event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCode},
 };
-
-use wgx::*;
+use wgx::{*, cgmath::*};
 
 
 fn main() {
@@ -26,7 +24,7 @@ fn main() {
     window.set_inner_size(PhysicalSize::<u32>::from((width, height)));
     window.set_title("WgFx");
 
-    let mut gx = Wgx::new(Some(&window), Features::PUSH_CONSTANTS, limits!{max_push_constant_size: 4}).unwrap();
+    let mut gx = block_on(Wgx::new(Some(&window), Features::PUSH_CONSTANTS, limits!{max_push_constant_size: 4})).unwrap();
     let mut target = gx.surface_target((width, height), DEPTH_TESTING, MSAA).unwrap();
 
 

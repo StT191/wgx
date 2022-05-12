@@ -1,11 +1,11 @@
 
-use crate::{Wgx, OUTPUT, TexUse, DefaultViewExtension, error::*};
+use crate::{Wgx, TEXTURE, TexUse, DefaultViewExtension, error::*};
 
 
 // cloneable surface configuration
 const SURFACE_CONFIGURATION:wgpu::SurfaceConfiguration = wgpu::SurfaceConfiguration {
     usage: TexUse::RENDER_ATTACHMENT,
-    format: OUTPUT, width: 0, height: 0,
+    format: TEXTURE, width: 0, height: 0,
     present_mode: wgpu::PresentMode::Mailbox,
 };
 
@@ -177,7 +177,7 @@ impl RenderTarget for SurfaceTarget {
         })
     }
 
-    fn format(&self) -> wgpu::TextureFormat { OUTPUT }
+    fn format(&self) -> wgpu::TextureFormat { self.config.format }
     fn size(&self) -> (u32, u32) { (self.config.width, self.config.height) }
     fn depth_testing(&self) -> bool { self.depth_testing }
     fn msaa(&self) -> u32 { self.msaa }

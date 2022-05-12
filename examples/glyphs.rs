@@ -2,16 +2,13 @@
 
 // imports
 use std::{time::{Instant}, fs::read};
-
+use futures::executor::block_on;
 use winit::{
     dpi::PhysicalSize,
     event_loop::{ControlFlow, EventLoop},
     window::Window, event::*,
 };
-
-use wgx::*;
-use cgmath::*;
-
+use wgx::{*, cgmath::*};
 
 // main
 fn main() {
@@ -35,7 +32,7 @@ fn main() {
 
 
     // wgx setup
-    let mut gx = Wgx::new(Some(&window), Features::empty(), limits!{}).unwrap();
+    let mut gx = block_on(Wgx::new(Some(&window), Features::empty(), limits!{})).unwrap();
     let mut target = gx.surface_target((1200, 1000), DEPTH_TESTING, MSAA).unwrap();
 
 
@@ -43,7 +40,7 @@ fn main() {
     // let font_data = include_bytes!("../fonts/font_active.ttf");
     let font_data = read("fonts/font_active.ttf").expect("failed loading font");
 
-    let mut glyphs = gx.glyph_brush(OUTPUT, font_data).expect("invalid font");
+    let mut glyphs = gx.glyph_brush(target.format(), font_data).expect("invalid font");
 
     let mut text_input = SimpleTextInput::new("Hey Ho!\nWhat is going on? Anyway?\n");
     text_input.set_curser_end();
