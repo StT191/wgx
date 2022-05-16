@@ -67,14 +67,14 @@ fn main() {
     let steps = 64 as u32;
 
 
-    let instance_buffer = gx.buffer_from_data(BuffUse::VERTEX | BuffUse::COPY_DST, &instance_data);
-    let step_buffer = gx.buffer_from_data(BuffUse::UNIFORM | BuffUse::COPY_DST, &[steps]);
+    let instance_buffer = gx.buffer_from_data(BufUse::VERTEX | BufUse::COPY_DST, &instance_data);
+    let step_buffer = gx.buffer_from_data(BufUse::UNIFORM | BufUse::COPY_DST, &[steps]);
 
 
     // projection
-    // let mut world_buffer = gx.buffer(BuffUse::UNIFORM | BuffUse::COPY_DST, 64, false);
-    let mut clip_buffer = gx.buffer(BuffUse::UNIFORM | BuffUse::COPY_DST, 64, false);
-    // let mut viewport_buffer = gx.buffer(BuffUse::UNIFORM | BuffUse::COPY_DST, 8, false);
+    // let mut world_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 64, false);
+    let mut clip_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 64, false);
+    // let mut viewport_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 8, false);
 
 
     // binding

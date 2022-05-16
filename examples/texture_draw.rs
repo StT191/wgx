@@ -57,7 +57,7 @@ fn main() {
         ([ 0.5, -0.5, 0.0], [1.0, 1.0]),
         ([-0.5, -0.5, 0.0], [0.0, 1.0]),
     ];
-    let vertices = gx.buffer_from_data(BuffUse::VERTEX, &vertex_data[..]);
+    let vertices = gx.buffer_from_data(BufUse::VERTEX, &vertex_data[..]);
 
 
     // colors

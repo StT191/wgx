@@ -2,7 +2,7 @@
 // passs wgpu types
 pub use wgpu::{
     self,
-    BufferUsages as BuffUse,
+    BufferUsages as BufUse,
     TextureUsages as TexUse,
     PrimitiveTopology as Primitive,
     ShaderStages as Shader,

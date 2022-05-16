@@ -4,7 +4,7 @@
 use futures::executor::block_on;
 use iced_wgpu::Settings;
 use iced_winit::winit;
-use crate::winit::{
+use self::winit::{
     dpi::{PhysicalSize},
     event_loop::{ControlFlow, EventLoop},
     window::{Window, Icon}, event::*,
@@ -114,8 +114,7 @@ fn main() {
     // iced setup
     let renderer = gx.iced_renderer(Settings::default(), target.format());
 
-    let mut gui = Iced::new(renderer, Controls::new(), (width, height), window);
-
+    let mut gui = Iced::new(renderer, Controls::new(), (width, height), &window, false);
 
 
     event_loop.run(move |event, _, control_flow| {
@@ -133,24 +132,24 @@ fn main() {
 
                     WindowEvent::Resized(size) => {
                         target.update(&gx, (size.width, size.height));
-                        gui.window.request_redraw();
+                        window.request_redraw();
                     }
 
                     WindowEvent::KeyboardInput { input: KeyboardInput {
                         virtual_keycode: Some(keycode), state: ElementState::Pressed, ..
                     }, ..} => {
                         if keycode == VirtualKeyCode::R {
-                            gui.window.request_redraw();
+                            window.request_redraw();
                         }
                     }
                     _ => (),
                 }
 
-                gui.event(&event);
+                gui.event(&event, &window);
             }
 
             Event::MainEventsCleared => {
-                gui.update();
+                gui.update(&window);
 
                 /*if let Some(command) = res {
                     for action in command.actions() {
@@ -175,7 +174,7 @@ fn main() {
 
                     encoder.render_pass(attachment, Some(gui.program().color));
 
-                    gui.draw(&gx, &mut encoder, attachment);
+                    gui.draw(&gx, &mut encoder, attachment, &window);
 
                 }).expect("frame error");
 

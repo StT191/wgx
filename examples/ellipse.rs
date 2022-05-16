@@ -56,16 +56,16 @@ fn main() {
         c[0], c[1], c[2],
         c[0], c[2], c[3],
     ];
-    let vertices = gx.buffer_from_data(BuffUse::VERTEX, &data[..]);
+    let vertices = gx.buffer_from_data(BufUse::VERTEX, &data[..]);
 
 
     // projection
     let projection = Matrix4::<f32>::identity();
 
-    let mut pj_buffer = gx.buffer_from_data(BuffUse::UNIFORM | BuffUse::COPY_DST, AsRef::<[f32; 16]>::as_ref(&projection));
-    // let mut tf_buffer = gx.buffer_from_data(BuffUse::UNIFORM | BuffUse::COPY_DST, AsRef::<[f32; 16]>::as_ref(&projection));
+    let mut pj_buffer = gx.buffer_from_data(BufUse::UNIFORM | BufUse::COPY_DST, AsRef::<[f32; 16]>::as_ref(&projection));
+    // let mut tf_buffer = gx.buffer_from_data(BufUse::UNIFORM | BufUse::COPY_DST, AsRef::<[f32; 16]>::as_ref(&projection));
 
-    let mut dim_buffer = gx.buffer_from_data(BuffUse::UNIFORM | BuffUse::COPY_DST, &[1.0_f32; 4]);
+    let mut dim_buffer = gx.buffer_from_data(BufUse::UNIFORM | BufUse::COPY_DST, &[1.0_f32; 4]);
 
     // binding
     let binding = gx.bind(&pipeline.get_bind_group_layout(0), &[

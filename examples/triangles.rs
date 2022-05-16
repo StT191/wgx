@@ -70,7 +70,7 @@ fn main() {
         ([-1.0, -0.5, 0.1], [1.0, 0.0]),
         ([-0.3, 0.5, 0.312], [1.0, 0.0]),
     ];
-    let vertices = gx.buffer_from_data(BuffUse::VERTEX, &data[..]);
+    let vertices = gx.buffer_from_data(BufUse::VERTEX, &data[..]);
 
 
     // texture + sampler

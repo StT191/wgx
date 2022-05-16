@@ -78,13 +78,13 @@ fn main() {
     }*/
 
 
-    let instances = gx.buffer_from_data(BuffUse::VERTEX, &instance_data);
+    let instances = gx.buffer_from_data(BufUse::VERTEX, &instance_data);
 
 
     // projection
-    let mut world_buffer = gx.buffer(BuffUse::UNIFORM | BuffUse::COPY_DST, 64, false);
-    let mut clip_buffer = gx.buffer(BuffUse::UNIFORM | BuffUse::COPY_DST, 64, false);
-    let mut viewport_buffer = gx.buffer(BuffUse::UNIFORM | BuffUse::COPY_DST, 8, false);
+    let mut world_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 64, false);
+    let mut clip_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 64, false);
+    let mut viewport_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 8, false);
 
 
     // binding

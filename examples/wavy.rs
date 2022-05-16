@@ -50,7 +50,7 @@ fn main() {
         [-1.0, -1.0f32], [ 1.0, -1.0f32], [ 1.0,  1.0f32],
         [-1.0, -1.0f32], [ 1.0,  1.0f32], [-1.0,  1.0f32],
     ];
-    let vertices = gx.buffer_from_data(BuffUse::VERTEX, &vertex_data[..]);
+    let vertices = gx.buffer_from_data(BufUse::VERTEX, &vertex_data[..]);
 
 
     // data
@@ -64,9 +64,9 @@ fn main() {
 
 
     // buffer
-    let mut viewport_buffer = gx.buffer_from_data(BuffUse::UNIFORM | BuffUse::COPY_DST, &[width as f32, height as f32]);
-    let mut scale_buffer = gx.buffer_from_data(BuffUse::UNIFORM | BuffUse::COPY_DST, &[1.0 as f32, 1.0 as f32]);
-    // let mut t_buffer = gx.buffer_from_data(BuffUse::UNIFORM | BuffUse::COPY_DST, &[time.elapsed().as_secs_f32()]);
+    let mut viewport_buffer = gx.buffer_from_data(BufUse::UNIFORM | BufUse::COPY_DST, &[width as f32, height as f32]);
+    let mut scale_buffer = gx.buffer_from_data(BufUse::UNIFORM | BufUse::COPY_DST, &[1.0 as f32, 1.0 as f32]);
+    // let mut t_buffer = gx.buffer_from_data(BufUse::UNIFORM | BufUse::COPY_DST, &[time.elapsed().as_secs_f32()]);
 
     // binding
     let binding = gx.bind(&layout, &[

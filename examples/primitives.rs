@@ -76,7 +76,7 @@ fn main() {
         ([-0.5, -0.5, 0.0], [0.0, 0.0]),
     ];
 
-    let t_vertices = gx.buffer_from_data(BuffUse::VERTEX, &t_data[..]);
+    let t_vertices = gx.buffer_from_data(BufUse::VERTEX, &t_data[..]);
 
 
     // lines pipeline
@@ -95,7 +95,7 @@ fn main() {
         ([ -1.0, -1.0, 0.0], [1.0, 0.0]),
     ];
 
-    let l_vertices = gx.buffer_from_data(BuffUse::VERTEX, &l_data[..]);
+    let l_vertices = gx.buffer_from_data(BufUse::VERTEX, &l_data[..]);
 
 
     // points pipeline
@@ -112,7 +112,7 @@ fn main() {
         ([-0.25, -0.25, 0.0], [0.5, 0.0]),
     ];
 
-    let p_vertices = gx.buffer_from_data(BuffUse::VERTEX, &p_data[..]);
+    let p_vertices = gx.buffer_from_data(BufUse::VERTEX, &p_data[..]);
 
 
     // picture pipeline
@@ -149,7 +149,7 @@ fn main() {
         ([-0.25, -0.25, 0.0], [0.0, 1.0]),
     ];
 
-    let i_vertices = gx.buffer_from_data(BuffUse::VERTEX, &i_data[..]);
+    let i_vertices = gx.buffer_from_data(BufUse::VERTEX, &i_data[..]);
 
 
     // render bundles

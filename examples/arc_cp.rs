@@ -70,15 +70,15 @@ fn main() {
 
     let vertex_len = instance_data.len() as u32 * 3 * steps;
 
-    let instance_buffer = gx.buffer_from_data(BuffUse::STORAGE | BuffUse::COPY_DST, &instance_data);
-    let vertex_buffer = gx.buffer(BuffUse::STORAGE | BuffUse::VERTEX, (vertex_len * 32) as u64, false);
-    // let step_buffer = gx.buffer_from_data(BuffUse::UNIFORM | BuffUse::COPY_DST, &[steps]);
+    let instance_buffer = gx.buffer_from_data(BufUse::STORAGE | BufUse::COPY_DST, &instance_data);
+    let vertex_buffer = gx.buffer(BufUse::STORAGE | BufUse::VERTEX, (vertex_len * 32) as u64, false);
+    // let step_buffer = gx.buffer_from_data(BufUse::UNIFORM | BufUse::COPY_DST, &[steps]);
 
 
     // projection
-    // let mut world_buffer = gx.buffer(BuffUse::UNIFORM | BuffUse::COPY_DST, 64, false);
-    let mut clip_buffer = gx.buffer(BuffUse::UNIFORM | BuffUse::COPY_DST, 64, false);
-    // let mut viewport_buffer = gx.buffer(BuffUse::UNIFORM | BuffUse::COPY_DST, 8, false);
+    // let mut world_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 64, false);
+    let mut clip_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 64, false);
+    // let mut viewport_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 8, false);
 
 
     // binding

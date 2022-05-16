@@ -25,9 +25,9 @@ raw-window-handle = "0"
 # optional
 cgmath = { version = "0", optional = true }
 instant = { version = "0.1", optional = true }
-wgpu_glyph = { version = "0.16", optional = true }
-iced_winit = { git = "https://github.com/iced-rs/iced/", rev = "a53fa91", optional = true }
-iced_wgpu = { git = "https://github.com/iced-rs/iced/", rev = "a53fa91", optional = true }
+wgpu_glyph = { version = "0", optional = true }
+iced_winit = { version = "0", optional = true }
+iced_wgpu = { version = "0", optional = true }
 
 
 [dev-dependencies]

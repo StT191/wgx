@@ -18,10 +18,10 @@ pub struct Iced<P:'static + Program<Renderer=Renderer>> {
     renderer: Renderer,
     program_state: State<P>,
     viewport: Viewport,
-    pub window: Window,
     cursor: PhysicalPosition<f64>,
     interaction: Interaction,
     modifiers: ModifiersState,
+    pub lazy_redraw: bool, // do lazy redraws
     clipboard: Clipboard,
     staging_belt: StagingBelt,
     debug: Debug,
@@ -30,24 +30,26 @@ pub struct Iced<P:'static + Program<Renderer=Renderer>> {
 
 impl <P:'static + iced_winit::Program<Renderer=Renderer>>Iced<P> {
 
-    pub fn new(mut renderer:Renderer, program:P, (width, height):(u32, u32), window:Window) -> Self {
+    pub fn new(mut renderer:Renderer, program:P, (width, height):(u32, u32), window:&Window, lazy_redraw:bool) -> Self {
 
         let mut debug = Debug::new();
+
         let viewport = Viewport::with_physical_size(Size::new(width, height), window.scale_factor());
+
         let cursor = PhysicalPosition::new(-1.0, -1.0);
         let clipboard = Clipboard::connect(&window);
 
         let program_state = State::new(
             program, viewport.logical_size(),
-            // conversion::cursor_position(cursor, viewport.scale_factor()),
             &mut renderer, &mut debug,
         );
 
         let interaction = program_state.mouse_interaction();
 
         Self {
-            renderer, program_state, viewport, window, cursor, interaction,
+            renderer, program_state, viewport, cursor, interaction,
             modifiers: ModifiersState::default(),
+            lazy_redraw,
             clipboard,
             staging_belt: StagingBelt::new(10240),
             debug,
@@ -60,12 +62,12 @@ impl <P:'static + iced_winit::Program<Renderer=Renderer>>Iced<P> {
     }
 
 
-    pub fn event(&mut self, event:&WindowEvent) {
+    pub fn event(&mut self, event:&WindowEvent, window:&Window) {
         match event {
             WindowEvent::Resized(size) => {
                 self.viewport = Viewport::with_physical_size(
                     Size::new(size.width, size.height),
-                    self.window.scale_factor(),
+                    window.scale_factor(),
                 );
             }
             WindowEvent::ScaleFactorChanged { scale_factor, ref new_inner_size } => {
@@ -84,7 +86,7 @@ impl <P:'static + iced_winit::Program<Renderer=Renderer>>Iced<P> {
         }
 
         if let Some(event) = iced_winit::conversion::window_event(
-            &event, self.window.scale_factor(), self.modifiers,
+            &event, window.scale_factor(), self.modifiers,
         ) {
             self.program_state.queue_event(event);
         }
@@ -96,16 +98,16 @@ impl <P:'static + iced_winit::Program<Renderer=Renderer>>Iced<P> {
     }
 
 
-    fn update_cursor(&mut self) {
+    pub fn update_cursor(&mut self, window: &Window) {
         let interaction = self.program_state.mouse_interaction();
         if self.interaction != interaction {
-            self.window.set_cursor_icon(conversion::mouse_interaction(interaction));
+            window.set_cursor_icon(conversion::mouse_interaction(interaction));
             self.interaction = interaction;
         }
     }
 
 
-    pub fn update(&mut self) -> Option<Command<P::Message>> {
+    pub fn update(&mut self, window: &Window) -> Option<Command<P::Message>> {
         if !self.program_state.is_queue_empty() {
 
             let command = self.program_state.update(
@@ -119,10 +121,8 @@ impl <P:'static + iced_winit::Program<Renderer=Renderer>>Iced<P> {
                 &mut self.debug,
             );
 
-            /*if command.is_some() { self.window.request_redraw() }
-            else { self.update_cursor() }*/
-
-            self.window.request_redraw();
+            if !self.lazy_redraw || command.is_some() { window.request_redraw() }
+            else { self.update_cursor(window) }
 
             command
         }
@@ -130,7 +130,7 @@ impl <P:'static + iced_winit::Program<Renderer=Renderer>>Iced<P> {
     }
 
 
-    pub fn draw(&mut self, gx:&Wgx, encoder:&mut CommandEncoder, attachment:&RenderAttachment) {
+    pub fn draw(&mut self, gx:&Wgx, encoder:&mut CommandEncoder, attachment:&RenderAttachment, window: &Window) {
 
         // borrow before the closure
         let (staging_belt, viewport, debug) = (&mut self.staging_belt, &self.viewport, &self.debug);
@@ -149,6 +149,6 @@ impl <P:'static + iced_winit::Program<Renderer=Renderer>>Iced<P> {
 
         self.staging_belt.finish();
 
-        self.update_cursor();
+        self.update_cursor(window);
     }
 }

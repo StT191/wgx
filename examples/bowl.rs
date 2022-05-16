@@ -65,8 +65,8 @@ fn main() {
   // gx.write_texture(&image_texture, (0, 0, w, h), &img.as_raw().as_slice());
 
 
-  let mut clip_buffer = gx.buffer(BuffUse::UNIFORM | BuffUse::COPY_DST, 64, false);
-  let mut light_buffer = gx.buffer(BuffUse::UNIFORM | BuffUse::COPY_DST, 64, false);
+  let mut clip_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 64, false);
+  let mut light_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 64, false);
 
   let binding = gx.bind(&pipeline.get_bind_group_layout(0), &[
     bind!(0, Buffer, &clip_buffer),
@@ -140,10 +140,10 @@ fn main() {
   }
 
 
-  let vertex_buffer = gx.buffer_from_data(BuffUse::VERTEX, &vertex_data);
+  let vertex_buffer = gx.buffer_from_data(BufUse::VERTEX, &vertex_data);
 
   // let triangles = wav_obj::parse(include_str!("../obj/deer.obj")).expect("couldn't parse wav obj");
-  // let vertex_buffer = gx.buffer_from_data(BuffUse::VERTEX, &triangles);
+  // let vertex_buffer = gx.buffer_from_data(BufUse::VERTEX, &triangles);
 
 
   // let instance_data = [
@@ -168,7 +168,7 @@ fn main() {
     Matrix4::<f32>::from_nonuniform_scale(-1.0,-1.0,-1.0),
   ];
 
-  let instance_buffer = gx.buffer_from_data(BuffUse::VERTEX, &instance_data);
+  let instance_buffer = gx.buffer_from_data(BufUse::VERTEX, &instance_data);
 
 
   // render bundles
