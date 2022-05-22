@@ -8,7 +8,7 @@ use crate::{*, byte_slice::AsByteSlice, error::*};
 
 
 // Default Texture Formats
-pub const TEXTURE:wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
+pub const TEXTURE:wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 pub const DEPTH: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
 

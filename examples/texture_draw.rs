@@ -62,7 +62,7 @@ fn main() {
 
     // colors
     let color_texture = gx.texture((1, 1), 1, TexUse::TEXTURE_BINDING | TexUse::COPY_DST, TEXTURE);
-    gx.write_texture(&color_texture, (0, 0, 1, 1), &[Color::RED.u8()]);
+    gx.write_texture(&color_texture, (0, 0, 1, 1), Color::from([0.5, 0.0, 0.0]).u8());
     let color_texture_view = color_texture.create_default_view();
 
 
@@ -83,7 +83,7 @@ fn main() {
 
     target.with_encoder_frame(&gx, |encoder, attachment| { // !! ecoder witout draw to attachment produces hang!
 
-        encoder.with_render_pass(&draw_target.attachment().unwrap(), Some(Color::YELLOW), |mut rpass| {
+        encoder.with_render_pass(&draw_target.attachment().unwrap(), Some(Color::ORANGE), |mut rpass| {
             rpass.set_pipeline(&draw_pipeline);
             rpass.set_bind_group(0, &draw_binding, &[]);
             rpass.set_vertex_buffer(0, vertices.slice(..));

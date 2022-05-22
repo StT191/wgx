@@ -115,8 +115,18 @@ impl EncoderExtension for wgpu::CommandEncoder {
                 resolve_target: if attachment.msaa.is_some() { Some(attachment.view) } else { None },
                 ops: wgpu::Operations {
                     load: if let Some(cl) = color
-                        { wgpu::LoadOp::Clear(cl.into()) }
-                        else { wgpu::LoadOp::Load },
+                        {
+                            wgpu::LoadOp::Clear(
+                                if attachment.srgb() && attachment.msaa.is_none() {
+                                    cl.linear().into() // convert to linear color space
+                                } else {
+                                    cl.into()
+                                }
+                            )
+                        }
+                        else {
+                            wgpu::LoadOp::Load
+                        },
                     store: true
                 }
             }],

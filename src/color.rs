@@ -80,6 +80,15 @@ impl Into<iced_wgpu::Color> for Color {
 }
 
 
+// color channel to linear
+fn linear_component(u: f32) -> f32 {
+    if u < 0.04045 {
+        u / 12.92
+    } else {
+        ((u + 0.055) / 1.055).powf(2.4)
+    }
+}
+
 
 impl Color {
     pub fn new(r:f32, g:f32, b:f32, a:f32) -> Self { Self {r, g, b, a} }
@@ -93,11 +102,19 @@ impl Color {
     pub fn u8(self) -> [u8; 4] { self.into() }
     pub fn u8_rgb(self) -> [u8; 3] { self.into() }
 
+    pub fn linear(self) -> Self {
+        Self {
+            r: linear_component(self.r),
+            g: linear_component(self.g),
+            b: linear_component(self.b),
+            a: self.a
+        }
+    }
+
     pub fn wgpu(self) -> wgpu::Color { self.into() }
 
     #[cfg(feature = "iced")]
     pub fn iced_wgpu(self) -> iced_wgpu::Color { self.into() }
-
 
     pub const TRANSPARENT:Self = Color { r: 0.0, g: 0.0, b: 0.0, a: 0.0 };
     pub const BLACK:Self = Color { r: 0.0, g: 0.0, b: 0.0, a: 1.0 };
@@ -112,5 +129,4 @@ impl Color {
     pub const GREY:Self = Color { r: 0.5, g: 0.5, b: 0.5, a: 1.0 };
     pub const DARK_GREY:Self = Color { r: 0.25, g: 0.25, b: 0.25, a: 1.0 };
     pub const LIGHT_GREY:Self = Color { r: 0.75, g: 0.75, b: 0.75, a: 1.0 };
-
 }

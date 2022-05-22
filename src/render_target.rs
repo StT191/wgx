@@ -14,6 +14,11 @@ pub struct RenderAttachment<'a> {
     pub view: &'a wgpu::TextureView,
     pub depth: Option<&'a wgpu::TextureView>,
     pub msaa: Option<&'a wgpu::TextureView>,
+    pub format: wgpu::TextureFormat,
+}
+
+impl RenderAttachment<'_> {
+    pub fn srgb(&self) -> bool { self.format.describe().srgb }
 }
 
 
@@ -25,6 +30,8 @@ pub trait RenderTarget {
     fn size(&self) -> (u32, u32);
     fn depth_testing(&self) -> bool;
     fn msaa(&self) -> u32;
+
+    fn srgb(&self) -> bool { self.format().describe().srgb }
 
     fn render_bundle_encoder<'a>(&self, wgx:&'a Wgx) -> wgpu::RenderBundleEncoder<'a> {
         wgx.render_bundle_encoder(&[self.format()], self.depth_testing(), self.msaa())
@@ -79,6 +86,7 @@ impl RenderTarget for TextureTarget {
             view: &self.texture_view,
             depth: self.depth_texture_view.as_ref(),
             msaa: self.msaa_texture_view.as_ref(),
+            format: self.format,
         })
     }
 
@@ -174,6 +182,7 @@ impl RenderTarget for SurfaceTarget {
             view: self.current_frame_view.as_ref().ok_or("no current frame view")?,
             depth: self.depth_texture_view.as_ref(),
             msaa: self.msaa_texture_view.as_ref(),
+            format: self.config.format,
         })
     }
 

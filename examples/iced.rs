@@ -34,11 +34,12 @@ pub struct Controls {
     sliders: [slider::State; 3],
 }
 
+// Qt.rgba(0.46, 0.6, 0.46, 1)
 
 impl Controls {
     pub fn new() -> Controls {
         Controls {
-            color: Color::from([0.18, 0.32, 0.18]),
+            color: Color::from([0.46, 0.60, 0.46]),
             text: "".to_string(),
             text_input: Default::default(),
             sliders: Default::default(),
@@ -169,7 +170,6 @@ fn main() {
             Event::RedrawRequested(_) => {
 
                 // let then = Instant::now();
-
                 target.with_encoder_frame(&gx, |mut encoder, attachment| {
 
                     encoder.render_pass(attachment, Some(gui.program().color));
