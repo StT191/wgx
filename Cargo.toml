@@ -11,7 +11,7 @@ doctest = false
 [features]
 projection = ["cgmath"]
 wav_obj = ["projection"]
-frames = ["instant"]
+ticks = ["instant"]
 glyph = ["wgpu_glyph", "projection"]
 simple_text_input = ["glyph"]
 iced = ["iced_winit", "iced_wgpu"]

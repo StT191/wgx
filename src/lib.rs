@@ -48,8 +48,8 @@ pub use projection::*;
 pub mod wav_obj;
 
 
-#[cfg(feature = "frames")]
-pub mod frames;
+#[cfg(feature = "ticks")]
+pub mod ticks;
 
 
 // glyph

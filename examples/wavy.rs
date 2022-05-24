@@ -86,19 +86,19 @@ fn main() {
 
     // frame rate and counter
 
-    let mut frame_timer = frames::FrameTimer::from_frame_rate(60, 1);
-    let mut frame_counter = frames::FrameCounter::from_secs(5.0);
+    let mut frame_timer = ticks::TickTimer::from_ticks_per_sec(60.0, 1.0);
+    let mut frame_counter = ticks::TickCounter::from_secs(5.0);
 
 
     // event loop
     event_loop.run(move |event, _, control_flow| {
 
-        *control_flow = ControlFlow::WaitUntil(frame_timer.next_redraw); // next frame
+        *control_flow = ControlFlow::WaitUntil(frame_timer.next_tick); // next frame
 
         match event {
 
             Event::NewEvents(_) => {
-                if (frame_timer.needs_redraw()) {
+                if (frame_timer.elapsed()) {
                     window.request_redraw(); // request frame
                 }
             },
@@ -155,11 +155,11 @@ fn main() {
                 // next frame time
                 let shift = frame_timer.next();
 
-                if (shift.was_next_frame) {
+                if (shift.was_next_tick) {
                     frame_counter.add_delta_time(shift.delta_time);
                 }
 
-                *control_flow = ControlFlow::WaitUntil(frame_timer.next_redraw);
+                *control_flow = ControlFlow::WaitUntil(frame_timer.next_tick);
 
                 // draw
                 // gx.write_buffer(&mut t_buffer, 0, &[time.elapsed().as_secs_f32()]);
@@ -181,9 +181,9 @@ fn main() {
 
 
                 // statistics
-                frame_counter.add_frame();
+                frame_counter.add_one();
 
-                let res = frame_counter.tick();
+                let res = frame_counter.tick_count();
 
                 if let Some(count) = res {
                     println!("{:?}", count);

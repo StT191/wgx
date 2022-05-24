@@ -44,7 +44,7 @@ impl Wgx {
         }).await.ok_or("couldn't get adapter")?;
 
 
-        #[cfg(target_arch = "wasm32")] let limits = limits.using_resolution(adapter.limits());
+        #[cfg(target_family = "wasm")] let limits = limits.using_resolution(adapter.limits());
 
         let (device, queue) = adapter.request_device(
             &wgpu::DeviceDescriptor {label: None, features, limits}, None,
