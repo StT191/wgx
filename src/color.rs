@@ -107,7 +107,16 @@ impl Color {
             r: linear_component(self.r),
             g: linear_component(self.g),
             b: linear_component(self.b),
-            a: self.a
+            a: self.a,
+        }
+    }
+
+    pub fn interpolate(self, Self {r, g, b, a}: Self, factor: f32) -> Self {
+        Self {
+            r: self.r + (r - self.r) * factor,
+            g: self.g + (g - self.g) * factor,
+            b: self.b + (b - self.b) * factor,
+            a: self.a + (a - self.a) * factor,
         }
     }
 
