@@ -1,12 +1,13 @@
 
 use crate::{Wgx, TEXTURE, TexUse, DefaultViewExtension, error::*};
+use wgpu::PresentMode as Prs;
 
 
 // cloneable surface configuration
 const SURFACE_CONFIGURATION:wgpu::SurfaceConfiguration = wgpu::SurfaceConfiguration {
     usage: TexUse::RENDER_ATTACHMENT,
     format: TEXTURE, width: 0, height: 0,
-    present_mode: wgpu::PresentMode::Mailbox,
+    present_mode: Prs::Mailbox,
 };
 
 
@@ -34,7 +35,7 @@ pub trait RenderTarget {
     fn srgb(&self) -> bool { self.format().describe().srgb }
 
     fn render_bundle_encoder<'a>(&self, wgx:&'a Wgx) -> wgpu::RenderBundleEncoder<'a> {
-        wgx.render_bundle_encoder(&[self.format()], self.depth_testing(), self.msaa())
+        wgx.render_bundle_encoder(&[Some(self.format())], self.depth_testing(), self.msaa())
     }
 
     fn render_bundle<'a>(&self, wgx:&'a Wgx, handler: impl FnOnce(&mut wgpu::RenderBundleEncoder<'a>)) -> wgpu::RenderBundle {
@@ -201,7 +202,16 @@ impl SurfaceTarget {
         config.width = width;
         config.height = height;
 
-        config.format = surface.get_preferred_format(&wgx.adapter).ok_or("couldn't get default format")?;
+        config.format = *surface.get_supported_formats(&wgx.adapter).get(0).ok_or("couldn't get default format")?;
+
+        let modes = surface.get_supported_modes(&wgx.adapter);
+
+        config.present_mode =
+            if modes.contains(&Prs::Mailbox) { Prs::Mailbox }
+            else if modes.contains(&Prs::AutoVsync) { Prs::AutoVsync }
+            else { *modes.get(0).ok_or("couldn't get default mode")? }
+        ;
+
 
         surface.configure(&wgx.device, &config);
 

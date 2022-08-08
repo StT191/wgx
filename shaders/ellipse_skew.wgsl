@@ -1,24 +1,24 @@
 
 // locals
-struct Matrix { matrix: mat4x4<f32>; };
+struct Matrix { matrix: mat4x4<f32> };
 
-[[group(0), binding(0)]] var<uniform> clip: Matrix;
-[[group(0), binding(1)]] var<uniform> pix: Matrix;
+@group(0) @binding(0) var<uniform> clip: Matrix;
+@group(0) @binding(1) var<uniform> pix: Matrix;
 
 
 struct VertexOutput {
-    [[builtin(position)]] position: vec4<f32>;
-    [[location(0), interpolate(flat)]] color: vec4<f32>;
-    [[location(1)]] R: vec2<f32>;
-    [[location(2), interpolate(flat)]] dim: vec2<f32>;
-    [[location(3), interpolate(flat)]] skew: f32;
+    @builtin(position) position: vec4<f32>,
+    @location(0) @interpolate(flat) color: vec4<f32>,
+    @location(1) R: vec2<f32>,
+    @location(2) @interpolate(flat) dim: vec2<f32>,
+    @location(3) @interpolate(flat) skew: f32,
 };
 
 
-[[stage(vertex)]]
+@vertex
 fn vs_main(
-    [[location(0)]] N: vec2<f32>, // normalized corner
-    [[location(1)]] color: vec4<f32>,
+    @location(0) N: vec2<f32>, // normalized corner
+    @location(1) color: vec4<f32>,
 ) -> VertexOutput {
     var out: VertexOutput;
 
@@ -40,8 +40,8 @@ fn vs_main(
 }
 
 
-[[stage(fragment)]]
-fn fs_main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     let R = in.R * in.dim;
     let r = length(R);

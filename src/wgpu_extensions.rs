@@ -110,7 +110,7 @@ impl EncoderExtension for wgpu::CommandEncoder {
     {
         self.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
-            color_attachments: &[wgpu::RenderPassColorAttachment {
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: if let Some(ms_at) = attachment.msaa { ms_at } else { attachment.view },
                 resolve_target: if attachment.msaa.is_some() { Some(attachment.view) } else { None },
                 ops: wgpu::Operations {
@@ -129,7 +129,7 @@ impl EncoderExtension for wgpu::CommandEncoder {
                         },
                     store: true
                 }
-            }],
+            })],
             depth_stencil_attachment: if let Some(depth_attachment) = attachment.depth {
               Some(wgpu::RenderPassDepthStencilAttachment {
                 view: depth_attachment,

@@ -1,21 +1,21 @@
 
 // compute
-// struct U32 { u: u32; };
+// struct U32 { u: u32 };
 
 struct Instance {
-    x0: f32; y0: f32; z0: f32;
-    x1: f32; y1: f32; z1: f32;
-    x2: f32; y2: f32; z2: f32;
-    color: u32;
+    x0: f32, y0: f32, z0: f32,
+    x1: f32, y1: f32, z1: f32,
+    x2: f32, y2: f32, z2: f32,
+    color: u32,
 };
-struct InstanceArray { data: [[stride(40)]] array<Instance>; };
+struct InstanceArray { data: array<Instance> };
 
-struct Vertex { P: vec4<f32>; color: vec4<f32>; };
-struct VertexArray { data: [[stride(32)]] array<Vertex>; };
+struct Vertex { P: vec4<f32>, color: vec4<f32> };
+struct VertexArray { data: array<Vertex> };
 
-[[group(0), binding(3)]] var<storage> instances: InstanceArray;
-[[group(0), binding(4)]] var<storage, write> vertices: VertexArray;
-// [[group(0), binding(5)]] var<uniform> steps: U32;
+@group(0) @binding(3) var<storage> instances: InstanceArray;
+@group(0) @binding(4) var<storage, write> vertices: VertexArray;
+// @group(0), binding(5) var<uniform> steps: U32;
 
 
 // untility functions
@@ -30,10 +30,10 @@ let Z0 = vec3<f32>(0.0, 0.0, 0.0);
 let pi0 = 1.5707963267948966;
 
 
-[[stage(compute), workgroup_size(1)]]
+@compute @workgroup_size(1)
 fn cp_main(
-    [[builtin(global_invocation_id)]] global_id: vec3<u32>,
-    [[builtin(num_workgroups)]] workgroups: vec3<u32>,
+    @builtin(global_invocation_id) global_id: vec3<u32>,
+    @builtin(num_workgroups) workgroups: vec3<u32>,
 ) {
     let is = instances.data[global_id.x];
 
@@ -63,23 +63,23 @@ fn cp_main(
 
 
 // vertex
-struct Matrix { m: mat4x4<f32>; };
-// struct Vec2 { v: vec2<f32>; };
+struct Matrix { m: mat4x4<f32> };
+// struct Vec2 { v: vec2<f32> };
 
-// [[group(0), binding(0)]] var<uniform> world: Matrix;
-[[group(0), binding(1)]] var<uniform> clip: Matrix;
-// [[group(0), binding(2)]] var<uniform> viewport: Vec2;
+// @group(0), binding(0) var<uniform> world: Matrix;
+@group(0) @binding(1) var<uniform> clip: Matrix;
+// @group(0) @binding(2) var<uniform> viewport: Vec2;
 
 struct VertexOutput {
-    [[builtin(position)]] position: vec4<f32>;
-    [[location(1), interpolate(flat)]] color: vec4<f32>;
+    @builtin(position) position: vec4<f32>,
+    @location(1) @interpolate(flat) color: vec4<f32>,
 };
 
-[[stage(vertex)]]
+@vertex
 fn vs_main(
-    [[builtin(vertex_index)]] i: u32,
-    [[location(0)]] P: vec4<f32>,
-    [[location(1)]] color: vec4<f32>,
+    @builtin(vertex_index) i: u32,
+    @location(0) P: vec4<f32>,
+    @location(1) color: vec4<f32>,
 ) -> VertexOutput {
     var out: VertexOutput;
 
@@ -91,8 +91,8 @@ fn vs_main(
 }
 
 
-[[stage(fragment)]]
-fn fs_main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     // if (in.color.a == 0.0) {
     //     discard;

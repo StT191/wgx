@@ -185,7 +185,7 @@ fn main() {
                     encoder.with_compute_pass(|mut cpass| {
                         cpass.set_pipeline(&cp_pipeline);
                         cpass.set_bind_group(0, &binding_cp, &[]);
-                        cpass.dispatch(instance_data.len() as u32, steps, 1);
+                        cpass.dispatch_workgroups(instance_data.len() as u32, steps, 1);
                     });
 
                     encoder.with_render_pass(attachment, Some(Color::GREEN), |mut rpass| {

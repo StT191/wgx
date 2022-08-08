@@ -1,24 +1,24 @@
 
 // locals
-struct Float { f: f32; };
-struct Vec2 { v: vec2<f32>; };
+struct Float { f: f32 };
+struct Vec2 { v: vec2<f32> };
 
-[[group(0), binding(0)]] var<uniform> viewport: Vec2;
-[[group(0), binding(1)]] var<uniform> scale: Vec2;
-// [[group(0), binding(2)]] var<uniform> t: Float;
+@group(0) @binding(0) var<uniform> viewport: Vec2;
+@group(0) @binding(1) var<uniform> scale: Vec2;
+// @group(0), binding(2) var<uniform> t: Float;
 
 var<push_constant> t: Float;
 
 
 struct VertexOutput {
-    [[builtin(position)]] position: vec4<f32>;
-    [[location(0), interpolate(perspective)]] R: vec2<f32>;
+    @builtin(position) position: vec4<f32>,
+    @location(0) @interpolate(perspective) R: vec2<f32>,
 };
 
 
-[[stage(vertex)]]
+@vertex
 fn vs_main(
-    [[location(0)]] R: vec2<f32>,
+    @location(0) R: vec2<f32>,
 ) -> VertexOutput {
     return VertexOutput(vec4<f32>(R, 0.0, 1.0), R);
 }
@@ -29,8 +29,8 @@ let pi2 = 6.283185307179586;
 let sqrt2 = 1.4142135623730951;
 
 
-[[stage(fragment)]]
-fn fs_main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
 
     let r = length(in.R);

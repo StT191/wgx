@@ -131,8 +131,8 @@ impl Wgx {
     // shader
 
     pub fn load_wgsl(&self, code:&str) -> wgpu::ShaderModule {
-        let source = wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(code));
-        self.device.create_shader_module(&wgpu::ShaderModuleDescriptor { label: None, source })
+        let source = wgpu::ShaderSource::Wgsl(code.into());
+        self.device.create_shader_module(wgpu::ShaderModuleDescriptor { label: None, source })
     }
 
 
@@ -170,7 +170,7 @@ impl Wgx {
 
     // render bundle
 
-    pub fn render_bundle_encoder(&self, formats: &[wgpu::TextureFormat], depth_testing:bool, msaa:u32)
+    pub fn render_bundle_encoder(&self, formats: &[Option<wgpu::TextureFormat>], depth_testing:bool, msaa:u32)
         -> wgpu::RenderBundleEncoder
     {
         self.device.create_render_bundle_encoder(&wgpu::RenderBundleEncoderDescriptor {
@@ -249,7 +249,7 @@ impl Wgx {
                 module: fs_module,
                 entry_point: fs_entry_point,
 
-                targets: &[wgpu::ColorTargetState {
+                targets: &[Some(wgpu::ColorTargetState {
 
                     format,
 
@@ -270,7 +270,7 @@ impl Wgx {
                     })} else { None },
 
                     write_mask: wgpu::ColorWrites::ALL,
-                }]
+                })]
             }),
 
             depth_stencil: if depth_testing { Some(wgpu::DepthStencilState {
