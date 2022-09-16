@@ -35,7 +35,7 @@ fn main() {
 
 
     // shaders
-    let shader = gx.load_wgsl(include_str!("../shaders/flat_texture.wgsl"));
+    let shader = gx.load_wgsl(include_str!("./shaders/flat_texture.wgsl"));
 
 
     // pipeline
@@ -62,7 +62,7 @@ fn main() {
 
     // colors
     let color_texture = gx.texture((1, 1), 1, TexUse::TEXTURE_BINDING | TexUse::COPY_DST, TEXTURE);
-    gx.write_texture(&color_texture, (0, 0, 1, 1), Color::from([0.5, 0.0, 0.0]).u8());
+    gx.write_texture(&color_texture, (0, 0, 1, 1), Color::from([0.5, 0.0, 1.0]).u8());
     let color_texture_view = color_texture.create_default_view();
 
 

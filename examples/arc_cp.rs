@@ -29,7 +29,7 @@ fn main() {
 
 
     // pipeline
-    let shader = gx.load_wgsl(include_str!("../shaders/arc_cp.wgsl"));
+    let shader = gx.load_wgsl(include_str!("./shaders/arc_cp.wgsl"));
 
     let cp_pipeline = gx.compute_pipeline((&shader, "cp_main"), None);
 

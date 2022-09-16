@@ -29,7 +29,7 @@ fn main() {
 
 
     // pipeline
-    let shader = gx.load_wgsl(include_str!("../shaders/wavy.wgsl"));
+    let shader = gx.load_wgsl(include_str!("./shaders/wavy.wgsl"));
 
 
     let layout = gx.layout(&[

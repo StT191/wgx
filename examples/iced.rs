@@ -90,7 +90,7 @@ fn main() {
     const MSAA:u32 = 1;
 
     // load icon
-    let img = image::open("img/logo_red_96.png").expect("failed loading image").into_rgba8();
+    let img = image::load_from_memory(include_bytes!("./img/logo_red_96.png")).expect("failed loading image").into_rgba8();
 
     // window setup
     let event_loop = EventLoop::new();

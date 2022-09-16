@@ -37,7 +37,7 @@ fn main() {
 
 
     // global pipeline
-    let shader = gx.load_wgsl(include_str!("../shaders/flat_texture.wgsl"));
+    let shader = gx.load_wgsl(include_str!("./shaders/flat_texture.wgsl"));
 
     // layout
     let layout = gx.layout(&[
@@ -116,7 +116,7 @@ fn main() {
 
 
     // picture pipeline
-    let img = image::open("img/logo_red.png")
+    let img = image::load_from_memory(include_bytes!("img/logo_red.png"))
         .expect("failed loading image")
         .into_rgba8();
 

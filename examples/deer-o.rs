@@ -28,7 +28,7 @@ fn main() {
 
 
   // pipeline
-  let shader = gx.load_wgsl(include_str!("../shaders/standard_texture.wgsl"));
+  let shader = gx.load_wgsl(include_str!("./shaders/standard_texture.wgsl"));
 
 
   // triangle pipeline
@@ -72,7 +72,7 @@ fn main() {
   ]);
 
 
-  let triangles = wav_obj::parse(include_str!("../obj/deer.obj")).expect("couldn't parse wav obj");
+  let triangles = wav_obj::parse(include_str!("./obj/deer.obj")).expect("couldn't parse wav obj");
 
   let vertex_buffer = gx.buffer_from_data(BufUse::VERTEX, &triangles);
 

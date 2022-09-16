@@ -30,7 +30,7 @@ fn main() {
 
 
     // pipeline
-    let shader = gx.load_wgsl(include_str!("../shaders/ellipse.wgsl"));
+    let shader = gx.load_wgsl(include_str!("./shaders/ellipse.wgsl"));
 
     let pipeline = target.render_pipeline(
         &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
