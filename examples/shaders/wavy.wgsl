@@ -32,7 +32,6 @@ let sqrt2 = 1.4142135623730951;
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
-
     let r = length(in.R);
     let rl = r / sqrt2;
 
