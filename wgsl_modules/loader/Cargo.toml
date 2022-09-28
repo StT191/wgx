@@ -1,0 +1,13 @@
+[package]
+name = "wgsl_modules_loader"
+version = "0.1.0"
+authors = ["Stefan Tammer <st.tammer@gmail.com>"]
+edition = "2021"
+
+[lib]
+name = "wgsl_modules_loader"
+
+[dependencies]
+tree-sitter = { version = "0" }
+tree-sitter-wgsl = { version = "0" }
+regex = { version = "1", features = ["unicode-perl"] }

@@ -6,7 +6,7 @@ struct Matrix { matrix: mat4x4<f32> };
 @group(0) @binding(1) var<uniform> pix: Matrix;
 
 
-struct VertexOutput {
+struct VertexData {
     @builtin(position) position: vec4<f32>,
     @location(0) @interpolate(flat) color: vec4<f32>,
     @location(1) R: vec2<f32>,
@@ -19,8 +19,8 @@ struct VertexOutput {
 fn vs_main(
     @location(0) N: vec2<f32>, // normalized corner
     @location(1) color: vec4<f32>,
-) -> VertexOutput {
-    var out: VertexOutput;
+) -> VertexData {
+    var out: VertexData;
 
     let P = vec4<f32>(N, 0.0, 1.0);
 
@@ -41,7 +41,7 @@ fn vs_main(
 
 
 @fragment
-fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+fn fs_main(in: VertexData) -> @location(0) vec4<f32> {
 
     let R = in.R * in.dim;
     let r = length(R);

@@ -10,7 +10,7 @@ struct Vec2 { v: vec2<f32> };
 var<push_constant> t: Float;
 
 
-struct VertexOutput {
+struct VertexData {
     @builtin(position) position: vec4<f32>,
     @location(0) @interpolate(perspective) R: vec2<f32>,
 };
@@ -19,8 +19,8 @@ struct VertexOutput {
 @vertex
 fn vs_main(
     @location(0) R: vec2<f32>,
-) -> VertexOutput {
-    return VertexOutput(vec4<f32>(R, 0.0, 1.0), R);
+) -> VertexData {
+    return VertexData(vec4<f32>(R, 0.0, 1.0), R);
 }
 
 // let pi0 = 1.5707963267948966;
@@ -30,7 +30,7 @@ let sqrt2 = 1.4142135623730951;
 
 
 @fragment
-fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+fn fs_main(in: VertexData) -> @location(0) vec4<f32> {
 
     let r = length(in.R);
     let rl = r / sqrt2;

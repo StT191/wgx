@@ -29,11 +29,11 @@ fn main() {
 
 
     // pipeline
-    let shader = gx.load_wgsl(include_str!("./shaders/sdf-opt.wgsl"));
+    let shader = gx.load_wgsl(include_wgsl_module!("./shaders/sdf-balls.wgsl"));
 
 
     let layout = gx.layout(&[
-        binding!(0, Shader::FRAGMENT, UniformBuffer, 12),
+        binding!(0, Shader::VERTEX_FRAGMENT, UniformBuffer, 12),
         binding!(1, Shader::FRAGMENT, UniformBuffer, 4),
         // binding!(2, Shader::FRAGMENT, UniformBuffer, 4),
     ]);

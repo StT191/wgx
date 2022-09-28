@@ -10,7 +10,7 @@ struct U32 { u: u32 };
 // @group(0) @binding(2) var<uniform> viewport: Vec2;
 
 
-struct VertexOutput {
+struct VertexData {
     @builtin(position) position: vec4<f32>,
     @location(1) @interpolate(flat) color: vec4<f32>,
 };
@@ -33,8 +33,8 @@ fn vs_main(
     @location(2) Y: vec3<f32>,
     @location(3) color: vec4<f32>,
     @location(4) R: vec4<f32>,
-) -> VertexOutput {
-    var out: VertexOutput;
+) -> VertexData {
+    var out: VertexData;
 
     out.color = color;
 
@@ -46,7 +46,7 @@ fn vs_main(
 
 
 @fragment
-fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+fn fs_main(in: VertexData) -> @location(0) vec4<f32> {
 
     // if (in.color.a == 0.0) {
     //     discard;

@@ -29,7 +29,7 @@ fn main() {
 
 
     // pipeline
-    let shader = gx.load_wgsl(include_str!("./shaders/arc.wgsl"));
+    let shader = gx.load_wgsl(include_wgsl_module!("./shaders/arc.wgsl"));
 
     let pipeline = target.render_pipeline(
         &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),

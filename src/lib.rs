@@ -1,3 +1,4 @@
+#![feature(iterator_try_collect, linked_list_cursors, iter_intersperse)]
 
 // passs wgpu types
 pub use wgpu::{
@@ -77,6 +78,13 @@ pub use iced_wgpu;
 #[cfg(feature = "iced")]
 pub use iced_winit;
 
+
+// wgsl modules
+#[cfg(feature = "wgsl_modules")]
+pub use wgsl_modules::{
+    load as load_wgsl_module,
+    include as include_wgsl_module,
+};
 
 
 // error handling

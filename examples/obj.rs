@@ -29,7 +29,7 @@ fn main() {
 
 
   // pipeline
-  let shader = gx.load_wgsl(include_str!("./shaders/standard_texture.wgsl"));
+  let shader = gx.load_wgsl(include_wgsl_module!("./shaders/standard_texture.wgsl"));
 
 
   // triangle pipeline

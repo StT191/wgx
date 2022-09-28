@@ -8,7 +8,7 @@ struct Vec2 { v: vec2<f32> };
 @group(0) @binding(2) var<uniform> viewport: Vec2;
 
 
-struct VertexOutput {
+struct VertexData {
     @builtin(position) position: vec4<f32>,
     @location(0) @interpolate(flat) ty: f32,
     @location(1) @interpolate(flat) color: vec4<f32>,
@@ -52,8 +52,8 @@ fn vs_main(
     @location(2) P2: vec3<f32>,
     @location(3) ty: f32,
     @location(4) color: u32,
-) -> VertexOutput {
-    var out: VertexOutput;
+) -> VertexData {
+    var out: VertexData;
 
     out.ty = ty;
     out.color = unpack4x8unorm(color);
@@ -109,7 +109,7 @@ let g:f32 = 1.0; // edge-blur
 
 
 @fragment
-fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+fn fs_main(in: VertexData) -> @location(0) vec4<f32> {
 
     let prj = mat4x4(in.p0, in.p1, in.p2, in.p3);
 

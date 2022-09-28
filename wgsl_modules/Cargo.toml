@@ -1,0 +1,12 @@
+[package]
+name = "wgsl_modules"
+version = "0.1.0"
+authors = ["Stefan Tammer <st.tammer@gmail.com>"]
+edition = "2021"
+
+[lib]
+name = "wgsl_modules"
+
+[dependencies]
+wgsl_modules_loader = { path = "loader" }
+wgsl_modules_macro = { path = "macro" }

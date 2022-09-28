@@ -45,7 +45,8 @@ fn rotation_2d(angle: f32) -> mat2x2<f32> {
 
 
 // find closer point to skewed unit circle
-{
+fn find_closer() {
+
     var ds = dr;
 
     let dn = sqrt(1.0 - e*e);

@@ -36,6 +36,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "aho-corasick"
+version = "0.7.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4f55bd91a0978cbfd91c457a164bab8b4001c833b7f323132c0a4e1922dd44e"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
 name = "android_system_properties"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1653,6 +1662,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "regex"
+version = "1.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4c4eb3267174b8c6c2f654116623910a0fef09c4753f8dd83db29c48a0df988b"
+dependencies = [
+ "aho-corasick",
+ "memchr",
+ "regex-syntax",
+]
+
+[[package]]
+name = "regex-syntax"
+version = "0.6.27"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a3f87b73ce11b1619a3c6332f45341e0047173771e8b8b73f87bfeefb7b56244"
+
+[[package]]
 name = "renderdoc-sys"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1869,6 +1895,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d82e1a7758622a465f8cee077614c73484dac5b836c02ff6a40d5d1010324d7"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "tree-sitter"
+version = "0.20.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d4423c784fe11398ca91e505cdc71356b07b1a924fc8735cfab5333afe3e18bc"
+dependencies = [
+ "cc",
+ "regex",
+]
+
+[[package]]
+name = "tree-sitter-wgsl"
+version = "0.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3e6ab6ce5c5817f198d0e2b36ad501daa48798db5b1602187ac3fd6aaac938e3"
+dependencies = [
+ "cc",
+ "tree-sitter",
 ]
 
 [[package]]
@@ -2201,6 +2247,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "wgsl_modules"
+version = "0.1.0"
+dependencies = [
+ "wgsl_modules_loader",
+ "wgsl_modules_macro",
+]
+
+[[package]]
+name = "wgsl_modules_loader"
+version = "0.1.0"
+dependencies = [
+ "regex",
+ "tree-sitter",
+ "tree-sitter-wgsl",
+]
+
+[[package]]
+name = "wgsl_modules_macro"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+ "wgsl_modules_loader",
+]
+
+[[package]]
 name = "wgx"
 version = "0.1.0"
 dependencies = [
@@ -2213,6 +2286,7 @@ dependencies = [
  "raw-window-handle 0.4.3",
  "wgpu",
  "wgpu_glyph",
+ "wgsl_modules",
  "winit 0.26.1",
 ]
 

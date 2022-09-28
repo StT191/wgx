@@ -29,7 +29,7 @@ fn main() {
 
 
     // global pipeline
-    let shader = gx.load_wgsl(include_str!("./shaders/flat_texture.wgsl"));
+    let shader = gx.load_wgsl(include_wgsl_module!("./shaders/flat_texture.wgsl"));
 
     let pipeline = target.render_pipeline(
         &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),

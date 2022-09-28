@@ -37,7 +37,7 @@ fn main() {
 
 
     // global pipeline
-    let shader = gx.load_wgsl(include_str!("./shaders/flat_texture.wgsl"));
+    let shader = gx.load_wgsl(include_wgsl_module!("./shaders/flat_texture.wgsl"));
 
     // layout
     let layout = gx.layout(&[
