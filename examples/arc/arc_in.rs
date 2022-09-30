@@ -1,4 +1,3 @@
-#![allow(unused)]
 
 use std::{time::{Instant}};
 use futures::executor::block_on;
@@ -10,7 +9,7 @@ use winit::{
 use wgx::{*, cgmath::*};
 
 
-fn main() {
+pub fn main() {
 
     const DEPTH_TESTING:bool = false;
     const MSAA:u32 = 4;
@@ -29,20 +28,17 @@ fn main() {
 
 
     // pipeline
-    let shader = gx.load_wgsl(include_wgsl_module!("./shaders/arc_vin.wgsl"));
+    let shader = gx.load_wgsl(include_wgsl_module!("./shaders/arc_in.wgsl"));
 
     let pipeline = target.render_pipeline(
         &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
-        &[
-            vertex_desc!(Instance, 0 => Float32x3, 1 => Float32x3, 2 => Float32x3, 3 => Float32x4),
-            vertex_desc!(Vertex, 4 => Float32x4),
-        ],
+        &[vertex_desc!(Instance, 0 => Float32x3, 1 => Float32x3, 2 => Float32x3, 3 => Uint32)],
         Primitive::TriangleList, None,
     );
 
 
-    let red = Color::RED.f32();
-    let blue = Color::BLUE.f32();
+    let red = Color::RED.u8();
+    let blue = Color::BLUE.u8();
 
     // corners
     let c = [
@@ -67,29 +63,11 @@ fn main() {
         instance_data.push(instance_data[3]);
     }
 
-
-    let steps = 64;
-    let steps_f = steps as f32;
-
-    let mut vertex_data:Vec<[f32;4]> = Vec::with_capacity(3 * steps as usize);
-
-    let pi0 = std::f32::consts::FRAC_PI_2;
-
-    for j in 0..steps {
-
-        let fi0 = j as f32 / steps_f * pi0;
-        let fi1 = (j as f32 + 1.0) / steps_f * pi0;
-
-        vertex_data.push([f32::cos(fi0), f32::sin(fi0), 0.0, 1.0]);
-        vertex_data.push([          0.0,           0.0, 0.0, 1.0]);
-        vertex_data.push([f32::cos(fi1), f32::sin(fi1), 0.0, 1.0]);
-    }
+    let steps = 64 as u32;
 
 
-
-    let instance_buffer = gx.buffer_from_data(BufUse::VERTEX, &instance_data);
-    let vertex_buffer = gx.buffer_from_data(BufUse::VERTEX, &vertex_data);
-    // let step_buffer = gx.buffer_from_data(BufUse::UNIFORM, &[steps as u32]);
+    let instance_buffer = gx.buffer_from_data(BufUse::VERTEX | BufUse::COPY_DST, &instance_data);
+    let step_buffer = gx.buffer_from_data(BufUse::UNIFORM | BufUse::COPY_DST, &[steps]);
 
 
     // projection
@@ -102,7 +80,7 @@ fn main() {
     let binding = gx.bind(&pipeline.get_bind_group_layout(0), &[
         // bind!(0, Buffer, &world_buffer),
         bind!(1, Buffer, &clip_buffer),
-        // bind!(2, Buffer, &step_buffer),
+        bind!(2, Buffer, &step_buffer),
         // bind!(2, Buffer, &viewport_buffer),
     ]);
 
@@ -112,8 +90,7 @@ fn main() {
         rpass.set_pipeline(&pipeline);
         rpass.set_bind_group(0, &binding, &[]);
         rpass.set_vertex_buffer(0, instance_buffer.slice(..));
-        rpass.set_vertex_buffer(1, vertex_buffer.slice(..));
-        rpass.draw(0..vertex_data.len() as u32, 0..instance_data.len() as u32);
+        rpass.draw(0..3*steps, 0..instance_data.len() as u32);
     })];
 
 

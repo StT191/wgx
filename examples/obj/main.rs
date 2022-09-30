@@ -1,6 +1,5 @@
-#![allow(unused)]
 
-use std::{time::{Instant}};
+// use std::{time::{Instant}};
 use futures::executor::block_on;
 use winit::{
   dpi::PhysicalSize,
@@ -8,6 +7,7 @@ use winit::{
   window::Window, event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCode},
 };
 use wgx::{*, cgmath::*};
+
 
 fn main() {
 
@@ -28,7 +28,7 @@ fn main() {
 
 
   // pipeline
-  let shader = gx.load_wgsl(include_wgsl_module!("./shaders/standard_texture.wgsl"));
+  let shader = gx.load_wgsl(include_wgsl_module!("../shaders/v3d_text_diff.wgsl"));
 
 
   // triangle pipeline
@@ -88,24 +88,23 @@ fn main() {
 
 
   // matrix
-  const DA:f32 = 1.0;
+  const DA:f32 = 5.0;
   const DS:f32 = 50.0;
 
-  let fov_deg = 20.0;
+  let fov_deg = 45.0;
 
-  let (mut width, mut height) = (width as f32, height as f32);
+  let (width, height) = (width as f32, height as f32);
 
   // let mut scale = 1.0;
   // let (mut w, mut h) = (0.4, 0.4);
 
-  let mut fov = FovProjection::window(fov_deg, width, height);
+  let fov = FovProjection::window(fov_deg, width, height);
   let mut projection = fov.projection * fov.translation;
 
-  let camera_correction = fov.translation;
+  // let camera_correction = fov.translation;
 
   let obj_mat =
     // Matrix4::identity()
-    Matrix4::from_angle_y(Deg(-90.0)) *
     Matrix4::from_scale(0.55) *
     Matrix4::from_translation((0.0, -0.7 * height, 0.0).into())
   ;
@@ -114,21 +113,16 @@ fn main() {
 
   // let clip_matrix = projection * rot_matrix * Matrix4::from_nonuniform_scale(w*width, h*height, 1.0);
 
-  let mut rot = Vector2::new(0.0, 0.0);
-
-  let mut trans = Vector3::new(0.0, 0.0, 0.0);
-
   let mut rot_matrix_x = Matrix4::identity();
   let mut rot_matrix_y = Matrix4::identity();
-
+  let mut rot_matrix_z = Matrix4::identity();
   let mut world_matrix = Matrix4::identity();
 
-  let clip_matrix = projection * rot_matrix_x * rot_matrix_y * world_matrix * obj_mat;
-  let light_rot_matrix = (rot_matrix_x * rot_matrix_y) * light_matrix;
+  let clip_matrix = projection * obj_mat;
 
   // gx.write_buffer(&mut world_buffer, 0, AsRef::<[f32; 16]>::as_ref(&world_matrix));
   gx.write_buffer(&mut clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&clip_matrix));
-  gx.write_buffer(&mut light_buffer, 0, AsRef::<[f32; 16]>::as_ref(&(light_rot_matrix)));
+  gx.write_buffer(&mut light_buffer, 0, AsRef::<[f32; 16]>::as_ref(&(light_matrix)));
   // gx.write_buffer(&mut viewport_buffer, 0, &[width, height]);
 
 
@@ -145,14 +139,14 @@ fn main() {
       Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
         target.update(&gx, (size.width, size.height));
 
-        width = size.width as f32;
-        height = size.height as f32;
+        let width = size.width as f32;
+        let height = size.height as f32;
 
-        fov = FovProjection::window(fov_deg, width, height);
+        let fov = FovProjection::window(fov_deg, width, height);
         projection = fov.projection * fov.translation;
 
         // projection
-        let clip_matrix = projection * rot_matrix_x * rot_matrix_y * world_matrix * obj_mat;
+        let clip_matrix = projection * rot_matrix_x * rot_matrix_y * rot_matrix_z * world_matrix * obj_mat;
 
         gx.write_buffer(&mut clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&clip_matrix));
         // gx.write_buffer(&mut viewport_buffer, 0, &[width, height]);
@@ -175,8 +169,8 @@ fn main() {
           VirtualKeyCode::K => { apply!(rot_matrix_x, Matrix4::from_angle_x(Deg(-DA))); },
           VirtualKeyCode::J => { apply!(rot_matrix_y, Matrix4::from_angle_y(Deg( DA))); },
           VirtualKeyCode::L => { apply!(rot_matrix_y, Matrix4::from_angle_y(Deg(-DA))); },
-          // VirtualKeyCode::U => { apply!(rot_matrix, Matrix4::from_angle_z(Deg( DA))); },
-          // VirtualKeyCode::O => { apply!(rot_matrix, Matrix4::from_angle_z(Deg(-DA))); },
+          VirtualKeyCode::U => { apply!(rot_matrix_z, Matrix4::from_angle_z(Deg( DA))); },
+          VirtualKeyCode::O => { apply!(rot_matrix_z, Matrix4::from_angle_z(Deg(-DA))); },
 
           VirtualKeyCode::A => { apply!(world_matrix, Matrix4::from_translation((-DS, 0.0, 0.0).into())); },
           VirtualKeyCode::D => { apply!(world_matrix, Matrix4::from_translation(( DS, 0.0, 0.0).into())); },
@@ -191,6 +185,7 @@ fn main() {
           VirtualKeyCode::R => {
             rot_matrix_x = Matrix4::identity();
             rot_matrix_y = Matrix4::identity();
+            rot_matrix_z = Matrix4::identity();
             world_matrix = Matrix4::identity();
             // scale = 1.0;
             // w = 0.4;
@@ -201,11 +196,11 @@ fn main() {
         } {
           if redraw {
 
-            let clip_matrix = projection * (rot_matrix_x * rot_matrix_y).within(&fov.translation).expect("inverse") * world_matrix * obj_mat;
-            let light_rot_matrix = (rot_matrix_x * rot_matrix_y) * light_matrix;
+            let clip_matrix = projection * rot_matrix_x * rot_matrix_y * rot_matrix_z * world_matrix * obj_mat;
+            let light_matrix = rot_matrix_x * rot_matrix_y * rot_matrix_z * light_matrix;
 
             gx.write_buffer(&mut clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&clip_matrix));
-            gx.write_buffer(&mut light_buffer, 0, AsRef::<[f32; 16]>::as_ref(&light_rot_matrix));
+            gx.write_buffer(&mut light_buffer, 0, AsRef::<[f32; 16]>::as_ref(&light_matrix));
 
             window.request_redraw();
           }

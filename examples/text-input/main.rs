@@ -1,7 +1,7 @@
-#![allow(unused)]
+#![allow(dead_code)]
 
 // imports
-use std::{time::{Instant}, fs::read};
+use std::{time::{Instant}};
 use futures::executor::block_on;
 use winit::{
     dpi::PhysicalSize,
@@ -9,6 +9,10 @@ use winit::{
     window::Window, event::*,
 };
 use wgx::{*, cgmath::*};
+
+mod text_input;
+use text_input::*;
+
 
 // main
 fn main() {
@@ -18,8 +22,8 @@ fn main() {
     const MSAA:u32 = 1;
 
 
-    use futures::task::SpawnExt;
-    let mut local_pool = futures::executor::LocalPool::new();
+    // use futures::task::SpawnExt;
+    // let mut local_pool = futures::executor::LocalPool::new();
 
 
     // window setup
@@ -37,8 +41,7 @@ fn main() {
 
 
     // text_render
-    // let font_data = include_bytes!("./fonts/font_active.ttf");
-    let font_data = read("fonts/font_active.ttf").expect("failed loading font");
+    let font_data = include_bytes!("./fonts/font_active.ttf").to_vec();
 
     let mut glyphs = gx.glyph_brush(target.format(), font_data).expect("invalid font");
 
@@ -128,7 +131,7 @@ fn main() {
 
                     encoder.render_pass(attachment, Some(Color::GREEN));
 
-                    encoder.draw_glyphs(&gx, attachment, &mut glyphs, trf, None, Some(&mut staging_belt));
+                    encoder.draw_glyphs(&gx, attachment, &mut glyphs, trf, None, Some(&mut staging_belt)).expect("glyph error");
 
                     staging_belt.finish();
 

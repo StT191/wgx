@@ -1,4 +1,3 @@
-#![allow(unused)]
 
 // use std::{time::{Instant}};
 use futures::executor::block_on;
@@ -86,7 +85,7 @@ impl Program for Controls {
 fn main() {
 
     const DEPTH_TESTING:bool = false;
-    const ALPHA_BLENDING:bool = false;
+    // const ALPHA_BLENDING:bool = false;
     const MSAA:u32 = 1;
 
     // load icon

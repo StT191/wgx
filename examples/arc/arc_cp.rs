@@ -1,4 +1,3 @@
-#![allow(unused)]
 
 use std::{time::{Instant}};
 use futures::executor::block_on;
@@ -10,7 +9,7 @@ use winit::{
 use wgx::{*, cgmath::*};
 
 
-fn main() {
+pub fn main() {
 
     const DEPTH_TESTING:bool = false;
     const MSAA:u32 = 4;

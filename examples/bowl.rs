@@ -1,4 +1,3 @@
-#![allow(unused)]
 
 use std::{time::{Instant}};
 use futures::executor::block_on;
@@ -29,7 +28,7 @@ fn main() {
 
 
   // pipeline
-  let shader = gx.load_wgsl(include_wgsl_module!("./shaders/standard_instance_texture.wgsl"));
+  let shader = gx.load_wgsl(include_wgsl_module!("./shaders/v3d_inst_text_diff.wgsl"));
 
 
   // triangle pipeline
@@ -51,18 +50,6 @@ fn main() {
   let color_texture_view = color_texture.create_default_view();
 
   let sampler = gx.sampler();
-
-
-  // image
-  // let img = image::open("img/logo_red.png")
-  //     .expect("failed loading image")
-  //     .into_rgba8();
-
-  // let (w, h) = (img.width(), img.height());
-
-  // let image_texture = gx.texture((w, h), 1, TexUse::TEXTURE_BINDING | TexUse::COPY_DST, TEXTURE);
-
-  // gx.write_texture(&image_texture, (0, 0, w, h), &img.as_raw().as_slice());
 
 
   let mut clip_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 64, false);
@@ -116,7 +103,7 @@ fn main() {
       let c = [cos_a1*sin_b1, sin_a1, cos_a1*cos_b1];
       let d = [cos_a0*sin_b1, sin_a0, cos_a0*cos_b1];
 
-      if (smooth) {
+      if smooth {
         vertex_data.push([a, t_c, a]);
         vertex_data.push([d, t_c, d]);
         vertex_data.push([c, t_c, c]);
@@ -142,20 +129,6 @@ fn main() {
 
   let vertex_buffer = gx.buffer_from_data(BufUse::VERTEX, &vertex_data);
 
-  // let triangles = wav_obj::parse(include_str!("./obj/deer.obj")).expect("couldn't parse wav obj");
-  // let vertex_buffer = gx.buffer_from_data(BufUse::VERTEX, &triangles);
-
-
-  // let instance_data = [
-  //   Matrix4::<f32>::from_angle_x(Deg(0.0)),
-  //   Matrix4::<f32>::from_angle_x(Deg(90.0)),
-  //   Matrix4::<f32>::from_angle_x(Deg(180.0)),
-  //   Matrix4::<f32>::from_angle_x(Deg(270.0)),
-  //   Matrix4::<f32>::from_angle_x(Deg(0.0))   * Matrix4::from_angle_y(Deg(180.0)),
-  //   Matrix4::<f32>::from_angle_x(Deg(90.0))  * Matrix4::from_angle_y(Deg(180.0)),
-  //   Matrix4::<f32>::from_angle_x(Deg(180.0)) * Matrix4::from_angle_y(Deg(180.0)),
-  //   Matrix4::<f32>::from_angle_x(Deg(270.0)) * Matrix4::from_angle_y(Deg(180.0)),
-  // ];
 
   let instance_data = [
     Matrix4::<f32>::from_nonuniform_scale( 1.0, 1.0, 1.0),
@@ -178,7 +151,6 @@ fn main() {
     rpass.set_vertex_buffer(0, vertex_buffer.slice(..));
     rpass.set_vertex_buffer(1, instance_buffer.slice(..));
     rpass.draw(0..vertex_data.len() as u32, 0..instance_data.len() as u32);
-    // rpass.draw(0..triangles.len() as u32 * 3, 0..1);
   })];
 
 
@@ -188,7 +160,7 @@ fn main() {
 
   let fov_deg = 45.0;
 
-  let (mut width, mut height) = (width as f32, height as f32);
+  let (width, height) = (width as f32, height as f32);
 
   // let mut scale = 1.0;
   // let (mut w, mut h) = (0.4, 0.4);
@@ -196,7 +168,7 @@ fn main() {
   let fov = FovProjection::window(fov_deg, width, height);
   let mut projection = fov.projection * fov.translation;
 
-  let camera_correction = fov.translation;
+  // let camera_correction = fov.translation;
 
   let obj_mat =
     // Matrix4::identity()
@@ -233,8 +205,8 @@ fn main() {
       Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
         target.update(&gx, (size.width, size.height));
 
-        width = size.width as f32;
-        height = size.height as f32;
+        // width = size.width as f32;
+        // height = size.height as f32;
 
         let fov = FovProjection::window(fov_deg, width, height);
         projection = fov.projection * fov.translation;
@@ -251,13 +223,6 @@ fn main() {
       }, ..}, ..} => {
         let mut redraw = true;
         match keycode {
-
-          // VirtualKeyCode::I => { apply!(world_matrix, within(&camera_correction, &Matrix4::from_angle_x(Deg(-DA))).expect("no inversion")); },
-          // VirtualKeyCode::K => { apply!(world_matrix, within(&camera_correction, &Matrix4::from_angle_x(Deg( DA))).expect("no inversion")); },
-          // VirtualKeyCode::J => { apply!(world_matrix, within(&camera_correction, &Matrix4::from_angle_y(Deg( DA))).expect("no inversion")); },
-          // VirtualKeyCode::L => { apply!(world_matrix, within(&camera_correction, &Matrix4::from_angle_y(Deg(-DA))).expect("no inversion")); },
-          // VirtualKeyCode::U => { apply!(world_matrix, within(&camera_correction, &Matrix4::from_angle_z(Deg( DA))).expect("no inversion")); },
-          // VirtualKeyCode::O => { apply!(world_matrix, within(&camera_correction, &Matrix4::from_angle_z(Deg(-DA))).expect("no inversion")); },
 
           VirtualKeyCode::I => { apply!(rot_matrix, Matrix4::from_angle_x(Deg( DA))); },
           VirtualKeyCode::K => { apply!(rot_matrix, Matrix4::from_angle_x(Deg(-DA))); },
@@ -279,9 +244,6 @@ fn main() {
           VirtualKeyCode::R => {
             rot_matrix = Matrix4::identity();
             world_matrix = Matrix4::identity();
-            // scale = 1.0;
-            // w = 0.4;
-            // h = 0.4;
           },
 
           _ => { redraw = false; }

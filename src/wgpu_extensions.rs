@@ -37,14 +37,14 @@ pub trait EncoderExtension {
 
     fn compute_pass<'a>(&'a mut self) -> wgpu::ComputePass<'a>;
 
-    fn with_compute_pass<'a>(&'a mut self, handler: impl FnOnce(wgpu::ComputePass<'a>));
+    fn with_compute_pass<'a, T>(&'a mut self, handler: impl FnOnce(wgpu::ComputePass<'a>) -> T) -> T;
 
     fn render_pass<'a>(&'a mut self, attachment:&'a RenderAttachment, color:Option<Color>) -> wgpu::RenderPass<'a>;
 
-    fn with_render_pass<'a>(
+    fn with_render_pass<'a, T>(
         &'a mut self, attachment:&'a RenderAttachment, color:Option<Color>,
-        handler: impl FnOnce(wgpu::RenderPass<'a>)
-    );
+        handler: impl FnOnce(wgpu::RenderPass<'a>) -> T
+    ) -> T;
 
     fn render_bundles<'a>(
         &'a mut self, attachment:&'a RenderAttachment, color:Option<Color>,
@@ -101,8 +101,8 @@ impl EncoderExtension for wgpu::CommandEncoder {
     }
 
 
-    fn with_compute_pass<'a>(&'a mut self, handler: impl FnOnce(wgpu::ComputePass<'a>)) {
-        handler(self.compute_pass());
+    fn with_compute_pass<'a, T>(&'a mut self, handler: impl FnOnce(wgpu::ComputePass<'a>) -> T) -> T{
+        handler(self.compute_pass())
     }
 
 
@@ -147,11 +147,11 @@ impl EncoderExtension for wgpu::CommandEncoder {
     }
 
 
-    fn with_render_pass<'a>(
+    fn with_render_pass<'a, T>(
         &'a mut self, attachment:&'a RenderAttachment, color:Option<Color>,
-        handler: impl FnOnce(wgpu::RenderPass<'a>)
-    ) {
-        handler(self.render_pass(attachment, color));
+        handler: impl FnOnce(wgpu::RenderPass<'a>) -> T
+    ) -> T {
+        handler(self.render_pass(attachment, color))
     }
 
 

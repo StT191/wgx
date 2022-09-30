@@ -1,4 +1,3 @@
-#![allow(unused)]
 
 use std::{time::{Instant}};
 use futures::executor::block_on;
@@ -10,11 +9,11 @@ use winit::{
 use wgx::{*, cgmath::*};
 
 
-fn main() {
+pub fn main() {
 
     const DEPTH_TESTING:bool = false;
     const MSAA:u32 = 4;
-    const ALPHA_BLENDING:bool = true;
+    const ALPHA_BLENDING:bool = false;
 
 
     let (width, height) = (1000, 1000);
@@ -29,16 +28,20 @@ fn main() {
 
 
     // pipeline
-    let shader = gx.load_wgsl(include_wgsl_module!("./shaders/arc.wgsl"));
+    let shader = gx.load_wgsl(include_wgsl_module!("./shaders/arc_vin.wgsl"));
 
     let pipeline = target.render_pipeline(
         &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
-        &[vertex_desc!(Instance, 0 => Float32x3, 1 => Float32x3, 2 => Float32x3, 3 => Float32, 4 => Uint32)],
+        &[
+            vertex_desc!(Instance, 0 => Float32x3, 1 => Float32x3, 2 => Float32x3, 3 => Float32x4),
+            vertex_desc!(Vertex, 4 => Float32x4),
+        ],
         Primitive::TriangleList, None,
     );
 
-    let red = Color::RED.u8();
-    let blue = Color::BLUE.u8();
+
+    let red = Color::RED.f32();
+    let blue = Color::BLUE.f32();
 
     // corners
     let c = [
@@ -49,49 +52,57 @@ fn main() {
         [ 0.0,  1.0, 0.0],
     ];
 
-    let a:f32 = 40.0;
-    let b:f32 = 0.2;
-
-    // let a:f32 = 0.2;
-    // let b:f32 = 0.2;
-
     let mut instance_data = vec![
-        // (c[1], c[0], c[2], 50.0 as f32, blue),
-        // (c[2], c[0], c[3], 50.0, blue),
-        (c[1], c[0], c[2], a, blue),
-        (c[2], c[0], c[3], b, blue),
-        (c[3], c[0], c[4], a, blue),
-        (c[4], c[0], c[1], b, blue),
-        // (c[1], c[0], c[2], 1.0/a, blue),
-        // (c[2], c[0], c[3], 1.0/a, blue),
-        // (c[3], c[0], c[4], 1.0/b, blue),
-        // (c[4], c[0], c[1], 1.0/b, blue),
-        // (c[3], c[0], c[4], -1.0 as f32, red),
-        // (c[4], c[0], c[1], 0.0, red),
+        (c[1], c[0], c[2], blue),
+        (c[2], c[0], c[3], red),
+        (c[3], c[0], c[4], blue),
+        (c[4], c[0], c[1], red),
     ];
 
-    /*for _ in 0..1000 {
+    for _ in 0..100 {
         instance_data.push(instance_data[0]);
         instance_data.push(instance_data[1]);
         instance_data.push(instance_data[2]);
         instance_data.push(instance_data[3]);
-    }*/
+    }
 
 
-    let instances = gx.buffer_from_data(BufUse::VERTEX, &instance_data);
+    let steps = 64;
+    let steps_f = steps as f32;
+
+    let mut vertex_data:Vec<[f32;4]> = Vec::with_capacity(3 * steps as usize);
+
+    let pi0 = std::f32::consts::FRAC_PI_2;
+
+    for j in 0..steps {
+
+        let fi0 = j as f32 / steps_f * pi0;
+        let fi1 = (j as f32 + 1.0) / steps_f * pi0;
+
+        vertex_data.push([f32::cos(fi0), f32::sin(fi0), 0.0, 1.0]);
+        vertex_data.push([          0.0,           0.0, 0.0, 1.0]);
+        vertex_data.push([f32::cos(fi1), f32::sin(fi1), 0.0, 1.0]);
+    }
+
+
+
+    let instance_buffer = gx.buffer_from_data(BufUse::VERTEX, &instance_data);
+    let vertex_buffer = gx.buffer_from_data(BufUse::VERTEX, &vertex_data);
+    // let step_buffer = gx.buffer_from_data(BufUse::UNIFORM, &[steps as u32]);
 
 
     // projection
-    let mut world_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 64, false);
+    // let mut world_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 64, false);
     let mut clip_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 64, false);
-    let mut viewport_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 8, false);
+    // let mut viewport_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 8, false);
 
 
     // binding
     let binding = gx.bind(&pipeline.get_bind_group_layout(0), &[
-        bind!(0, Buffer, &world_buffer),
+        // bind!(0, Buffer, &world_buffer),
         bind!(1, Buffer, &clip_buffer),
-        bind!(2, Buffer, &viewport_buffer),
+        // bind!(2, Buffer, &step_buffer),
+        // bind!(2, Buffer, &viewport_buffer),
     ]);
 
 
@@ -99,8 +110,9 @@ fn main() {
     let bundles = [target.render_bundle(&gx, |rpass| {
         rpass.set_pipeline(&pipeline);
         rpass.set_bind_group(0, &binding, &[]);
-        rpass.set_vertex_buffer(0, instances.slice(..));
-        rpass.draw(0..3, 0..instance_data.len() as u32);
+        rpass.set_vertex_buffer(0, instance_buffer.slice(..));
+        rpass.set_vertex_buffer(1, vertex_buffer.slice(..));
+        rpass.draw(0..vertex_data.len() as u32, 0..instance_data.len() as u32);
     })];
 
 
@@ -113,7 +125,6 @@ fn main() {
 
     let mut rot_matrix = Matrix4::<f32>::identity();
 
-    let world_matrix = rot_matrix * Matrix4::from_nonuniform_scale(w*width, h*height, 1.0);
     let fov = FovProjection::window(30.0, width, height);
     let projection =
         fov.projection * fov.translation
@@ -121,32 +132,11 @@ fn main() {
         // Matrix4::from_translation((width/2.0, height/2.0, 0.0).into())
     ;
 
-    gx.write_buffer(&mut world_buffer, 0, AsRef::<[f32; 16]>::as_ref(&world_matrix));
-    gx.write_buffer(&mut clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&projection));
-    gx.write_buffer(&mut viewport_buffer, 0, &[width, height]);
+    let clip_matrix = projection * rot_matrix * Matrix4::from_nonuniform_scale(w*width, h*height, 1.0);
 
-
-    // pub struct ArcPipeline {
-    //     pub world_matrix: Matrix4<f32>,
-    //     pub clip_matrix: Matrix4<f32>,
-    //     pub viewport: (f32, f32),
-
-    //     pub instances: Vec<([f32;3], [f32;3], [f32;3], f32, [u8;4])>,
-
-    //     pub pipeline: wgpu::RenderPipeline,
-
-    //     pub instance_buffer: wgpu::Buffer,
-    //     pub world_buffer: wgpu::Buffer,
-    //     pub clip_buffer: wgpu::Buffer,
-    //     pub view_port_buffer: wgpu::Buffer,
-
-    //     pub layout: wgpu::BindGroupLayout,
-    //     pub binding: wgpu::BindGroup,
-    // }
-
-    // impl ArcPipeline {
-    // }
-
+    // gx.write_buffer(&mut world_buffer, 0, AsRef::<[f32; 16]>::as_ref(&world_matrix));
+    gx.write_buffer(&mut clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&clip_matrix));
+    // gx.write_buffer(&mut viewport_buffer, 0, &[width, height]);
 
 
     // event loop
@@ -166,10 +156,10 @@ fn main() {
                 height = size.height as f32;
 
                 // projection
-                let world_matrix = rot_matrix * Matrix4::from_nonuniform_scale(w*width, h*height, 1.0);
+                let clip_matrix = projection * rot_matrix * Matrix4::from_nonuniform_scale(w*width, h*height, 1.0);
 
-                gx.write_buffer(&mut world_buffer, 0, AsRef::<[f32; 16]>::as_ref(&world_matrix));
-                gx.write_buffer(&mut viewport_buffer, 0, &[width, height]);
+                gx.write_buffer(&mut clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&clip_matrix));
+                // gx.write_buffer(&mut viewport_buffer, 0, &[width, height]);
             },
 
             Event::WindowEvent { event:WindowEvent::KeyboardInput { input: KeyboardInput {
@@ -199,9 +189,9 @@ fn main() {
                 } {
                     if redraw {
 
-                        let world_matrix = rot_matrix * Matrix4::from_nonuniform_scale(w*width, h*height, 1.0);
+                        let clip_matrix = projection * rot_matrix * Matrix4::from_nonuniform_scale(w*width, h*height, 1.0);
 
-                        gx.write_buffer(&mut world_buffer, 0, AsRef::<[f32; 16]>::as_ref(&world_matrix));
+                        gx.write_buffer(&mut clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&clip_matrix));
 
                         window.request_redraw();
                     }

@@ -243,23 +243,23 @@ impl SurfaceTarget {
         self.msaa_texture_view = msaa_texture_view;
     }
 
-    pub fn with_encoder_frame(
-        &mut self, wgx:&Wgx, handler: impl FnOnce(&mut wgpu::CommandEncoder, &RenderAttachment)
-    ) -> Res<()>
+    pub fn with_encoder_frame<T>(
+        &mut self, wgx:&Wgx, handler: impl FnOnce(&mut wgpu::CommandEncoder, &RenderAttachment) -> T
+    ) -> Res<T>
     {
         self.current_frame = Some(self.surface.get_current_texture().map_err(error)?);
         self.current_frame_view = Some(self.current_frame.as_ref().unwrap().texture.create_default_view());
 
         let attachment = self.attachment()?;
 
-        wgx.with_encoder(|mut encoder| handler(&mut encoder, &attachment));
+        let res = wgx.with_encoder(|mut encoder| handler(&mut encoder, &attachment));
 
         self.current_frame_view = None;
 
         let current_frame = self.current_frame.take().ok_or("couldn't get current frame")?;
         current_frame.present();
 
-        Ok(())
+        Ok(res)
     }
 }
 

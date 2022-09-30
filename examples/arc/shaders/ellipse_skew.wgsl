@@ -1,9 +1,6 @@
 
-// locals
-struct Matrix { matrix: mat4x4<f32> };
-
-@group(0) @binding(0) var<uniform> clip: Matrix;
-@group(0) @binding(1) var<uniform> pix: Matrix;
+@group(0) @binding(0) var<uniform> clip: mat4x4<f32>;
+@group(0) @binding(1) var<uniform> pix: mat4x4<f32>;
 
 
 struct VertexData {
@@ -24,11 +21,11 @@ fn vs_main(
 
     let P = vec4<f32>(N, 0.0, 1.0);
 
-    out.position = clip.matrix * P;
+    out.position = clip * P;
     out.color = color;
 
-    let X = (pix.matrix * vec4<f32>(1.0, 0.0, 0.0, 1.0)).xy;
-    let Y = (pix.matrix * vec4<f32>(0.0, 1.0, 0.0, 1.0)).xy;
+    let X = (pix * vec4<f32>(1.0, 0.0, 0.0, 1.0)).xy;
+    let Y = (pix * vec4<f32>(0.0, 1.0, 0.0, 1.0)).xy;
 
     out.dim = vec2<f32>(length(X), length(Y));
 

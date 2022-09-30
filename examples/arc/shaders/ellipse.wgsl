@@ -1,9 +1,8 @@
 
 // locals
-struct Projection { m: mat4x4<f32> };
 struct Dim { v: vec2<f32>, v_flat: vec2<f32> };
 
-@group(0) @binding(0) var<uniform> projection: Projection;
+@group(0) @binding(0) var<uniform> projection: mat4x4<f32>;
 @group(0) @binding(1) var<uniform> dim: Dim;
 
 
@@ -21,7 +20,7 @@ fn vs_main(
 ) -> VertexData {
     var out: VertexData;
 
-    out.position = projection.m * vec4<f32>(position, 0.0, 1.0);
+    out.position = projection * vec4<f32>(position, 0.0, 1.0);
     out.R = position * dim.v;
     out.color = color;
 

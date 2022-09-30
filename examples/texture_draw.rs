@@ -35,7 +35,7 @@ fn main() {
 
 
     // shaders
-    let shader = gx.load_wgsl(include_wgsl_module!("./shaders/flat_texture.wgsl"));
+    let shader = gx.load_wgsl(include_wgsl_module!("./shaders/flat_text.wgsl"));
 
 
     // pipeline

@@ -1,5 +1,5 @@
 
-// &import * from "simple_texture_diffuse.wgsl"
+/* &import * from "default_v3d_text_diff.wgsl" */
 
 @vertex
 fn vs_main(
@@ -17,7 +17,6 @@ fn vs_main(
 
     out.position = clip_matrix * inst_matrix * vec4<f32>(position, 1.0);
     out.tex_coord = tex_coord.xy;
-    // out.lf = abs(-(light.m * vec4<f32>(normal, 1.0)).z);
     out.lf = -(light_matrix * inst_matrix * vec4<f32>(normal, 1.0)).z;
 
     return out;

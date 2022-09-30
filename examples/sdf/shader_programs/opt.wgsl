@@ -9,26 +9,14 @@ fn vs_main(@location(0) p: vec2<f32>) -> VertexData {
     return VertexData(vec4<f32>(p, 0.0, 1.0), p);
 }
 
-// main
 
-// math constants
-
-// let pi0 = 1.5707963267948966;
-let pi = 3.141592653589793;
-let pi2 = 6.283185307179586;
-// let sqrt2 = 1.4142135623730951;
-
-
-// uniform
-@group(0) @binding(0) var<uniform> viewport: vec3<f32>;
-@group(0) @binding(1) var<uniform> scale: f32;
-// @group(0) @binding(2) var<uniform> time: f32;
-
-var<push_constant> time: f32; // time in secs
+/* &import * from "../shader_imports/uniform_const.wgsl" */
+/* &import * from "../shader_imports/sdf.wgsl" */
 
 
 // sdf map
 let MAX_DEPTH = 3000.0;
+
 
 fn sdMap(P: vec3<f32>) -> f32 {
 
@@ -52,40 +40,11 @@ fn sdMap(P: vec3<f32>) -> f32 {
 }
 
 
-// normal
-let DN = vec2<f32>(0.01, 0.0);
-
-fn getNormal(P: vec3<f32>) -> vec3<f32> {
-    return normalize( vec3<f32>(sdMap(P+DN.xyy), sdMap(P+DN.yxy), sdMap(P+DN.yyx)) - sdMap(P) );
-}
-
-
 // ray marching
-let START_DIST = 1e-2; // start with a reasonable offset from surface dist
-let SURFACE_DIST = 1e-4;
 let MAX_ITER = 96;
 
-struct RayHit { P: vec3<f32>, dist: f32 };
+/* &import * from "../shader_imports/ray_march.wgsl" */
 
-fn ray_march(Ro: vec3<f32>, Rd: vec3<f32>) -> RayHit {
-
-    var dist = START_DIST;
-    var P = vec3<f32>(0.0, 0.0, 0.0);
-    var i = 0;
-
-    loop {
-        P = Ro + dist * Rd;
-        let d = sdMap(P);
-        dist += d;
-        i += 1;
-        if (dist > MAX_DEPTH) { break; }
-        else if (abs(d) < SURFACE_DIST || i == MAX_ITER) {
-            return RayHit(P, d);
-        }
-    }
-
-    return RayHit(vec3<f32>(0.0, 0.0, 0.0), -1.0);
-}
 
 // camera
 let cd = 500.0; // half camera dimensions

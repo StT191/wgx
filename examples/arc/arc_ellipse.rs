@@ -1,4 +1,3 @@
-#![allow(unused)]
 
 // imports
 use std::{time::{Instant}};
@@ -11,7 +10,7 @@ use winit::{
 use wgx::{*, cgmath::*};
 
 // main
-fn main() {
+pub fn main() {
 
     const DEPTH_TESTING:bool = false;
     const MSAA:u32 = 1;
@@ -156,6 +155,4 @@ fn main() {
             _ => {}
         }
     });
-
-    let rx = false;
 }

@@ -62,11 +62,6 @@ mod glyph_extension;
 #[cfg(feature = "glyph")]
 pub use glyph_extension::*;
 
-#[cfg(feature = "simple_text_input")]
-mod text_input;
-#[cfg(feature = "simple_text_input")]
-pub use text_input::*;
-
 
 // iced
 #[cfg(feature = "iced")]

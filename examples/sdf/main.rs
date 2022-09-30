@@ -28,8 +28,14 @@ fn main() {
     let mut target = gx.surface_target((width, height), DEPTH_TESTING, MSAA).unwrap();
 
 
+    let shader_src = match &*std::env::args().nth(1).expect("Specify a program!") {
+        "balls" => include_wgsl_module!("./shader_programs/balls.wgsl"),
+        "opt" => include_wgsl_module!("./shader_programs/opt.wgsl"),
+        unkown => panic!("program '{unkown}' doesn't exist"),
+    };
+
     // pipeline
-    let shader = gx.load_wgsl(include_wgsl_module!("./shaders/sdf-balls.wgsl"));
+    let shader = gx.load_wgsl(shader_src);
 
 
     let layout = gx.layout(&[

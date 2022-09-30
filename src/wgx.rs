@@ -160,11 +160,12 @@ impl Wgx {
 
     // command encoder
 
-    pub fn with_encoder(&self, handler: impl FnOnce(&mut wgpu::CommandEncoder))
+    pub fn with_encoder<T>(&self, handler: impl FnOnce(&mut wgpu::CommandEncoder) -> T) -> T
     {
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-        handler(&mut encoder);
+        let res = handler(&mut encoder);
         self.queue.submit([encoder.finish()]);
+        res
     }
 
 

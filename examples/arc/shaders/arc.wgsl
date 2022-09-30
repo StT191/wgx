@@ -1,11 +1,7 @@
 
-// locals
-struct Matrix { m: mat4x4<f32> };
-struct Vec2 { v: vec2<f32> };
-
-@group(0) @binding(0) var<uniform> world: Matrix;
-@group(0) @binding(1) var<uniform> clip: Matrix;
-@group(0) @binding(2) var<uniform> viewport: Vec2;
+@group(0) @binding(0) var<uniform> world: mat4x4<f32>;
+@group(0) @binding(1) var<uniform> clip: mat4x4<f32>;
+@group(0) @binding(2) var<uniform> viewport: vec2<f32>;
 
 
 struct VertexData {
@@ -21,25 +17,7 @@ struct VertexData {
 };
 
 
-// untility functions
-fn from_vecs(O:vec3<f32>, X:vec3<f32>, Y:vec3<f32>, Z:vec3<f32>) -> mat4x4<f32> {
-    return mat4x4<f32>(vec4<f32>(X, 0.0), vec4<f32>(Y, 0.0), vec4<f32>(Z, 0.0), vec4<f32>(O, 1.0));
-}
-fn from_translation(x:f32, y:f32, z:f32) -> mat4x4<f32> {
-    return mat4x4<f32>(vec4<f32>(1.0, 0.0, 0.0, 0.0), vec4<f32>(0.0, 1.0, 0.0, 0.0), vec4<f32>(0.0, 0.0, 1.0, 0.0), vec4<f32>(x, y, z, 1.0));
-}
-fn from_scale(x:f32, y:f32, z:f32) -> mat4x4<f32> {
-    return mat4x4<f32>(vec4<f32>(x, 0.0, 0.0, 0.0), vec4<f32>(0.0, y, 0.0, 0.0), vec4<f32>(0.0, 0.0, z, 0.0), vec4<f32>(0.0, 0.0, 0.0, 1.0));
-}
-fn normal_2d(v:vec2<f32>) -> vec2<f32> {
-    return vec2<f32>(v.y, -v.x);
-}
-fn homogen_2d(v:vec4<f32>) -> vec2<f32> {
-    return vec2<f32>(v.x/v.w, v.y/v.w);
-}
-fn homogen_3d(v:vec4<f32>) -> vec3<f32> {
-    return vec3<f32>(v.x/v.w, v.y/v.w, v.z/v.w);
-}
+/* &import from_vecs, translation, from_scale, normal_2d, homogen_2d, homogen_3d from "util.wgsl" */
 
 
 let Z0 = vec3<f32>(0.0, 0.0, 0.0);
@@ -60,44 +38,44 @@ fn vs_main(
 
     if (ty == 0.0) { // triangle
         switch (i) {
-            case 0u: { out.position = clip.m * world.m * vec4<f32>(P0, 1.0); break; }
-            case 1u: { out.position = clip.m * world.m * vec4<f32>(P1, 1.0); break; }
-            case 2u: { out.position = clip.m * world.m * vec4<f32>(P2, 1.0); break; }
+            case 0u: { out.position = clip * world * vec4<f32>(P0, 1.0); break; }
+            case 1u: { out.position = clip * world * vec4<f32>(P1, 1.0); break; }
+            case 2u: { out.position = clip * world * vec4<f32>(P2, 1.0); break; }
             default: {}
         }
 
         return out;
     }
 
-    let O = homogen_3d(world.m * vec4<f32>(P1, 1.0));
-    let X = homogen_3d(world.m * vec4<f32>(P0, 1.0)) - O;
-    let Y = homogen_3d(world.m * vec4<f32>(P2, 1.0)) - O;
+    let O = homogen_3d(world * vec4<f32>(P1, 1.0));
+    let X = homogen_3d(world * vec4<f32>(P0, 1.0)) - O;
+    let Y = homogen_3d(world * vec4<f32>(P2, 1.0)) - O;
 
     if (ty > 0.0) {
         let q = sqrt(2.0);
 
         switch (i) {
-            case 0u: { out.position = clip.m * vec4<f32>(O+q*X, 1.0); out.E = vec2<f32>(q,   0.0); break; }
-            case 1u: { out.position = clip.m * vec4<f32>(O,     1.0); out.E = vec2<f32>(0.0, 0.0); break; }
-            case 2u: { out.position = clip.m * vec4<f32>(O+q*Y, 1.0); out.E = vec2<f32>(0.0,   q); break; }
+            case 0u: { out.position = clip * vec4<f32>(O+q*X, 1.0); out.E = vec2<f32>(q,   0.0); break; }
+            case 1u: { out.position = clip * vec4<f32>(O,     1.0); out.E = vec2<f32>(0.0, 0.0); break; }
+            case 2u: { out.position = clip * vec4<f32>(O+q*Y, 1.0); out.E = vec2<f32>(0.0,   q); break; }
             default: {}
         }
     }
     else {
         switch (i) { // negative, color the outside
-            case 0u: { out.position = clip.m * vec4<f32>(O+X, 1.0); out.E = vec2<f32>(0.0, 1.0); break; }
-            case 1u: { out.position = clip.m * vec4<f32>(O,   1.0); out.E = vec2<f32>(1.0, 1.0); break; }
-            case 2u: { out.position = clip.m * vec4<f32>(O+Y, 1.0); out.E = vec2<f32>(1.0, 0.0); break; }
+            case 0u: { out.position = clip * vec4<f32>(O+X, 1.0); out.E = vec2<f32>(0.0, 1.0); break; }
+            case 1u: { out.position = clip * vec4<f32>(O,   1.0); out.E = vec2<f32>(1.0, 1.0); break; }
+            case 2u: { out.position = clip * vec4<f32>(O+Y, 1.0); out.E = vec2<f32>(1.0, 0.0); break; }
             default: {}
         }
     }
 
     // get unit circle to screen pixel matrix
-    let unit_to_pix = from_scale(viewport.v.x/2.0, viewport.v.y/2.0, 1.0) * clip.m * from_vecs(O, X, Y, Z0);
+    let unit_to_pix = from_scale(viewport.x/2.0, viewport.y/2.0, 1.0) * clip * from_vecs(O, X, Y, Z0);
 
     let O = homogen_2d(unit_to_pix * vec4<f32>(0.0, 0.0, 0.0, 1.0)); // origin
 
-    let prj = from_translation(-O.x, -O.y, 0.0) * unit_to_pix;
+    let prj = translation(-O.x, -O.y, 0.0) * unit_to_pix;
 
     out.p0 = prj[0]; out.p1 = prj[1]; out.p2 = prj[2]; out.p3 = prj[3];
 

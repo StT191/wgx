@@ -1,13 +1,12 @@
-#![allow(unused)]
 
-use std::{time::{Instant, Duration}};
+use std::{time::{Instant, /*Duration,*/}};
 use futures::executor::block_on;
 use winit::{
     dpi::PhysicalSize,
     event_loop::{ControlFlow, EventLoop},
     window::Window, event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCode},
 };
-use wgx::{*, cgmath::*};
+use wgx::{*, /*cgmath::*,*/};
 
 
 fn main() {
@@ -29,7 +28,7 @@ fn main() {
 
 
     // pipeline
-    let shader = gx.load_wgsl(include_wgsl_module!("./shaders/wavy.wgsl"));
+    let shader = gx.load_wgsl(include_wgsl_module!("./wavy.wgsl"));
 
 
     let layout = gx.layout(&[
@@ -57,7 +56,7 @@ fn main() {
     // const DA:f32 = 3.0;
     const DT:f32 = 0.01;
 
-    let (mut width, mut height) = (width as f32, height as f32);
+    let (width, height) = (width as f32, height as f32);
     let (mut w, mut h) = (1.0, 1.0);
 
     let time = Instant::now();
@@ -98,7 +97,7 @@ fn main() {
         match event {
 
             Event::NewEvents(_) => {
-                if (frame_timer.elapsed()) {
+                if frame_timer.elapsed() {
                     window.request_redraw(); // request frame
                 }
             },
@@ -110,8 +109,8 @@ fn main() {
             Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
                 target.update(&gx, (size.width, size.height));
 
-                width = size.width as f32;
-                height = size.height as f32;
+                let width = size.width as f32;
+                let height = size.height as f32;
 
                 // write buffer
                 gx.write_buffer(&mut viewport_buffer, 0, &[width, height]);
@@ -155,7 +154,7 @@ fn main() {
                 // next frame time
                 let shift = frame_timer.next();
 
-                if (shift.was_next_tick) {
+                if shift.was_next_tick {
                     frame_counter.add_delta_time(shift.delta_time);
                 }
 
