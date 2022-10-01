@@ -175,10 +175,9 @@ fn find_and_register_import_lines(
 }
 
 impl Module {
-    fn load_from_source(path: impl AsRef<Path>) -> Res<Self> {
+    fn load_from_source(path: &PathBuf) -> Res<Self> {
 
         // normalize path
-        let path = path.as_ref().canonicalize().map_err(|err| format!("{err} '{}'", path.as_ref().to_str().unwrap()))?;
         let dir_path = path.parent().ok_or(format!("path '{}' has no parent", path.to_str().unwrap()))?;
 
         // fetch source
@@ -267,9 +266,9 @@ impl Module {
 
 
 // modules
-type ModuleCache = HashMap<PathBuf, Module>;
+pub type ModuleCache = HashMap<PathBuf, Module>;
 
-fn resolve_module<'a>(modules: &'a mut ModuleCache, module_trace: &mut Vec<PathBuf>, path: &PathBuf) -> Res<&'a Module> {
+fn resolve_module<'a>(modules: &'a mut ModuleCache, module_trace: &mut Vec<PathBuf>, path: &PathBuf) -> Res<&'a mut Module> {
 
     if module_trace.contains(&path) { return Err(format!(
         "circular dependency {} from {}",
@@ -287,7 +286,7 @@ fn resolve_module<'a>(modules: &'a mut ModuleCache, module_trace: &mut Vec<PathB
         modules.insert(module.path.clone(), module);
     }
 
-    Ok(modules.get(path).unwrap())
+    Ok(modules.get_mut(path).unwrap())
 }
 
 
@@ -368,12 +367,28 @@ impl Module {
 }
 
 
-// load module
+// module loading
+
+fn canonicalize(path: impl AsRef<Path>) -> Res<PathBuf> {
+    let path = path.as_ref();
+    path.canonicalize().map_err(|err| format!("{err} '{}'", path.to_str().unwrap()))
+}
+
+
 pub fn load(path: impl AsRef<Path>) -> Res<Module> {
 
-    let mut module = Module::load_from_source(path)?;
+    let mut module = Module::load_from_source(&canonicalize(path)?)?;
 
     module.resolve_imports(&mut ModuleCache::new(), &mut Vec::new())?;
+    module.generate_code();
+
+    Ok(module)
+}
+
+pub fn load_with_cache<'a>(cache: &'a mut ModuleCache, path: impl AsRef<Path>) -> Res<&'a mut Module> {
+
+    let module = resolve_module(cache, &mut Vec::new(), &canonicalize(path)?)?;
+
     module.generate_code();
 
     Ok(module)
