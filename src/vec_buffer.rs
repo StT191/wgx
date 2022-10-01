@@ -1,14 +1,14 @@
 
-use std::{mem::size_of, slice::SliceIndex, ops::{RangeBounds, Bound}};
+use std::{mem::size_of, slice::SliceIndex, ops::{RangeBounds, Bound}, cmp::Ordering};
 use wgpu::Buffer;
 use crate::*;
 
 
 #[derive(Debug)]
-pub struct VertexBuffer<T: Clone>{
+pub struct VecBuffer<T: Clone>{
   data: Vec<T>,
   buffer: Buffer,
-  max_size: usize,
+  size: usize,
 }
 
 
@@ -16,32 +16,44 @@ fn write_into_vec<T: Clone>(target: &mut Vec<T>, offset: usize, source: &[T]) {
 
   let target_len = target.len();
 
-  if offset > target_len {
-    panic!("offset `{}` > traget.len() `{}`", offset, target_len);
-  }
+  match offset.cmp(&target_len) {
+    Ordering::Less => {
+      let source_len = source.len();
+      let overwrite_len = (target_len - offset).min(source_len);
 
-  let source_len = source.len();
-  let write_len = (target_len - offset).min(source_len);
-
-  if write_len > 0 {
-    target[offset..offset+write_len].iter_mut().zip(&source[0..write_len]).for_each(|(entry, new_entry)| {
-      *entry = new_entry.clone()
-    });
-  }
-
-  if source_len - write_len > 0 {
-    target.extend_from_slice(&source[write_len..]);
+      target[offset..offset+overwrite_len].clone_from_slice(&source[..overwrite_len]);
+      target.extend_from_slice(&source[overwrite_len..]);
+    },
+    Ordering::Equal => {
+      target.extend_from_slice(&source);
+    },
+    Ordering::Greater => {
+      panic!("offset `{offset}` > traget.len() `{target_len}`")
+    },
   }
 }
 
 
-impl<T: Clone> VertexBuffer<T> {
+impl<T: Clone> VecBuffer<T> {
 
-  pub fn new(gx: &Wgx, max_size: usize) -> Self {
+  pub fn new(gx: &Wgx, usage: wgpu::BufferUsages, size: usize) -> Self {
     Self {
-      data: Vec::with_capacity(max_size as usize),
-      buffer: gx.buffer(BufUse::VERTEX | BufUse::COPY_DST, (size_of::<T>() * max_size) as u64, false),
-      max_size,
+      data: Vec::with_capacity(size as usize),
+      buffer: gx.buffer(BufUse::COPY_DST | usage, (size_of::<T>() * size) as u64, false),
+      size,
+    }
+  }
+
+  pub fn write_vertex(&mut self, index: Option<usize>, vertex: &T) {
+    if let Some(index) = index {
+      let len = self.len();
+      match index.cmp(&len) {
+        Ordering::Less => self.data[index] = vertex.clone(),
+        Ordering::Equal => self.data.push(vertex.clone()),
+        Ordering::Greater => panic!("index `{index}` > traget.len() `{len}`"),
+      }
+    } else {
+      self.data.push(vertex.clone());
     }
   }
 
@@ -78,7 +90,7 @@ impl<T: Clone> VertexBuffer<T> {
     }
   }
 
-  pub fn max_size(&self) -> usize { self.max_size }
+  pub fn size(&self) -> usize { self.size }
   pub fn data(&self) -> &Vec<T> { &self.data }
   pub fn data_mut(&mut self) -> &mut Vec<T> { &mut self.data }
   pub fn len(&self) -> usize { self.data.len() }
