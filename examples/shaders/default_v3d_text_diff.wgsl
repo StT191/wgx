@@ -15,6 +15,14 @@ struct VertexData {
 
 
 let LL = vec2<f32>(0.02, 0.10); // light levels (min, min lit)
+let hL = 0.15; // highlights
+let hlPow = 5.0; // highlight power
+
+
+fn highlight(Rd: vec3<f32>, N: vec3<f32>, Ln: vec3<f32>) -> f32 {
+    let Lr = Ln - 2.0*dot(Ln, N) * N;
+    return pow(max(dot(Rd, -Lr), 0.0), hlPow) * hL;
+}
 
 
 @fragment

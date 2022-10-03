@@ -19,5 +19,10 @@ fn vs_main(
     out.tex_coord = tex_coord.xy;
     out.lf = -(light_matrix * inst_matrix * vec4<f32>(normal, 1.0)).z;
 
+    // let Ln = (inst_matrix * light_matrix * vec4<f32>(0.0, 0.0, -1.0, 1.0)).xyz;
+
+    // out.lf = diffuse_light(normal, Ln);
+    // out.hl = highlight(normalize(out.position.xyz), normal, Ln);
+
     return out;
 }

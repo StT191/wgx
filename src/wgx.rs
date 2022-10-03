@@ -113,11 +113,11 @@ impl Wgx {
 
     // buffer
 
-    pub fn buffer(&self, usage:wgpu::BufferUsages, size:u64, mapped_at_creation:bool) -> wgpu::Buffer {
+    pub fn buffer(&self, usage:BufUse, size:u64, mapped_at_creation:bool) -> wgpu::Buffer {
         self.device.create_buffer(&wgpu::BufferDescriptor {usage, size, mapped_at_creation, label: None})
     }
 
-    pub fn buffer_from_data<T: AsByteSlice<U>, U>(&self, usage:wgpu::BufferUsages, data:T) -> wgpu::Buffer {
+    pub fn buffer_from_data<T: AsByteSlice<U>, U>(&self, usage:BufUse, data:T) -> wgpu::Buffer {
         self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             usage, contents: data.as_byte_slice(), label: None
         })

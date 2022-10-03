@@ -23,7 +23,7 @@ fn main() {
   window.set_inner_size(PhysicalSize::<u32>::from((width, height)));
   window.set_title("WgFx");
 
-  let mut gx = block_on(Wgx::new(Some(&window), Features::empty(), limits!{})).unwrap();
+  let mut gx = block_on(Wgx::new(Some(&window), Features::MULTI_DRAW_INDIRECT, limits!{})).unwrap();
   let mut target = gx.surface_target((width, height), DEPTH_TESTING, MSAA).unwrap();
 
 
@@ -40,7 +40,6 @@ fn main() {
     ],
     Primitive::TriangleList, None
   );
-
 
   // colors
   let color_texture = gx.texture((1, 1), 1, TexUse::TEXTURE_BINDING | TexUse::COPY_DST, TEXTURE);
@@ -64,13 +63,13 @@ fn main() {
 
 
   // vertexes
-
   let steps = 64usize;
   let smooth = true;
 
+
   let step_a = steps as f32 / std::f32::consts::FRAC_PI_2; // step angle
 
-  let mut vertex_data:Vec<[[f32;3];3]> = Vec::with_capacity(2 * 2 * 3 * steps * steps);
+  let mut mesh:Vec<[[f32;3];3]> = Vec::with_capacity(2 * 2 * 3 * steps * steps);
 
   let t_c = [1.0, 1.0, 0.0];
 
@@ -104,31 +103,27 @@ fn main() {
       let d = [cos_a0*sin_b1, sin_a0, cos_a0*cos_b1];
 
       if smooth {
-        vertex_data.push([a, t_c, a]);
-        vertex_data.push([d, t_c, d]);
-        vertex_data.push([c, t_c, c]);
+        mesh.push([a, t_c, a]);
+        mesh.push([d, t_c, d]);
+        mesh.push([c, t_c, c]);
 
-        vertex_data.push([a, t_c, a]);
-        vertex_data.push([c, t_c, c]);
-        vertex_data.push([b, t_c, b]);
+        mesh.push([a, t_c, a]);
+        mesh.push([c, t_c, c]);
+        mesh.push([b, t_c, b]);
       }
       else {
         let n = normal_from_triangle(a, d, c).into();
 
-        vertex_data.push([a, t_c, n]);
-        vertex_data.push([d, t_c, n]);
-        vertex_data.push([c, t_c, n]);
+        mesh.push([a, t_c, n]);
+        mesh.push([d, t_c, n]);
+        mesh.push([c, t_c, n]);
 
-        vertex_data.push([a, t_c, n]);
-        vertex_data.push([c, t_c, n]);
-        vertex_data.push([b, t_c, n]);
+        mesh.push([a, t_c, n]);
+        mesh.push([c, t_c, n]);
+        mesh.push([b, t_c, n]);
       }
     }
   }
-
-
-  let vertex_buffer = gx.buffer_from_data(BufUse::VERTEX, &vertex_data);
-
 
   let instance_data = [
     Matrix4::<f32>::from_nonuniform_scale( 1.0, 1.0, 1.0),
@@ -141,17 +136,15 @@ fn main() {
     Matrix4::<f32>::from_nonuniform_scale(-1.0,-1.0,-1.0),
   ];
 
-  let instance_buffer = gx.buffer_from_data(BufUse::VERTEX, &instance_data);
 
+  let mut group = MultiDrawIndirect::new(&gx, (None, mesh.len()), (None, 2*instance_data.len()), (None, 1));
 
-  // render bundles
-  let bundles = [target.render_bundle(&gx, |rpass| {
-    rpass.set_pipeline(&pipeline);
-    rpass.set_bind_group(0, &binding, &[]);
-    rpass.set_vertex_buffer(0, vertex_buffer.slice(..));
-    rpass.set_vertex_buffer(1, instance_buffer.slice(..));
-    rpass.draw(0..vertex_data.len() as u32, 0..instance_data.len() as u32);
-  })];
+  let mesh_range = group.vertices.write_multiple(None, &mesh);
+  let instance_range = group.instances.write_multiple(None, &instance_data);
+
+  group.indirect.write(None, &DrawIndirect::from_ranges(mesh_range, instance_range));
+
+  group.write_buffers(&gx, .., .., ..);
 
 
   // matrix
@@ -267,7 +260,13 @@ fn main() {
         let then = Instant::now();
 
         target.with_encoder_frame(&gx, |encoder, attachment| {
-          encoder.render_bundles(attachment, Some(Color::BLACK), &bundles);
+          encoder.with_render_pass(attachment, Some(Color::BLACK), |mut rpass| {
+            rpass.set_pipeline(&pipeline);
+            rpass.set_bind_group(0, &binding, &[]);
+            rpass.set_vertex_buffer(0, group.vertices.buffer.slice(..));
+            rpass.set_vertex_buffer(1, group.instances.buffer.slice(..));
+            rpass.multi_draw_indirect(&group.indirect.buffer, 0, group.indirect.len() as u32);
+          });
         }).expect("frame error");
 
         println!("{:?}", then.elapsed());

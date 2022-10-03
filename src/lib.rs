@@ -30,8 +30,8 @@ pub use wgx::*;
 mod render_target;
 pub use render_target::*;
 
-mod vec_buffer;
-pub use vec_buffer::*;
+mod buffer_helper;
+pub use buffer_helper::*;
 
 
 // features
