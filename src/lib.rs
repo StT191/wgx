@@ -1,4 +1,4 @@
-#![feature(iterator_try_collect, linked_list_cursors, iter_intersperse)]
+#![feature(div_duration, duration_constants)]
 
 // passs wgpu types
 pub use wgpu::{
@@ -49,8 +49,8 @@ pub use projection::*;
 pub mod wav_obj;
 
 
-#[cfg(feature = "ticks")]
-pub mod ticks;
+#[cfg(feature = "timer")]
+pub mod timer;
 
 
 // glyph

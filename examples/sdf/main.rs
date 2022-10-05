@@ -1,6 +1,6 @@
 #![allow(unused)]
 
-use std::{time::{Instant, Duration}};
+use std::{time::{Instant/*, Duration*/}};
 use futures::executor::block_on;
 use winit::{
     dpi::PhysicalSize,
@@ -94,20 +94,20 @@ fn main() {
 
     // frame rate and counter
 
-    let mut frame_timer = ticks::TickTimer::from_ticks_per_sec(40.0, 1.0);
-    // let mut frame_counter = ticks::TickCounter::from_secs(5.0);
+    let mut frame_timer = timer::StepInterval::from_secs(1.0 / 60.0);
+    // let mut frame_counter = timer::IntervalCounter::from_secs(5.0);
 
 
     // event loop
     event_loop.run(move |event, _, control_flow| {
 
-        *control_flow = ControlFlow::WaitUntil(frame_timer.next_tick); // next frame
+        *control_flow = ControlFlow::WaitUntil(frame_timer.next); // next frame
         // *control_flow = ControlFlow::Wait;
 
         match event {
 
             Event::NewEvents(_) => {
-                if (frame_timer.elapsed()) {
+                if frame_timer.advance_if_elapsed() {
                     window.request_redraw(); // request frame
                 }
             },
@@ -162,15 +162,6 @@ fn main() {
 
             Event::RedrawRequested(_) => {
 
-                // next frame time
-                let shift = frame_timer.next();
-
-                /*if (shift.was_next_tick) {
-                    frame_counter.add_delta_time(shift.delta_time);
-                }*/
-
-                *control_flow = ControlFlow::WaitUntil(frame_timer.next_tick);
-
                 // draw
                 // gx.write_buffer(&mut t_buffer, 0, &[time.elapsed().as_secs_f32()]);
 
@@ -190,12 +181,10 @@ fn main() {
 
                 }).expect("frame error");
 
-
                 // statistics
-                /*frame_counter.add_one();
-
-                if let Some(count) = frame_counter.tick_count() {
-                    println!("{:?}", count);
+                /*frame_counter.add();
+                if let Some(counted) = frame_counter.count() {
+                    println!("{:?}, Duration {:?}", counted, frame_timer.duration);
                 }*/
             },
 

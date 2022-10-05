@@ -1,5 +1,5 @@
 
-use std::{time::{Instant, /*Duration,*/}};
+use std::{time::{Instant/*, Duration*/}};
 use futures::executor::block_on;
 use winit::{
     dpi::PhysicalSize,
@@ -34,7 +34,6 @@ fn main() {
     let layout = gx.layout(&[
         binding!(0, Shader::FRAGMENT, UniformBuffer, 8),
         binding!(1, Shader::FRAGMENT, UniformBuffer, 8),
-        // binding!(2, Shader::FRAGMENT, UniformBuffer, 4),
     ]);
 
 
@@ -65,42 +64,25 @@ fn main() {
     // buffer
     let mut viewport_buffer = gx.buffer_from_data(BufUse::UNIFORM | BufUse::COPY_DST, &[width as f32, height as f32]);
     let mut scale_buffer = gx.buffer_from_data(BufUse::UNIFORM | BufUse::COPY_DST, &[1.0 as f32, 1.0 as f32]);
-    // let mut t_buffer = gx.buffer_from_data(BufUse::UNIFORM | BufUse::COPY_DST, &[time.elapsed().as_secs_f32()]);
 
     // binding
     let binding = gx.bind(&layout, &[
         bind!(0, Buffer, &viewport_buffer),
         bind!(1, Buffer, &scale_buffer),
-        // bind!(2, Buffer, &t_buffer),
     ]);
-
-    // render bundles
-    /*let bundles = [target.render_bundle(&gx, |rpass| {
-        rpass.set_pipeline(&pipeline);
-        rpass.set_bind_group(0, &binding, &[]);
-        rpass.set_vertex_buffer(0, vertices.slice(..));
-        rpass.draw(0..vertex_data.len() as u32, 0..1);
-    })];*/
 
 
     // frame rate and counter
 
-    let mut frame_timer = ticks::TickTimer::from_ticks_per_sec(60.0, 1.0);
-    let mut frame_counter = ticks::TickCounter::from_secs(5.0);
+    // let mut frame_timer = timer::AdaptRateInterval::from_per_sec(600.0, 0.1);
+    let mut frame_timer = timer::StepInterval::from_secs(1.0 / 60.0);
+    let mut frame_counter = timer::IntervalCounter::from_secs(5.0);
 
 
     // event loop
     event_loop.run(move |event, _, control_flow| {
 
-        *control_flow = ControlFlow::WaitUntil(frame_timer.next_tick); // next frame
-
         match event {
-
-            Event::NewEvents(_) => {
-                if frame_timer.elapsed() {
-                    window.request_redraw(); // request frame
-                }
-            },
 
             Event::WindowEvent {event: WindowEvent::CloseRequested, ..} => {
                 *control_flow = ControlFlow::Exit;
@@ -151,24 +133,9 @@ fn main() {
 
             Event::RedrawRequested(_) => {
 
-                // next frame time
-                let shift = frame_timer.next();
-
-                if shift.was_next_tick {
-                    frame_counter.add_delta_time(shift.delta_time);
-                }
-
-                *control_flow = ControlFlow::WaitUntil(frame_timer.next_tick);
-
                 // draw
-                // gx.write_buffer(&mut t_buffer, 0, &[time.elapsed().as_secs_f32()]);
-
                 target.with_encoder_frame(&gx, |encoder, attachment| {
-                    // encoder.render_bundles(attachment, Some(Color::BLACK), &bundles);
-
                     encoder.with_render_pass(attachment, Some(Color::BLACK), |mut rpass| {
-
-                        // rpass.execute_bundles(bundles.iter());
                         rpass.set_pipeline(&pipeline);
                         rpass.set_bind_group(0, &binding, &[]);
                         rpass.set_vertex_buffer(0, vertices.slice(..));
@@ -179,17 +146,28 @@ fn main() {
                 }).expect("frame error");
 
 
-                // statistics
-                frame_counter.add_one();
+                // next frame time
+                // frame_timer.advance();
 
-                let res = frame_counter.tick_count();
-
-                if let Some(count) = res {
-                    println!("{:?}", count);
+                // frame statistics
+                frame_counter.add();
+                if let Some(counted) = frame_counter.count() {
+                    println!("{:?}, Duration {:?}", counted, frame_timer.duration);
                 }
             },
 
             _ => {}
+        }
+
+
+        if *control_flow != ControlFlow::Exit {
+
+            // if frame_timer.advance_if_elapsed() {
+            if frame_timer.advance_if_elapsed() {
+                window.request_redraw(); // request frame
+            }
+
+            *control_flow = ControlFlow::WaitUntil(frame_timer.next); // next frame
         }
     });
 }
