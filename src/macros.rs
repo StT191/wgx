@@ -36,7 +36,7 @@ macro_rules! binding {
             count: None,
         }
     };
-    ($loc:expr, $stage:expr, SampledTexture) => {
+    ($loc:expr, $stage:expr, SampledTexture2D) => {
         wgpu::BindGroupLayoutEntry {
             binding: $loc,
             visibility: $stage,

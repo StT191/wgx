@@ -95,12 +95,12 @@ impl<D> GlyphBrushExtension for GlyphBrush<D> {
 pub trait EncoderGlyphDrawExtension {
     fn draw_glyphs(
         &mut self, wgx:&Wgx, attachment:&RenderAttachment, glypths:&mut GlyphBrush<()>,
-        transform:Matrix4<f32>, region:Option<[u32; 4]>, staging_belt:Option<&mut StagingBelt>,
+        transform:Matrix4<f32>, region:Option<[u32; 4]>, staging_belt:&mut StagingBelt,
     ) -> Result<(), String>;
 
     fn draw_glyphs_with_depth(
         &mut self, wgx:&Wgx, attachment:&RenderAttachment, glypths:&mut GlyphBrush<wgpu::DepthStencilState>,
-        clear_depth:bool, transform:Matrix4<f32>, region:Option<[u32; 4]>, staging_belt:Option<&mut StagingBelt>,
+        clear_depth:bool, transform:Matrix4<f32>, region:Option<[u32; 4]>, staging_belt:&mut StagingBelt,
     ) -> Result<(), String>;
 }
 
@@ -108,19 +108,9 @@ impl EncoderGlyphDrawExtension for wgpu::CommandEncoder<> {
 
     fn draw_glyphs (
         &mut self, wgx:&Wgx, attachment:&RenderAttachment, glypths:&mut GlyphBrush<()>,
-        transform:Matrix4<f32>, region:Option<[u32; 4]>, staging_belt:Option<&mut StagingBelt>,
+        transform:Matrix4<f32>, region:Option<[u32; 4]>, staging_belt:&mut StagingBelt,
     ) -> Result<(), String> {
-
-        // staging_belt
-        #![allow(unused_assignments)]
-        let mut tmp_belt:Option<StagingBelt> = None;
-
-        let staging_belt = if let Some(staging_belt) = staging_belt { staging_belt } else {
-            tmp_belt = Some(StagingBelt::new(10240));
-            tmp_belt.as_mut().unwrap()
-        };
-
-        let result = if let Some(region) = region {
+        if let Some(region) = region {
             glypths.draw_queued_with_transform_and_scissoring(
                 &wgx.device, staging_belt, self, attachment.view, *transform.as_ref(),
                 Region {x: region[0], y: region[1], width: region[2], height: region[3]}
@@ -130,14 +120,12 @@ impl EncoderGlyphDrawExtension for wgpu::CommandEncoder<> {
             glypths.draw_queued_with_transform(
                 &wgx.device, staging_belt, self, attachment.view, *transform.as_ref()
             )
-        };
-
-        result
+        }
     }
 
     fn draw_glyphs_with_depth(
         &mut self, wgx:&Wgx, attachment:&RenderAttachment, glypths:&mut GlyphBrush<wgpu::DepthStencilState>,
-        clear_depth:bool, transform:Matrix4<f32>, region:Option<[u32; 4]>, staging_belt:Option<&mut StagingBelt>,
+        clear_depth:bool, transform:Matrix4<f32>, region:Option<[u32; 4]>, staging_belt:&mut StagingBelt,
     ) -> Result<(), String> {
 
         #![allow(unused_assignments)]
@@ -151,16 +139,7 @@ impl EncoderGlyphDrawExtension for wgpu::CommandEncoder<> {
             stencil_ops: None,
         };
 
-        // staging_belt
-        let mut tmp_belt:Option<StagingBelt> = None;
-
-        let staging_belt = if let Some(staging_belt) = staging_belt { staging_belt } else {
-            tmp_belt = Some(StagingBelt::new(10240));
-            tmp_belt.as_mut().unwrap()
-        };
-
-
-        let result = if let Some(region) = region {
+        if let Some(region) = region {
             glypths.draw_queued_with_transform_and_scissoring(
                 &wgx.device, staging_belt, self, attachment.view,
                 depth_ops, *transform.as_ref(),
@@ -172,9 +151,7 @@ impl EncoderGlyphDrawExtension for wgpu::CommandEncoder<> {
                 &wgx.device, staging_belt, self, attachment.view,
                 depth_ops, *transform.as_ref()
             )
-        };
-
-        result
+        }
     }
 }
 

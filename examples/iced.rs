@@ -177,6 +177,8 @@ fn main() {
 
                 }).expect("frame error");
 
+                gui.recall_staging_belt();
+
                 // println!("{:?}", then.elapsed());
             },
 

@@ -37,18 +37,16 @@ fn main() {
     // pipeline
     let shader = gx.load_wgsl(shader_src);
 
-
     let layout = gx.layout(&[
         binding!(0, Shader::VERTEX_FRAGMENT, UniformBuffer, 12),
         binding!(1, Shader::FRAGMENT, UniformBuffer, 4),
         // binding!(2, Shader::FRAGMENT, UniformBuffer, 4),
     ]);
 
-
     let pipeline = target.render_pipeline(
         &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
         &[vertex_desc!(Vertex, 0 => Float32x2)],
-        Primitive::TriangleList, Some((push_constants![0..4 => Shader::FRAGMENT], &[&layout]))
+        Primitive::TriangleList, Some((push_constants![0..4 => Shader::FRAGMENT], &layout))
     );
 
     // vertices

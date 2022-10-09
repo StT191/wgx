@@ -48,7 +48,7 @@ pub trait RenderTarget {
         &self, wgx:&Wgx, alpha_blend:bool,
         (vs_module, vs_entry_point):(&wgpu::ShaderModule, &str), (fs_module, fs_entry_point):(&wgpu::ShaderModule, &str),
         vertex_layouts:&[wgpu::VertexBufferLayout], topology:wgpu::PrimitiveTopology,
-        layout:Option<(&[wgpu::PushConstantRange], &[&wgpu::BindGroupLayout])>
+        layout:Option<(&[wgpu::PushConstantRange], &wgpu::BindGroupLayout)>
     ) -> wgpu::RenderPipeline {
         wgx.render_pipeline(
             self.format(), self.depth_testing(), self.msaa(), alpha_blend,
@@ -202,7 +202,9 @@ impl SurfaceTarget {
         config.width = width;
         config.height = height;
 
-        config.format = *surface.get_supported_formats(&wgx.adapter).get(0).ok_or("couldn't get default format")?;
+        let formats = surface.get_supported_formats(&wgx.adapter);
+
+        config.format = *formats.iter().find(|fmt| fmt.describe().srgb).ok_or("couldn't get srgb format")?;
 
         let modes = surface.get_supported_modes(&wgx.adapter);
 

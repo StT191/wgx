@@ -40,27 +40,13 @@ fn main() {
 
 
   // colors
-  let color_texture = gx.texture((1, 1), 1, TexUse::TEXTURE_BINDING | TexUse::COPY_DST, TEXTURE);
-  gx.write_texture(&color_texture, (0, 0, 1, 1), &[
-    [255u8, 0, 0, 255], //[0, 255, 0, 255], [0, 0, 255, 255],
-  ]);
+  let color_texture = gx.texture_from_data((1, 1), 1, TexUse::TEXTURE_BINDING, TEXTURE, [255u8, 0, 0, 255]);
   let color_texture_view = color_texture.create_default_view();
 
-  let sampler = gx.sampler();
+  let sampler = gx.default_sampler();
 
 
-  // image
-  // let img = image::open("img/logo_red.png")
-  //     .expect("failed loading image")
-  //     .into_rgba8();
-
-  // let (w, h) = (img.width(), img.height());
-
-  // let image_texture = gx.texture((w, h), 1, TexUse::TEXTURE_BINDING | TexUse::COPY_DST, TEXTURE);
-
-  // gx.write_texture(&image_texture, (0, 0, w, h), &img.as_raw().as_slice());
-
-
+  // buffers and binding
   let mut clip_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 64, false);
   let mut light_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 64, false);
 

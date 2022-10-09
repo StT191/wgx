@@ -80,12 +80,21 @@ impl Into<iced_wgpu::Color> for Color {
 }
 
 
-// color channel to linear
+// color channel srgb to linear
 fn linear_component(u: f32) -> f32 {
     if u < 0.04045 {
         u / 12.92
     } else {
         ((u + 0.055) / 1.055).powf(2.4)
+    }
+}
+
+// color channel linear to srgb
+fn srgb_component(u: f32) -> f32 {
+    if u < 0.0031308 {
+        u * 12.92
+    } else {
+        u.powf(1.0 / 2.4) * 1.055 - 0.055
     }
 }
 
@@ -107,6 +116,15 @@ impl Color {
             r: linear_component(self.r),
             g: linear_component(self.g),
             b: linear_component(self.b),
+            a: self.a,
+        }
+    }
+
+    pub fn srgb(self) -> Self {
+        Self {
+            r: srgb_component(self.r),
+            g: srgb_component(self.g),
+            b: srgb_component(self.b),
             a: self.a,
         }
     }

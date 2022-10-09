@@ -9,6 +9,7 @@ use crate::{*, byte_slice::AsByteSlice, error::*};
 
 // Default Texture Formats
 pub const TEXTURE:wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
+pub const TEXTURE_LINEAR:wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
 pub const DEPTH: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
 
@@ -65,7 +66,7 @@ impl Wgx {
     // texture
 
     pub fn texture(&self,
-        (width, height):(u32, u32), sample_count:u32, usage:wgpu::TextureUsages, format:wgpu::TextureFormat,
+        (width, height):(u32, u32), sample_count:u32, usage:wgpu::TextureUsages, format:wgpu::TextureFormat
     ) -> wgpu::Texture {
         self.device.create_texture(&wgpu::TextureDescriptor {
             usage, label: None, mip_level_count: 1, sample_count, dimension: wgpu::TextureDimension::D2,
@@ -81,7 +82,11 @@ impl Wgx {
         self.texture((width, height), msaa, wgpu::TextureUsages::RENDER_ATTACHMENT, format)
     }
 
-    pub fn sampler(&self) -> wgpu::Sampler {
+    pub fn sampler(&self, descriptor: &wgpu::SamplerDescriptor) -> wgpu::Sampler {
+        self.device.create_sampler(descriptor)
+    }
+
+    pub fn default_sampler(&self) -> wgpu::Sampler {
         self.device.create_sampler(&wgpu::SamplerDescriptor {
             label: None,
             border_color: None,
@@ -96,6 +101,15 @@ impl Wgx {
             compare: None, // Some(wgpu::CompareFunction::LessEqual),
             anisotropy_clamp: None, // NonZeroU8::new(16),
         })
+    }
+
+    pub fn texture_from_data<T: AsByteSlice<U>, U>(&self,
+        (width, height):(u32, u32), sample_count:u32, usage:wgpu::TextureUsages, format:wgpu::TextureFormat, data: T
+    ) -> wgpu::Texture {
+        self.device.create_texture_with_data(&self.queue, &wgpu::TextureDescriptor {
+            usage, label: None, mip_level_count: 1, sample_count, dimension: wgpu::TextureDimension::D2,
+            size: wgpu::Extent3d {width, height, depth_or_array_layers: 1}, format,
+        }, data.as_byte_slice())
     }
 
     pub fn write_texture<T: AsByteSlice<U>, U>(&self, texture:&wgpu::Texture, (x, y, w, h):(u32, u32, u32, u32), data:T) {
@@ -214,12 +228,12 @@ impl Wgx {
         &self, format:wgpu::TextureFormat, depth_testing:bool, msaa:u32, alpha_blend:bool,
         (vs_module, vs_entry_point):(&wgpu::ShaderModule, &str), (fs_module, fs_entry_point):(&wgpu::ShaderModule, &str),
         vertex_layouts:&[wgpu::VertexBufferLayout], topology:wgpu::PrimitiveTopology,
-        layout:Option<(&[wgpu::PushConstantRange], &[&wgpu::BindGroupLayout])>
+        layout:Option<(&[wgpu::PushConstantRange], &wgpu::BindGroupLayout)>
     ) -> wgpu::RenderPipeline {
 
         let layout = if let Some(layout) = layout {
             Some(self.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: None, push_constant_ranges: layout.0, bind_group_layouts: layout.1
+                label: None, push_constant_ranges: layout.0, bind_group_layouts: &[layout.1]
             }))
         }
         else { None };

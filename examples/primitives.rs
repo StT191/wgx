@@ -40,19 +40,19 @@ fn main() {
 
     // layout
     let layout = gx.layout(&[
-        binding!(0, Shader::FRAGMENT, SampledTexture),
+        binding!(0, Shader::FRAGMENT, SampledTexture2D),
         binding!(1, Shader::FRAGMENT, Sampler)
     ]);
 
 
     // colors
-    let color_texture = gx.texture((3, 1), 1, TexUse::TEXTURE_BINDING | TexUse::COPY_DST, TEXTURE);
-    gx.write_texture(&color_texture, (0, 0, 3, 1), &[
-        [255u8, 0, 0, 255], [0, 255, 0, 255], [0, 0, 255, 255],
-    ]);
+    let color_texture = gx.texture_from_data(
+        (3, 1), 1, TexUse::TEXTURE_BINDING, TEXTURE,
+        [[255u8, 0, 0, 255], [0, 255, 0, 255], [0, 0, 255, 255]]
+    );
     let color_texture_view = color_texture.create_default_view();
 
-    let sampler = gx.sampler();
+    let sampler = gx.default_sampler();
 
     // binding
     let binding = gx.bind(&layout, &[
@@ -65,7 +65,7 @@ fn main() {
     let t_pipeline = target.render_pipeline(
         &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
         &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        Primitive::TriangleStrip, Some((&[], &[&layout]))
+        Primitive::TriangleStrip, Some((&[], &layout))
     );
 
     let t_data = [
@@ -82,7 +82,7 @@ fn main() {
     let l_pipeline = target.render_pipeline(
         &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
         &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        Primitive::LineStrip, Some((&[], &[&layout]))
+        Primitive::LineStrip, Some((&[], &layout))
     );
 
     let l_data = [
@@ -101,7 +101,7 @@ fn main() {
     let p_pipeline = target.render_pipeline(
         &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
         &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        Primitive::PointList, Some((&[], &[&layout]))
+        Primitive::PointList, Some((&[], &layout))
     );
 
     let p_data = [
@@ -121,10 +121,7 @@ fn main() {
 
     let (w, h) = (img.width(), img.height());
 
-    let image_texture = gx.texture((w, h), 1, TexUse::TEXTURE_BINDING | TexUse::COPY_DST, TEXTURE);
-
-    gx.write_texture(&image_texture, (0, 0, w, h), &img.as_raw().as_slice());
-
+    let image_texture = gx.texture_from_data((w, h), 1, TexUse::TEXTURE_BINDING, TEXTURE, img.as_raw().as_slice());
     let image_texture_view = image_texture.create_default_view();
 
 
@@ -138,7 +135,7 @@ fn main() {
     let i_pipeline = target.render_pipeline(
         &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
         &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        Primitive::TriangleStrip, Some((&[], &[&layout]))
+        Primitive::TriangleStrip, Some((&[], &layout))
     );
 
     let i_data = [

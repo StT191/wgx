@@ -68,30 +68,40 @@ impl EncoderExtension for wgpu::CommandEncoder {
 
     fn buffer_to_texture(
         &mut self,
-        buffer:&wgpu::Buffer, (bf_w, bf_h, offset):(u32, u32, u64),
-        texture:&wgpu::Texture, (x, y, w, h):(u32, u32, u32, u32)
+        buffer:&wgpu::Buffer, (buffer_width, buffer_height, offset):(u32, u32, u64),
+        texture:&wgpu::Texture, (x, y, width, height):(u32, u32, u32, u32)
     ) {
         self.copy_buffer_to_texture(
             wgpu::ImageCopyBuffer {
-                buffer, layout: wgpu::ImageDataLayout { offset, bytes_per_row: NonZeroU32::new(4 * bf_w), rows_per_image: NonZeroU32::new(bf_h) }
+                buffer,
+                layout: wgpu::ImageDataLayout {
+                    offset,
+                    bytes_per_row: NonZeroU32::new(4 * buffer_width),
+                    rows_per_image: NonZeroU32::new(buffer_height),
+                }
             },
             wgpu::ImageCopyTexture { texture, mip_level: 0, origin: wgpu::Origin3d { x, y, z: 0, }, aspect: wgpu::TextureAspect::All },
-            wgpu::Extent3d {width: w, height: h, depth_or_array_layers: 1},
+            wgpu::Extent3d {width, height, depth_or_array_layers: 1},
         );
     }
 
 
     fn texture_to_buffer(
         &mut self,
-        texture:&wgpu::Texture, (x, y, w, h):(u32, u32, u32, u32),
-        buffer:&wgpu::Buffer, (bf_w, bf_h, offset):(u32, u32, u64)
+        texture:&wgpu::Texture, (x, y, width, height):(u32, u32, u32, u32),
+        buffer:&wgpu::Buffer, (buffer_width, buffer_height, offset):(u32, u32, u64)
     ) {
         self.copy_texture_to_buffer(
             wgpu::ImageCopyTexture { texture, mip_level: 0, origin: wgpu::Origin3d { x, y, z: 0, }, aspect: wgpu::TextureAspect::All },
             wgpu::ImageCopyBuffer {
-                buffer, layout:  wgpu::ImageDataLayout { offset, bytes_per_row: NonZeroU32::new(4 * bf_w), rows_per_image: NonZeroU32::new(bf_h) }
+                buffer,
+                layout: wgpu::ImageDataLayout {
+                    offset,
+                    bytes_per_row: NonZeroU32::new(4 * buffer_width),
+                    rows_per_image: NonZeroU32::new(buffer_height),
+                }
             },
-            wgpu::Extent3d {width: w, height: h, depth_or_array_layers: 1},
+            wgpu::Extent3d {width, height, depth_or_array_layers: 1},
         );
     }
 
@@ -117,10 +127,10 @@ impl EncoderExtension for wgpu::CommandEncoder {
                     load: if let Some(cl) = color
                         {
                             wgpu::LoadOp::Clear(
-                                if attachment.srgb() && attachment.msaa.is_none() {
+                                if attachment.msaa.is_none() || !attachment.srgb() {
                                     cl.linear().into() // convert to linear color space
                                 } else {
-                                    cl.into()
+                                    cl.into() // unless using attachment with srgb
                                 }
                             )
                         }

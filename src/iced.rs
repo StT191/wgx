@@ -151,4 +151,9 @@ impl <P:'static + iced_winit::Program<Renderer=Renderer>>Iced<P> {
 
         self.update_cursor(window);
     }
+
+
+    pub fn recall_staging_belt(&mut self) {
+        self.staging_belt.recall();
+    }
 }

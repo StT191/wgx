@@ -39,12 +39,10 @@ fn main() {
     // first render
 
     // colors
-    let texture = gx.texture((2, 1), 1, TexUse::COPY_DST | TexUse::COPY_SRC  | TexUse::TEXTURE_BINDING, TEXTURE);
-
-    gx.write_texture(&texture, (0, 0, 2, 1), &[
-        (255u8, 0u8, 0u8, 255u8), (0, 0, 255, 50),
-    ]);
-
+    let texture = gx.texture_from_data(
+        (2, 1), 1, /*TexUse::COPY_SRC |*/ TexUse::TEXTURE_BINDING, TEXTURE,
+        [[255u8, 0, 0, 255], [0, 0, 255, 50]]
+    );
 
     /*gx.with_encoder(|encoder, gx| {
         let buff = gx.buffer_from_data::<(u8, u8, u8, u8)>(BufferUsage::COPY_SRC, &[
@@ -75,7 +73,7 @@ fn main() {
     // texture + sampler
 
     let texture_view = texture.create_default_view();
-    let sampler = gx.sampler();
+    let sampler = gx.default_sampler();
 
     let binding = gx.bind(&pipeline.get_bind_group_layout(0), &[
         bind!(0, TextureView, &texture_view),

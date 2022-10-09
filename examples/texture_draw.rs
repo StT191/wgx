@@ -47,7 +47,7 @@ fn main() {
 
 
     // sampler
-    let sampler = gx.sampler();
+    let sampler = gx.default_sampler();
 
 
     // vertices
@@ -61,14 +61,14 @@ fn main() {
 
 
     // colors
-    let color_texture = gx.texture((1, 1), 1, TexUse::TEXTURE_BINDING | TexUse::COPY_DST, TEXTURE);
-    gx.write_texture(&color_texture, (0, 0, 1, 1), Color::from([0.5, 0.0, 1.0]).u8());
+    let color_texture = gx.texture_from_data((1, 1), 1, TexUse::TEXTURE_BINDING, TEXTURE,
+        Color::from([0.5, 0.0, 1.0]).u8(),
+    );
     let color_texture_view = color_texture.create_default_view();
 
 
-
     // draw target
-    let draw_target = TextureTarget::new(&gx, (width, height), false, 1, TexUse::TEXTURE_BINDING, TEXTURE);
+    let draw_target = TextureTarget::new(&gx, (width, height), false, 4, TexUse::TEXTURE_BINDING, TEXTURE);
 
     let draw_pipeline = draw_target.render_pipeline(
         &gx, false, (&shader, "vs_main"), (&shader, "fs_main"),

@@ -42,13 +42,10 @@ fn main() {
   );
 
   // colors
-  let color_texture = gx.texture((1, 1), 1, TexUse::TEXTURE_BINDING | TexUse::COPY_DST, TEXTURE);
-  gx.write_texture(&color_texture, (0, 0, 1, 1), &[
-    [255u8, 0, 0, 255], //[0, 255, 0, 255], [0, 0, 255, 255],
-  ]);
+  let color_texture = gx.texture_from_data((1, 1), 1, TexUse::TEXTURE_BINDING, TEXTURE, [255u8, 0, 0, 255]);
   let color_texture_view = color_texture.create_default_view();
 
-  let sampler = gx.sampler();
+  let sampler = gx.default_sampler();
 
 
   let mut clip_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 64, false);

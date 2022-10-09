@@ -113,8 +113,6 @@ fn main() {
                     Some(layout!(Wrap, Left, Top))
                 );
 
-
-
                 let trf =
                     flat_window_projection(width, height, 0.0) *
                     // window_fov_projection(30.0, width, height) *
@@ -126,16 +124,17 @@ fn main() {
                     // Matrix4::from_angle_x(Deg(45.0)) *
                 ;
 
-
                 target.with_encoder_frame(&gx, |encoder, attachment| {
 
                     encoder.render_pass(attachment, Some(Color::GREEN));
 
-                    encoder.draw_glyphs(&gx, attachment, &mut glyphs, trf, None, Some(&mut staging_belt)).expect("glyph error");
+                    encoder.draw_glyphs(&gx, attachment, &mut glyphs, trf, None, &mut staging_belt).expect("glyph error");
 
                     staging_belt.finish();
 
                 }).expect("frame error");
+
+                staging_belt.recall();
 
 
                 println!("{:?}", then.elapsed());
