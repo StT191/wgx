@@ -5,8 +5,8 @@ use iced_winit::{
         dpi::PhysicalPosition,
         window::Window, event::{WindowEvent, ModifiersState},
     },
-    conversion, program::{Program, State}, Clipboard, Debug, Size, Command,
-    mouse::Interaction,
+    renderer::{Style}, program::{Program, State}, mouse::Interaction,
+    *
 };
 
 use wgpu::{CommandEncoder, util::StagingBelt};
@@ -21,7 +21,6 @@ pub struct Iced<P:'static + Program<Renderer=Renderer>> {
     cursor: PhysicalPosition<f64>,
     interaction: Interaction,
     modifiers: ModifiersState,
-    pub lazy_redraw: bool, // do lazy redraws
     clipboard: Clipboard,
     staging_belt: StagingBelt,
     debug: Debug,
@@ -30,7 +29,7 @@ pub struct Iced<P:'static + Program<Renderer=Renderer>> {
 
 impl <P:'static + iced_winit::Program<Renderer=Renderer>>Iced<P> {
 
-    pub fn new(mut renderer:Renderer, program:P, (width, height):(u32, u32), window:&Window, lazy_redraw:bool) -> Self {
+    pub fn new(mut renderer:Renderer, program:P, (width, height):(u32, u32), window:&Window) -> Self {
 
         let mut debug = Debug::new();
 
@@ -49,7 +48,6 @@ impl <P:'static + iced_winit::Program<Renderer=Renderer>>Iced<P> {
         Self {
             renderer, program_state, viewport, cursor, interaction,
             modifiers: ModifiersState::default(),
-            lazy_redraw,
             clipboard,
             staging_belt: StagingBelt::new(10240),
             debug,
@@ -107,30 +105,29 @@ impl <P:'static + iced_winit::Program<Renderer=Renderer>>Iced<P> {
     }
 
 
-    pub fn update(&mut self, window: &Window) -> Option<Command<P::Message>> {
+    pub fn update(&mut self) -> (bool, Option<Command<P::Message>>) {
         if !self.program_state.is_queue_empty() {
 
-            let command = self.program_state.update(
+            let (_events, command) = self.program_state.update(
                 self.viewport.logical_size(),
                 conversion::cursor_position(
                     self.cursor,
                     self.viewport.scale_factor(),
                 ),
                 &mut self.renderer,
+                &Theme::Light,
+                &Style { text_color: Color::BLACK },
                 &mut self.clipboard,
                 &mut self.debug,
             );
 
-            if !self.lazy_redraw || command.is_some() { window.request_redraw() }
-            else { self.update_cursor(window) }
-
-            command
+            (true, command)
         }
-        else { None }
+        else { (false, None) }
     }
 
 
-    pub fn draw(&mut self, gx:&Wgx, encoder:&mut CommandEncoder, attachment:&RenderAttachment, window: &Window) {
+    pub fn draw(&mut self, gx:&Wgx, encoder:&mut CommandEncoder, attachment:&RenderAttachment) {
 
         // borrow before the closure
         let (staging_belt, viewport, debug) = (&mut self.staging_belt, &self.viewport, &self.debug);
@@ -148,8 +145,6 @@ impl <P:'static + iced_winit::Program<Renderer=Renderer>>Iced<P> {
         });
 
         self.staging_belt.finish();
-
-        self.update_cursor(window);
     }
 
 

@@ -1,5 +1,5 @@
+#![feature(duration_consts_float)]
 
-// use std::{time::{Instant}};
 use futures::executor::block_on;
 use iced_wgpu::Settings;
 use iced_winit::winit;
@@ -16,7 +16,7 @@ use wgx::{*, /*cgmath::**/};
 use iced_wgpu::Renderer;
 use iced_winit::{
     Alignment, Command, Element, Length, Program,
-    widget::{Column, Row, Text, text_input, TextInput, slider, Slider}
+    widget::{Column, Row, Text, TextInput, Slider}
 };
 
 
@@ -29,20 +29,11 @@ pub enum Message {
 pub struct Controls {
     pub color: Color,
     text: String,
-    text_input: text_input::State,
-    sliders: [slider::State; 3],
 }
-
-// Qt.rgba(0.46, 0.6, 0.46, 1)
 
 impl Controls {
     pub fn new() -> Controls {
-        Controls {
-            color: Color::from([0.46, 0.60, 0.46]),
-            text: "".to_string(),
-            text_input: Default::default(),
-            sliders: Default::default(),
-        }
+        Controls { color: Color::from([0.46, 0.60, 0.46]), text: "".to_string() }
     }
 }
 
@@ -60,26 +51,24 @@ impl Program for Controls {
         Command::none()
     }
 
-    fn view(&mut self) -> Element<Message, Renderer> {
-        let [sl_r, sl_g, sl_b] = &mut self.sliders;
+    fn view(&self) -> Element<Message, Renderer> {
         let color = self.color;
 
         Column::new().width(Length::Fill).height(Length::Fill).align_items(Alignment::Center)
         .padding(15).spacing(15)
-        .push(Text::new(&self.text).size(22).color(Color::WHITE).width(Length::Fill).height(Length::Fill))
-        .push(TextInput::new(&mut self.text_input, "input text", &self.text, Message::Text).size(22))
-        .push(Text::new("Background color").color(Color::WHITE))
+        .push(Text::new(&self.text).size(22).style(Color::WHITE.iced()).width(Length::Fill).height(Length::Fill))
+        .push(TextInput::new(/*&mut self.text_input, */"input text", &self.text, Message::Text).size(22))
+        .push(Text::new("Background color").style(Color::WHITE.iced()))
         .push(
             Row::new().width(Length::Units(500)).spacing(20)
-            .push(Slider::new(sl_r, 0.0..=1.0, color.r, move |v| Message::Color(Color {r: v, ..color})).step(0.01))
-            .push(Slider::new(sl_g, 0.0..=1.0, color.g, move |v| Message::Color(Color {g: v, ..color})).step(0.01))
-            .push(Slider::new(sl_b, 0.0..=1.0, color.b, move |v| Message::Color(Color {b: v, ..color})).step(0.01))
+            .push(Slider::new(0.0..=1.0, color.r, move |v| Message::Color(Color {r: v, ..color})).step(0.01))
+            .push(Slider::new(0.0..=1.0, color.g, move |v| Message::Color(Color {g: v, ..color})).step(0.01))
+            .push(Slider::new(0.0..=1.0, color.b, move |v| Message::Color(Color {b: v, ..color})).step(0.01))
         )
-        .push(Text::new(format!("{:?}", color)).size(18).color(Color::WHITE))
+        .push(Text::new(format!("{:?}", color)).size(18).style(Color::WHITE.iced()))
         .into()
     }
 }
-
 
 
 fn main() {
@@ -114,20 +103,26 @@ fn main() {
     // iced setup
     let renderer = gx.iced_renderer(Settings::default(), target.format());
 
-    let mut gui = Iced::new(renderer, Controls::new(), (width, height), &window, false);
+    let mut gui = Iced::new(renderer, Controls::new(), (width, height), &window);
 
+
+    let mut frame_timer = timer::StepInterval::from_secs(1.0 / 60.0);
+    // let mut frame_counter = timer::IntervalCounter::from_secs(5.0);
 
     event_loop.run(move |event, _, control_flow| {
 
-        *control_flow = ControlFlow::Wait;
-
         match event {
+
+            Event::NewEvents(StartCause::ResumeTimeReached {..}) => {
+                window.request_redraw(); // request frame
+                control_flow.set_wait();
+            },
 
             Event::WindowEvent { event, .. } => {
                 match event {
 
                     WindowEvent::CloseRequested => {
-                        *control_flow = ControlFlow::Exit;
+                        control_flow.set_exit();
                     }
 
                     WindowEvent::Resized(size) => {
@@ -135,13 +130,13 @@ fn main() {
                         window.request_redraw();
                     }
 
-                    WindowEvent::KeyboardInput { input: KeyboardInput {
+                    /*WindowEvent::KeyboardInput { input: KeyboardInput {
                         virtual_keycode: Some(keycode), state: ElementState::Pressed, ..
                     }, ..} => {
                         if keycode == VirtualKeyCode::R {
                             window.request_redraw();
                         }
-                    }
+                    }*/
                     _ => (),
                 }
 
@@ -149,37 +144,36 @@ fn main() {
             }
 
             Event::MainEventsCleared => {
-                gui.update(&window);
 
-                /*if let Some(command) = res {
-                    for action in command.actions() {
+                let (need_redraw, _cmd) = gui.update();
 
-                        if let Action::Future(future) = action {
-                            futures::executor::block_on(async {
-                                println!("{:?}", future.await)
-                            });
-                        }
-                        else {
-                            println!("{:?}", action)
-                        }
+                gui.update_cursor(&window);
+
+                let advanced = frame_timer.advance_if_elapsed();
+
+                if need_redraw && *control_flow != ControlFlow::WaitUntil(frame_timer.next) {
+                    * control_flow = if advanced {
+                        window.request_redraw();
+                        ControlFlow::Wait
                     }
-                }*/
+                    else { ControlFlow::WaitUntil(frame_timer.next) }
+                }
             }
 
             Event::RedrawRequested(_) => {
 
-                // let then = Instant::now();
                 target.with_encoder_frame(&gx, |mut encoder, attachment| {
 
                     encoder.render_pass(attachment, Some(gui.program().color));
 
-                    gui.draw(&gx, &mut encoder, attachment, &window);
+                    gui.draw(&gx, &mut encoder, attachment);
 
                 }).expect("frame error");
 
                 gui.recall_staging_belt();
 
-                // println!("{:?}", then.elapsed());
+                // frame_counter.add();
+                // if let Some(counted) = frame_counter.count() { println!("{:?}", counted) }
             },
 
             _ => {}

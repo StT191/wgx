@@ -204,6 +204,7 @@ impl SurfaceTarget {
 
         let formats = surface.get_supported_formats(&wgx.adapter);
 
+        // config.format = *formats.get(0).ok_or("couldn't get default format")?;
         config.format = *formats.iter().find(|fmt| fmt.describe().srgb).ok_or("couldn't get srgb format")?;
 
         let modes = surface.get_supported_modes(&wgx.adapter);
