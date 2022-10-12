@@ -12,8 +12,8 @@ use wgx::*;
 fn main() {
 
     const DEPTH_TESTING:bool = false;
-    const ALPHA_BLENDING:bool = false;
     const MSAA:u32 = 1;
+    const ALPHA_BLENDING:Option<BlendState> = None;
 
 
     let event_loop = EventLoop::new();
@@ -30,21 +30,19 @@ fn main() {
     window.set_title("WgFx");
 
 
-    let mut gx = block_on(Wgx::new(Some(&window), Features::empty(), limits!{})).unwrap();
-    let mut target = gx.surface_target((width, height), DEPTH_TESTING, MSAA).unwrap();
+    let (gx, surface) = block_on(Wgx::new(Some(&window), Features::empty(), limits!{})).unwrap();
+    let mut target = SurfaceTarget::new(&gx, surface.unwrap(), (width, height), MSAA, DEPTH_TESTING).unwrap();
 
 
     // shaders
     let shader = gx.load_wgsl(include_wgsl_module!("./shaders/flat_text.wgsl"));
 
-
     // pipeline
-    let pipeline = target.render_pipeline(
-        &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
-        &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        Primitive::TriangleStrip, None,
+    let pipeline = target.render_pipeline(&gx,
+        None, &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
+        (&shader, "vs_main", Primitive::TriangleStrip),
+        (&shader, "fs_main", ALPHA_BLENDING),
     );
-
 
     // sampler
     let sampler = gx.default_sampler();
@@ -61,47 +59,59 @@ fn main() {
 
 
     // colors
-    let color_texture = gx.texture_from_data((1, 1), 1, TexUse::TEXTURE_BINDING, TEXTURE,
+    let color_texture = TextureLot::new_2d_with_data(&gx,
+        (1, 1), 1, TEXTURE, TexUse::TEXTURE_BINDING,
         Color::from([0.5, 0.0, 1.0]).u8(),
     );
-    let color_texture_view = color_texture.create_default_view();
 
 
     // draw target
-    let draw_target = TextureTarget::new(&gx, (width, height), false, 4, TexUse::TEXTURE_BINDING, TEXTURE);
+    let draw_target = TextureTarget::new(&gx, (width, height), 1, false, TEXTURE, TexUse::TEXTURE_BINDING);
+    // let draw_target2 = TextureTarget::new(&gx, (width, height), 1, false, TEXTURE, TexUse::TEXTURE_BINDING);
 
-    let draw_pipeline = draw_target.render_pipeline(
-        &gx, false, (&shader, "vs_main"), (&shader, "fs_main"),
+    let draw_pipeline = gx.render_pipeline(
+        false, 1, None,
         &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        Primitive::TriangleStrip, None,
+        (&shader, "vs_main", Primitive::TriangleStrip),
+        Some((&shader, "fs_main", &[
+            (draw_target.format(), ALPHA_BLENDING),
+            // (draw_target2.format(), ALPHA_BLENDING),
+        ])),
     );
 
-    let draw_binding = gx.bind(&pipeline.get_bind_group_layout(0), &[
-        bind!(0, TextureView, &color_texture_view),
+    let draw_binding = gx.bind(&draw_pipeline.get_bind_group_layout(0), &[
+        bind!(0, TextureView, &color_texture.view),
         bind!(1, Sampler, &sampler),
     ]);
 
-    target.with_encoder_frame(&gx, |encoder, attachment| { // !! ecoder witout draw to attachment produces hang!
+    target.with_encoder_frame(&gx, |encoder, frame| { // !! ecoder witout draw to attachment produces hang!
 
-        encoder.with_render_pass(&draw_target.attachment().unwrap(), Some(Color::ORANGE), |mut rpass| {
-            rpass.set_pipeline(&draw_pipeline);
-            rpass.set_bind_group(0, &draw_binding, &[]);
-            rpass.set_vertex_buffer(0, vertices.slice(..));
-            rpass.draw(0..vertex_data.len() as u32, 0..1);
-        });
+        encoder.with_render_pass(
+            (
+                [
+                    Some(draw_target.color_attachment(Some(Color::ORANGE))),
+                    // Some(draw_target2.color_attachment(Some(Color::ORANGE))),
+                ],
+                None
+            ),
+            |mut rpass| {
+                rpass.set_pipeline(&draw_pipeline);
+                rpass.set_bind_group(0, &draw_binding, &[]);
+                rpass.set_vertex_buffer(0, vertices.slice(..));
+                rpass.draw(0..vertex_data.len() as u32, 0..1);
+            }
+        );
 
-        encoder.render_pass(attachment, None);
+        encoder.render_pass(frame.attachments(Some(Color::GREEN), None));
 
     }).expect("frame error");
 
 
-
     // binding
-    let binding = gx.bind(&draw_pipeline.get_bind_group_layout(0), &[
-        bind!(0, TextureView, &draw_target.attachment().unwrap().view),
+    let binding = gx.bind(&pipeline.get_bind_group_layout(0), &[
+        bind!(0, TextureView, &draw_target.view),
         bind!(1, Sampler, &sampler),
     ]);
-
 
     event_loop.run(move |event, _, control_flow| {
 
@@ -130,15 +140,16 @@ fn main() {
 
                 let then = Instant::now();
 
-                target.with_encoder_frame(&gx, |encoder, attachment| {
-
-                    encoder.with_render_pass(attachment, Some(Color::GREEN), |mut rpass| {
-                        rpass.set_pipeline(&pipeline);
-                        rpass.set_bind_group(0, &binding, &[]);
-                        rpass.set_vertex_buffer(0, vertices.slice(..));
-                        rpass.draw(0..vertex_data.len() as u32, 0..1);
-                    });
-
+                target.with_encoder_frame(&gx, |encoder, frame| {
+                    encoder.with_render_pass(
+                        frame.attachments(Some(Color::GREEN), None),
+                        |mut rpass| {
+                            rpass.set_pipeline(&pipeline);
+                            rpass.set_bind_group(0, &binding, &[]);
+                            rpass.set_vertex_buffer(0, vertices.slice(..));
+                            rpass.draw(0..vertex_data.len() as u32, 0..1);
+                        }
+                    );
                 }).expect("frame error");
 
                 println!("{:?}", then.elapsed());

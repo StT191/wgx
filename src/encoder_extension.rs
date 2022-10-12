@@ -1,19 +1,7 @@
 
 // use core::ops::Range;
 use std::{num::NonZeroU32};
-use crate::{Color, RenderAttachment};
-
-
-// default view extension
-pub trait DefaultViewExtension<T> {
-    fn create_default_view(&self) -> T;
-}
-
-impl DefaultViewExtension<wgpu::TextureView> for wgpu::Texture {
-    fn create_default_view(&self) -> wgpu::TextureView {
-        self.create_view(&wgpu::TextureViewDescriptor::default())
-    }
-}
+use crate::RenderAttachments;
 
 
 pub trait EncoderExtension {
@@ -39,15 +27,15 @@ pub trait EncoderExtension {
 
     fn with_compute_pass<'a, T>(&'a mut self, handler: impl FnOnce(wgpu::ComputePass<'a>) -> T) -> T;
 
-    fn render_pass<'a>(&'a mut self, attachment:&'a RenderAttachment, color:Option<Color>) -> wgpu::RenderPass<'a>;
+    fn render_pass<'a, const S: usize>(&'a mut self, attachments: RenderAttachments<'a, S>) -> wgpu::RenderPass<'a>;
 
-    fn with_render_pass<'a, T>(
-        &'a mut self, attachment:&'a RenderAttachment, color:Option<Color>,
+    fn with_render_pass<'a, const S: usize, T>(
+        &'a mut self, attachments: RenderAttachments<'a, S>,
         handler: impl FnOnce(wgpu::RenderPass<'a>) -> T
     ) -> T;
 
-    fn render_bundles<'a>(
-        &'a mut self, attachment:&'a RenderAttachment, color:Option<Color>,
+    fn render_bundles<'a, const S: usize>(
+        &'a mut self, attachments: RenderAttachments<'a, S>,
         bundles: impl IntoIterator<Item = &'a wgpu::RenderBundle>
     );
 }
@@ -116,59 +104,27 @@ impl EncoderExtension for wgpu::CommandEncoder {
     }
 
 
-    fn render_pass<'a>(&'a mut self, attachment:&'a RenderAttachment, color:Option<Color>) -> wgpu::RenderPass<'a>
+    fn render_pass<'a, const S: usize>(&'a mut self, (color_attachments, depth_stencil_attachment): RenderAttachments<'a, S>)
+        -> wgpu::RenderPass<'a>
     {
         self.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: None,
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: if let Some(ms_at) = attachment.msaa { ms_at } else { attachment.view },
-                resolve_target: if attachment.msaa.is_some() { Some(attachment.view) } else { None },
-                ops: wgpu::Operations {
-                    load: if let Some(cl) = color
-                        {
-                            wgpu::LoadOp::Clear(
-                                if attachment.msaa.is_none() || !attachment.srgb() {
-                                    cl.linear().into() // convert to linear color space
-                                } else {
-                                    cl.into() // unless using attachment with srgb
-                                }
-                            )
-                        }
-                        else {
-                            wgpu::LoadOp::Load
-                        },
-                    store: true
-                }
-            })],
-            depth_stencil_attachment: if let Some(depth_attachment) = attachment.depth {
-              Some(wgpu::RenderPassDepthStencilAttachment {
-                view: depth_attachment,
-                depth_ops: Some(wgpu::Operations {
-                    load: if color.is_some() { wgpu::LoadOp::Clear(1.0) } else { wgpu::LoadOp::Load },
-                    store: true
-                }),
-                stencil_ops: None,
-                /*stencil_ops: Some(wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(0),
-                    store: true
-                }),*/
-            })} else { None },
+            label: None, color_attachments: &color_attachments, depth_stencil_attachment
         })
     }
 
 
-    fn with_render_pass<'a, T>(
-        &'a mut self, attachment:&'a RenderAttachment, color:Option<Color>,
+    fn with_render_pass<'a, const S: usize, T>(
+        &'a mut self, attachments: RenderAttachments<'a, S>,
         handler: impl FnOnce(wgpu::RenderPass<'a>) -> T
     ) -> T {
-        handler(self.render_pass(attachment, color))
+        handler(self.render_pass(attachments))
     }
 
 
-    fn render_bundles<'a>(
-        &'a mut self, attachment:&'a RenderAttachment, color:Option<Color>,
+    fn render_bundles<'a, const S: usize>(
+        &'a mut self, attachments: RenderAttachments<'a, S>,
         bundles: impl IntoIterator<Item = &'a wgpu::RenderBundle>
     ) {
-        self.render_pass(attachment, color).execute_bundles(bundles.into_iter());
+        self.render_pass(attachments).execute_bundles(bundles.into_iter());
     }
 }

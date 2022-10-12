@@ -13,7 +13,7 @@ pub fn main() {
 
     const DEPTH_TESTING:bool = false;
     const MSAA:u32 = 4;
-    const ALPHA_BLENDING:bool = false;
+    const ALPHA_BLENDING:Option<BlendState> = None;
 
 
     let (width, height) = (1000, 1000);
@@ -23,8 +23,8 @@ pub fn main() {
     window.set_inner_size(PhysicalSize::<u32>::from((width, height)));
     window.set_title("WgFx");
 
-    let mut gx = block_on(Wgx::new(Some(&window), Features::VERTEX_WRITABLE_STORAGE, limits!{})).unwrap();
-    let mut target = gx.surface_target((width, height), DEPTH_TESTING, MSAA).unwrap();
+    let (gx, surface) = block_on(Wgx::new(Some(&window), Features::VERTEX_WRITABLE_STORAGE, limits!{})).unwrap();
+    let mut target = SurfaceTarget::new(&gx, surface.unwrap(), (width, height), MSAA, DEPTH_TESTING).unwrap();
 
 
     // pipeline
@@ -32,10 +32,10 @@ pub fn main() {
 
     let cp_pipeline = gx.compute_pipeline((&shader, "cp_main"), None);
 
-    let pipeline = target.render_pipeline(
-        &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
-        &[vertex_desc!(Vertex, 0 => Float32x4, 1 => Float32x4)],
-        Primitive::TriangleList, None,
+    let pipeline = target.render_pipeline(&gx,
+        None, &[vertex_desc!(Vertex, 0 => Float32x4, 1 => Float32x4)],
+        (&shader, "vs_main", Primitive::TriangleList),
+        (&shader, "fs_main", ALPHA_BLENDING),
     );
 
 
@@ -179,7 +179,7 @@ pub fn main() {
 
                 let then = Instant::now();
 
-                target.with_encoder_frame(&gx, |encoder, attachment| {
+                target.with_encoder_frame(&gx, |encoder, frame| {
 
                     encoder.with_compute_pass(|mut cpass| {
                         cpass.set_pipeline(&cp_pipeline);
@@ -187,7 +187,7 @@ pub fn main() {
                         cpass.dispatch_workgroups(instance_data.len() as u32, steps, 1);
                     });
 
-                    encoder.with_render_pass(attachment, Some(Color::GREEN), |mut rpass| {
+                    encoder.with_render_pass(frame.attachments(Some(Color::GREEN), None), |mut rpass| {
                         rpass.set_pipeline(&pipeline);
                         rpass.set_bind_group(0, &binding, &[]);
                         rpass.set_vertex_buffer(0, vertex_buffer.slice(..));

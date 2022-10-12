@@ -13,7 +13,7 @@ fn main() {
 
     const DEPTH_TESTING:bool = false;
     const MSAA:u32 = 4;
-    const ALPHA_BLENDING:bool = true;
+    const ALPHA_BLENDING:Option<BlendState> = None;
 
 
     let (width, height) = (1000, 1000);
@@ -23,8 +23,8 @@ fn main() {
     window.set_inner_size(PhysicalSize::<u32>::from((width, height)));
     window.set_title("WgFx");
 
-    let mut gx = block_on(Wgx::new(Some(&window), Features::PUSH_CONSTANTS, limits!{max_push_constant_size: 4})).unwrap();
-    let mut target = gx.surface_target((width, height), DEPTH_TESTING, MSAA).unwrap();
+    let (gx, surface) = block_on(Wgx::new(Some(&window), Features::PUSH_CONSTANTS, limits!{max_push_constant_size: 4})).unwrap();
+    let mut target = SurfaceTarget::new(&gx, surface.unwrap(), (width, height), MSAA, DEPTH_TESTING).unwrap();
 
 
     // pipeline
@@ -35,10 +35,11 @@ fn main() {
         binding!(1, Shader::FRAGMENT, UniformBuffer, 8),
     ]);
 
-    let pipeline = target.render_pipeline(
-        &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
+    let pipeline = target.render_pipeline(&gx,
+        Some((push_constants![0..4 => Shader::FRAGMENT], &[&layout])),
         &[vertex_desc!(Vertex, 0 => Float32x2)],
-        Primitive::TriangleList, Some((push_constants![0..4 => Shader::FRAGMENT], &layout))
+        (&shader, "vs_main", Primitive::TriangleList),
+        (&shader, "fs_main", ALPHA_BLENDING),
     );
 
     // vertices
@@ -132,8 +133,8 @@ fn main() {
             Event::RedrawRequested(_) => {
 
                 // draw
-                target.with_encoder_frame(&gx, |encoder, attachment| {
-                    encoder.with_render_pass(attachment, Some(Color::BLACK), |mut rpass| {
+                target.with_encoder_frame(&gx, |encoder, frame| {
+                    encoder.with_render_pass(frame.attachments(Some(Color::BLACK), None), |mut rpass| {
                         rpass.set_pipeline(&pipeline);
                         rpass.set_bind_group(0, &binding, &[]);
                         rpass.set_vertex_buffer(0, vertices.slice(..));

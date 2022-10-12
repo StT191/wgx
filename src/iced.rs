@@ -11,7 +11,7 @@ use iced_winit::{
 
 use wgpu::{CommandEncoder, util::StagingBelt};
 
-use crate::{Wgx, RenderAttachment};
+use crate::{Wgx, RenderAttachable};
 
 
 pub struct Iced<P:'static + Program<Renderer=Renderer>> {
@@ -127,7 +127,7 @@ impl <P:'static + iced_winit::Program<Renderer=Renderer>>Iced<P> {
     }
 
 
-    pub fn draw(&mut self, gx:&Wgx, encoder:&mut CommandEncoder, attachment:&RenderAttachment) {
+    pub fn draw(&mut self, gx:&Wgx, encoder:&mut CommandEncoder, target: &impl RenderAttachable) {
 
         // borrow before the closure
         let (staging_belt, viewport, debug) = (&mut self.staging_belt, &self.viewport, &self.debug);
@@ -137,7 +137,7 @@ impl <P:'static + iced_winit::Program<Renderer=Renderer>>Iced<P> {
                 &gx.device,
                 staging_belt,
                 encoder,
-                attachment.view,
+                target.color_views().0,
                 primitive,
                 viewport,
                 &debug.overlay(),

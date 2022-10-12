@@ -8,6 +8,8 @@ pub use wgpu::{
     PrimitiveTopology as Primitive,
     ShaderStages as Shader,
     Features, Limits,
+    BlendState, BlendComponent, BlendFactor, BlendOperation,
+    TextureDescriptor as TexDsc,
 };
 
 // macros
@@ -21,11 +23,14 @@ mod color;
 pub use color::*;
 
 // wgx
-mod wgpu_extensions;
-pub use wgpu_extensions::*;
-
 mod wgx;
 pub use wgx::*;
+
+mod encoder_extension;
+pub use encoder_extension::*;
+
+mod texture_extension;
+pub use texture_extension::*;
 
 mod render_target;
 pub use render_target::*;

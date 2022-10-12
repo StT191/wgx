@@ -24,6 +24,7 @@ wgsl_modules = ["dep:wgsl_modules"]
 [dependencies]
 wgpu = { version = "0.13" }
 raw-window-handle = "0.4"
+arrayvec = "0.7"
 
 # optional
 cgmath = { version = "0", optional = true }

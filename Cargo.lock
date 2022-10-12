@@ -2533,6 +2533,7 @@ dependencies = [
 name = "wgx"
 version = "0.1.0"
 dependencies = [
+ "arrayvec 0.7.2",
  "cgmath",
  "futures",
  "iced_wgpu",

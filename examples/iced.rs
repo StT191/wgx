@@ -96,8 +96,8 @@ fn main() {
 
 
     // wgx setup
-    let mut gx = block_on(Wgx::new(Some(&window), Features::empty(), limits!{})).unwrap();
-    let mut target = gx.surface_target((width, height), DEPTH_TESTING, MSAA).unwrap();
+    let (gx, surface) = block_on(Wgx::new(Some(&window), Features::empty(), limits!{})).unwrap();
+    let mut target = SurfaceTarget::new(&gx, surface.unwrap(), (width, height), MSAA, DEPTH_TESTING).unwrap();
 
 
     // iced setup
@@ -162,11 +162,11 @@ fn main() {
 
             Event::RedrawRequested(_) => {
 
-                target.with_encoder_frame(&gx, |mut encoder, attachment| {
+                target.with_encoder_frame(&gx, |mut encoder, frame| {
 
-                    encoder.render_pass(attachment, Some(gui.program().color));
+                    encoder.render_pass(frame.attachments(Some(gui.program().color), None));
 
-                    gui.draw(&gx, &mut encoder, attachment);
+                    gui.draw(&gx, &mut encoder, frame);
 
                 }).expect("frame error");
 

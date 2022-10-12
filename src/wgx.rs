@@ -2,33 +2,27 @@
 #[cfg(feature = "iced")]
 use iced_wgpu::{Renderer, Backend, Settings};
 use std::num::NonZeroU32;
+use arrayvec::ArrayVec;
 use wgpu::util::DeviceExt;
 use raw_window_handle::HasRawWindowHandle;
 use crate::{*, byte_slice::AsByteSlice, error::*};
-
-
-// Default Texture Formats
-pub const TEXTURE:wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
-pub const TEXTURE_LINEAR:wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
-pub const DEPTH: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
 
 // wgx
 
 pub struct Wgx {
     pub instance: wgpu::Instance,
-    pub(super) adapter: wgpu::Adapter,
+    pub adapter: wgpu::Adapter,
     pub device: wgpu::Device,
-    queue: wgpu::Queue,
-    surface: Option<wgpu::Surface>,
+    pub queue: wgpu::Queue,
 }
 
 
 impl Wgx {
 
-    pub async fn new<W: HasRawWindowHandle>(
-        window:Option<&W>, features:wgpu::Features, limits:wgpu::Limits,
-    ) -> Res<Self> {
+    pub async fn new<W: HasRawWindowHandle>(window:Option<&W>, features:wgpu::Features, limits:wgpu::Limits,)
+        -> Res<(Self, Option<wgpu::Surface>)>
+    {
 
         let instance = wgpu::Instance::new(wgpu::Backends::all());
 
@@ -51,35 +45,53 @@ impl Wgx {
             &wgpu::DeviceDescriptor {label: None, features, limits}, None,
         ).await.map_err(error)?;
 
-        Ok(Self { instance, adapter, device, queue, surface })
-    }
-
-
-    pub fn surface_target(&mut self, size:(u32, u32), depth_testing:bool, msaa:u32) -> Res<SurfaceTarget>
-    {
-        let surface = self.surface.take().ok_or("no surface")?;
-
-        SurfaceTarget::new(self, surface, size, depth_testing, msaa)
+        Ok((Self { instance, adapter, device, queue }, surface))
     }
 
 
     // texture
+    pub fn texture(&self, descriptor:&TexDsc) -> wgpu::Texture {
+        self.device.create_texture(descriptor)
+    }
 
-    pub fn texture(&self,
-        (width, height):(u32, u32), sample_count:u32, usage:wgpu::TextureUsages, format:wgpu::TextureFormat
+    pub fn texture_2d(&self, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse)
+        -> wgpu::Texture
+    {
+        self.texture(&TexDsc::new_2d(size, sample_count, format, usage))
+    }
+
+    pub fn texture_2d_bound(&self, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse)
+        -> wgpu::Texture
+    {
+        self.texture_2d(size, sample_count, format, TexUse::TEXTURE_BINDING | usage)
+    }
+
+    pub fn texture_2d_attached(&self, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse)
+        -> wgpu::Texture
+    {
+        self.texture_2d(size, sample_count, format, TexUse::RENDER_ATTACHMENT | usage)
+    }
+
+    pub fn texture_with_data<T: AsByteSlice<U>, U>(&self, descriptor: &TexDsc, data: T) -> wgpu::Texture {
+        self.device.create_texture_with_data(&self.queue, descriptor, data.as_byte_slice())
+    }
+
+    pub fn texture_2d_with_data<T: AsByteSlice<U>, U>(
+        &self, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse, data: T
     ) -> wgpu::Texture {
-        self.device.create_texture(&wgpu::TextureDescriptor {
-            usage, label: None, mip_level_count: 1, sample_count, dimension: wgpu::TextureDimension::D2,
-            size: wgpu::Extent3d {width, height, depth_or_array_layers: 1}, format,
-        })
+        self.texture_with_data(&TexDsc::new_2d(size, sample_count, format, usage), data)
     }
 
-    pub fn depth_texture(&self, (width, height):(u32, u32), msaa:u32) -> wgpu::Texture {
-        self.texture((width, height), msaa, wgpu::TextureUsages::RENDER_ATTACHMENT, DEPTH)
-    }
-
-    pub fn msaa_texture(&self, (width, height):(u32, u32), msaa:u32, format:wgpu::TextureFormat) -> wgpu::Texture {
-        self.texture((width, height), msaa, wgpu::TextureUsages::RENDER_ATTACHMENT, format)
+    pub fn write_texture<T: AsByteSlice<U>, U>(&self, texture:&wgpu::Texture, (x, y, w, h):(u32, u32, u32, u32), data:T) {
+        self.queue.write_texture(
+            wgpu::ImageCopyTexture {
+                texture, mip_level: 0, origin: wgpu::Origin3d { x, y, z: 0 },
+                aspect: wgpu::TextureAspect::All
+            },
+            data.as_byte_slice(),
+            wgpu::ImageDataLayout { offset: 0, bytes_per_row: NonZeroU32::new(4 * w), rows_per_image: NonZeroU32::new(h) },
+            wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
+        )
     }
 
     pub fn sampler(&self, descriptor: &wgpu::SamplerDescriptor) -> wgpu::Sampler {
@@ -101,27 +113,6 @@ impl Wgx {
             compare: None, // Some(wgpu::CompareFunction::LessEqual),
             anisotropy_clamp: None, // NonZeroU8::new(16),
         })
-    }
-
-    pub fn texture_from_data<T: AsByteSlice<U>, U>(&self,
-        (width, height):(u32, u32), sample_count:u32, usage:wgpu::TextureUsages, format:wgpu::TextureFormat, data: T
-    ) -> wgpu::Texture {
-        self.device.create_texture_with_data(&self.queue, &wgpu::TextureDescriptor {
-            usage, label: None, mip_level_count: 1, sample_count, dimension: wgpu::TextureDimension::D2,
-            size: wgpu::Extent3d {width, height, depth_or_array_layers: 1}, format,
-        }, data.as_byte_slice())
-    }
-
-    pub fn write_texture<T: AsByteSlice<U>, U>(&self, texture:&wgpu::Texture, (x, y, w, h):(u32, u32, u32, u32), data:T) {
-        self.queue.write_texture(
-            wgpu::ImageCopyTexture {
-                texture, mip_level: 0, origin: wgpu::Origin3d { x, y, z: 0 },
-                aspect: wgpu::TextureAspect::All
-            },
-            data.as_byte_slice(),
-            wgpu::ImageDataLayout { offset: 0, bytes_per_row: NonZeroU32::new(4 * w), rows_per_image: NonZeroU32::new(h) },
-            wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
-        )
     }
 
 
@@ -224,31 +215,35 @@ impl Wgx {
 
     // render pipeline
 
-    pub fn render_pipeline(
-        &self, format:wgpu::TextureFormat, depth_testing:bool, msaa:u32, alpha_blend:bool,
-        (vs_module, vs_entry_point):(&wgpu::ShaderModule, &str), (fs_module, fs_entry_point):(&wgpu::ShaderModule, &str),
-        vertex_layouts:&[wgpu::VertexBufferLayout], topology:wgpu::PrimitiveTopology,
-        layout:Option<(&[wgpu::PushConstantRange], &wgpu::BindGroupLayout)>
+    pub fn render_pipeline<const S: usize>(
+        &self,
+        depth_testing: bool, msaa: u32,
+        layout: Option<(&[wgpu::PushConstantRange], &[&wgpu::BindGroupLayout])>,
+        buffers: &[wgpu::VertexBufferLayout],
+        (module, entry_point, topology): (&wgpu::ShaderModule, &str, wgpu::PrimitiveTopology),
+        fragment: Option<(&wgpu::ShaderModule, &str, &[(wgpu::TextureFormat, Option<BlendState>); S])>,
     ) -> wgpu::RenderPipeline {
 
-        let layout = if let Some(layout) = layout {
-            Some(self.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: None, push_constant_ranges: layout.0, bind_group_layouts: &[layout.1]
-            }))
-        }
-        else { None };
+        // cache temporar values
+        let pipeline_layout;
+        let targets: ArrayVec<_, S>;
+
 
         self.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
 
             label: None,
 
-            layout: layout.as_ref(),
+            layout: if let Some((push_constant_ranges, bind_group_layouts)) = layout {
 
-            vertex: wgpu::VertexState {
-                module: vs_module,
-                entry_point: vs_entry_point,
-                buffers: vertex_layouts,
-            },
+                pipeline_layout = self.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                    label: None, push_constant_ranges, bind_group_layouts,
+                });
+
+                Some(&pipeline_layout)
+            }
+            else { None },
+
+            vertex: wgpu::VertexState { module, entry_point, buffers },
 
             primitive: wgpu::PrimitiveState {
                 topology,
@@ -260,33 +255,17 @@ impl Wgx {
                 conservative: false,
             },
 
-            fragment: Some(wgpu::FragmentState {
-                module: fs_module,
-                entry_point: fs_entry_point,
+            fragment: if let Some((module, entry_point, formats)) = fragment {
 
-                targets: &[Some(wgpu::ColorTargetState {
-
-                    format,
-
-                    blend: if alpha_blend { Some(wgpu::BlendState {
-
-                        color: wgpu::BlendComponent {
-                            src_factor: wgpu::BlendFactor::SrcAlpha,
-                            dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
-                            operation: wgpu::BlendOperation::Add,
-                        },
-
-                        alpha: wgpu::BlendComponent {
-                            src_factor: wgpu::BlendFactor::One,
-                            dst_factor: wgpu::BlendFactor::One,
-                            operation: wgpu::BlendOperation::Max,
-                        }
-
-                    })} else { None },
-
+                targets = formats.iter().map(|(format, blend)| Some(wgpu::ColorTargetState {
+                    format: *format,
+                    blend: *blend,
                     write_mask: wgpu::ColorWrites::ALL,
-                })]
-            }),
+                })).collect();
+
+                Some(wgpu::FragmentState { module, entry_point, targets: &targets })
+            }
+            else {None},
 
             depth_stencil: if depth_testing { Some(wgpu::DepthStencilState {
                 format: DEPTH,
@@ -294,12 +273,11 @@ impl Wgx {
                 depth_compare: wgpu::CompareFunction::LessEqual,
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
-            }) } else { None },
+            }) }
+            else { None },
 
             multisample: wgpu::MultisampleState {
-                count: msaa,
-                mask: !0,
-                alpha_to_coverage_enabled: false,
+                count: msaa, mask: !0, alpha_to_coverage_enabled: false,
             },
 
             multiview: None,

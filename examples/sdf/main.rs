@@ -14,7 +14,7 @@ fn main() {
 
     const DEPTH_TESTING:bool = false;
     const MSAA:u32 = 1;
-    const ALPHA_BLENDING:bool = false;
+    const ALPHA_BLENDING:Option<BlendState> = None;
 
 
     let (width, height) = (1280, 900);
@@ -24,8 +24,8 @@ fn main() {
     window.set_inner_size(PhysicalSize::<u32>::from((width, height)));
     window.set_title("WgFx");
 
-    let mut gx = block_on(Wgx::new(Some(&window), Features::PUSH_CONSTANTS, limits!{max_push_constant_size: 4})).unwrap();
-    let mut target = gx.surface_target((width, height), DEPTH_TESTING, MSAA).unwrap();
+    let (gx, surface) = block_on(Wgx::new(Some(&window), Features::PUSH_CONSTANTS, limits!{max_push_constant_size: 4})).unwrap();
+    let mut target = SurfaceTarget::new(&gx, surface.unwrap(), (width, height), MSAA, DEPTH_TESTING).unwrap();
 
 
     let shader_src = match &*std::env::args().nth(1).expect("Specify a program!") {
@@ -43,10 +43,11 @@ fn main() {
         // binding!(2, Shader::FRAGMENT, UniformBuffer, 4),
     ]);
 
-    let pipeline = target.render_pipeline(
-        &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
+    let pipeline = target.render_pipeline(&gx,
+        Some((push_constants![0..4 => Shader::FRAGMENT], &[&layout])),
         &[vertex_desc!(Vertex, 0 => Float32x2)],
-        Primitive::TriangleList, Some((push_constants![0..4 => Shader::FRAGMENT], &layout))
+        (&shader, "vs_main", Primitive::TriangleList),
+        (&shader, "fs_main", ALPHA_BLENDING),
     );
 
     // vertices
@@ -163,10 +164,10 @@ fn main() {
                 // draw
                 // gx.write_buffer(&mut t_buffer, 0, &[time.elapsed().as_secs_f32()]);
 
-                target.with_encoder_frame(&gx, |encoder, attachment| {
-                    // encoder.render_bundles(attachment, Some(Color::BLACK), &bundles);
+                target.with_encoder_frame(&gx, |encoder, frame| {
+                    // encoder.render_bundles(frame.attachments(Some(Color::BLACK), None), &bundles);
 
-                    encoder.with_render_pass(attachment, Some(Color::BLACK), |mut rpass| {
+                    encoder.with_render_pass(frame.attachments(Some(Color::BLACK), None), |mut rpass| {
 
                         // rpass.execute_bundles(bundles.iter());
 

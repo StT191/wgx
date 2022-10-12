@@ -13,7 +13,7 @@ fn main() {
 
   const DEPTH_TESTING:bool = true;
   const MSAA:u32 = 4;
-  const ALPHA_BLENDING:bool = false;
+  const ALPHA_BLENDING:Option<BlendState> = None;
 
 
   let (width, height) = (1000, 1000);
@@ -23,8 +23,8 @@ fn main() {
   window.set_inner_size(PhysicalSize::<u32>::from((width, height)));
   window.set_title("WgFx");
 
-  let mut gx = block_on(Wgx::new(Some(&window), Features::empty(), limits!{})).unwrap();
-  let mut target = gx.surface_target((width, height), DEPTH_TESTING, MSAA).unwrap();
+  let (gx, surface) = block_on(Wgx::new(Some(&window), Features::empty(), limits!{})).unwrap();
+  let mut target = SurfaceTarget::new(&gx, surface.unwrap(), (width, height), MSAA, DEPTH_TESTING).unwrap();
 
 
   // pipeline
@@ -32,16 +32,15 @@ fn main() {
 
 
   // triangle pipeline
-  let pipeline = target.render_pipeline(
-    &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
-    &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x3, 2 => Float32x3)],
-    Primitive::TriangleList, None
+  let pipeline = target.render_pipeline(&gx,
+    None, &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x3, 2 => Float32x3)],
+    (&shader, "vs_main", Primitive::TriangleList),
+    (&shader, "fs_main", ALPHA_BLENDING),
   );
 
 
   // colors
-  let color_texture = gx.texture_from_data((1, 1), 1, TexUse::TEXTURE_BINDING, TEXTURE, [255u8, 0, 0, 255]);
-  let color_texture_view = color_texture.create_default_view();
+  let color_texture = TextureLot::new_2d_with_data(&gx, (1, 1), 1, TEXTURE, TexUse::TEXTURE_BINDING, [255u8, 0, 0, 255]);
 
   let sampler = gx.default_sampler();
 
@@ -53,7 +52,7 @@ fn main() {
   let binding = gx.bind(&pipeline.get_bind_group_layout(0), &[
     bind!(0, Buffer, &clip_buffer),
     bind!(1, Buffer, &light_buffer),
-    bind!(2, TextureView, &color_texture_view),
+    bind!(2, TextureView, &color_texture.view),
     bind!(3, Sampler, &sampler),
   ]);
 
@@ -197,8 +196,8 @@ fn main() {
 
         // let then = Instant::now();
 
-        target.with_encoder_frame(&gx, |encoder, attachment| {
-          encoder.render_bundles(attachment, Some(Color::BLACK), &bundles);
+        target.with_encoder_frame(&gx, |encoder, frame| {
+          encoder.render_bundles(frame.attachments(Some(Color::BLACK), Some(1.0)), &bundles);
         }).expect("frame error");
 
         // println!("{:?}", then.elapsed());

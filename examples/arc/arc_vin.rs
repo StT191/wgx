@@ -13,7 +13,7 @@ pub fn main() {
 
     const DEPTH_TESTING:bool = false;
     const MSAA:u32 = 4;
-    const ALPHA_BLENDING:bool = false;
+    const ALPHA_BLENDING:Option<BlendState> = None;
 
 
     let (width, height) = (1000, 1000);
@@ -23,20 +23,20 @@ pub fn main() {
     window.set_inner_size(PhysicalSize::<u32>::from((width, height)));
     window.set_title("WgFx");
 
-    let mut gx = block_on(Wgx::new(Some(&window), Features::empty(), limits!{})).unwrap();
-    let mut target = gx.surface_target((width, height), DEPTH_TESTING, MSAA).unwrap();
+    let (gx, surface) = block_on(Wgx::new(Some(&window), Features::empty(), limits!{})).unwrap();
+    let mut target = SurfaceTarget::new(&gx, surface.unwrap(), (width, height), MSAA, DEPTH_TESTING).unwrap();
 
 
     // pipeline
     let shader = gx.load_wgsl(include_wgsl_module!("./shaders/arc_vin.wgsl"));
 
-    let pipeline = target.render_pipeline(
-        &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
-        &[
+    let pipeline = target.render_pipeline(&gx,
+        None, &[
             vertex_desc!(Instance, 0 => Float32x3, 1 => Float32x3, 2 => Float32x3, 3 => Float32x4),
             vertex_desc!(Vertex, 4 => Float32x4),
         ],
-        Primitive::TriangleList, None,
+        (&shader, "vs_main", Primitive::TriangleList),
+        (&shader, "fs_main", ALPHA_BLENDING),
     );
 
 
@@ -202,8 +202,8 @@ pub fn main() {
 
                 let then = Instant::now();
 
-                target.with_encoder_frame(&gx, |encoder, attachment| {
-                    encoder.render_bundles(attachment, Some(Color::GREEN), &bundles);
+                target.with_encoder_frame(&gx, |encoder, frame| {
+                    encoder.render_bundles(frame.attachments(Some(Color::GREEN), None), &bundles);
                 }).expect("frame error");
 
                 println!("{:?}", then.elapsed());

@@ -1,5 +1,5 @@
 
-use crate::{Wgx, DEPTH, RenderAttachment};
+use crate::{Wgx, DEPTH, RenderAttachable, DepthAttachment, error::*};
 use cgmath::Matrix4;
 use wgpu_glyph::{*, ab_glyph::{FontArc, InvalidFont}};
 use wgpu::util::StagingBelt;
@@ -94,62 +94,56 @@ impl<D> GlyphBrushExtension for GlyphBrush<D> {
 // extend encoder
 pub trait EncoderGlyphDrawExtension {
     fn draw_glyphs(
-        &mut self, wgx:&Wgx, attachment:&RenderAttachment, glypths:&mut GlyphBrush<()>,
+        &mut self, gx:&Wgx, target:&impl RenderAttachable, glypths:&mut GlyphBrush<()>,
         transform:Matrix4<f32>, region:Option<[u32; 4]>, staging_belt:&mut StagingBelt,
-    ) -> Result<(), String>;
+    ) -> Res<()>;
 
     fn draw_glyphs_with_depth(
-        &mut self, wgx:&Wgx, attachment:&RenderAttachment, glypths:&mut GlyphBrush<wgpu::DepthStencilState>,
-        clear_depth:bool, transform:Matrix4<f32>, region:Option<[u32; 4]>, staging_belt:&mut StagingBelt,
-    ) -> Result<(), String>;
+        &mut self, gx:&Wgx, target:&impl RenderAttachable, depth_attachment: DepthAttachment,
+        glypths:&mut GlyphBrush<wgpu::DepthStencilState>,
+        transform:Matrix4<f32>, region:Option<[u32; 4]>, staging_belt:&mut StagingBelt,
+    ) -> Res<()>;
 }
 
 impl EncoderGlyphDrawExtension for wgpu::CommandEncoder<> {
 
     fn draw_glyphs (
-        &mut self, wgx:&Wgx, attachment:&RenderAttachment, glypths:&mut GlyphBrush<()>,
+        &mut self, gx:&Wgx, target:&impl RenderAttachable, glypths:&mut GlyphBrush<()>,
         transform:Matrix4<f32>, region:Option<[u32; 4]>, staging_belt:&mut StagingBelt,
-    ) -> Result<(), String> {
+    ) -> Res<()> {
+        let view = target.color_views().0;
+
         if let Some(region) = region {
             glypths.draw_queued_with_transform_and_scissoring(
-                &wgx.device, staging_belt, self, attachment.view, *transform.as_ref(),
-                Region {x: region[0], y: region[1], width: region[2], height: region[3]}
+                &gx.device, staging_belt, self, view, *transform.as_ref(),
+                Region {x: region[0], y: region[1], width: region[2], height: region[3]},
             )
         }
         else {
             glypths.draw_queued_with_transform(
-                &wgx.device, staging_belt, self, attachment.view, *transform.as_ref()
+                &gx.device, staging_belt, self, view, *transform.as_ref()
             )
         }
     }
 
     fn draw_glyphs_with_depth(
-        &mut self, wgx:&Wgx, attachment:&RenderAttachment, glypths:&mut GlyphBrush<wgpu::DepthStencilState>,
-        clear_depth:bool, transform:Matrix4<f32>, region:Option<[u32; 4]>, staging_belt:&mut StagingBelt,
-    ) -> Result<(), String> {
-
-        #![allow(unused_assignments)]
-
-        let depth_ops = wgpu::RenderPassDepthStencilAttachment {
-            view: attachment.depth.ok_or("deph attachment missing")?,
-            depth_ops: Some(wgpu::Operations {
-                load: if clear_depth { wgpu::LoadOp::Clear(1.0) } else { wgpu::LoadOp::Load },
-                store: true
-            }),
-            stencil_ops: None,
-        };
+        &mut self, gx:&Wgx, target:&impl RenderAttachable, depth_attachment: DepthAttachment,
+        glypths:&mut GlyphBrush<wgpu::DepthStencilState>,
+        transform:Matrix4<f32>, region:Option<[u32; 4]>, staging_belt:&mut StagingBelt,
+    ) -> Res<()> {
+        let view = target.color_views().0;
 
         if let Some(region) = region {
             glypths.draw_queued_with_transform_and_scissoring(
-                &wgx.device, staging_belt, self, attachment.view,
-                depth_ops, *transform.as_ref(),
-                Region {x: region[0], y: region[1], width: region[2], height: region[3]}
+                &gx.device, staging_belt, self, view, depth_attachment.into(),
+                *transform.as_ref(),
+                Region {x: region[0], y: region[1], width: region[2], height: region[3]},
             )
         }
         else {
             glypths.draw_queued_with_transform(
-                &wgx.device, staging_belt, self, attachment.view,
-                depth_ops, *transform.as_ref()
+                &gx.device, staging_belt, self, view, depth_attachment.into(),
+                *transform.as_ref(),
             )
         }
     }

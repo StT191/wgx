@@ -6,14 +6,14 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::Window, event::{Event, WindowEvent},
 };
-use wgx::*;
+use wgx::{*};
 
 
 fn main() {
 
     const DEPTH_TESTING:bool = true;
     const MSAA:u32 = 4;
-    const ALPHA_BLENDING:bool = true;
+    const ALPHA_BLENDING:Option<BlendState> = Some(BlendState::ALPHA_BLENDING);
 
 
     let event_loop = EventLoop::new();
@@ -23,35 +23,24 @@ fn main() {
     window.set_title("WgFx");
 
 
-    let mut gx = block_on(Wgx::new(Some(&window), Features::empty(), limits!{})).unwrap();
-    let mut target = gx.surface_target((600, 600), DEPTH_TESTING, MSAA).unwrap();
+    let (gx, surface) = block_on(Wgx::new(Some(&window), Features::empty(), limits!{})).unwrap();
+    let mut target = SurfaceTarget::new(&gx, surface.unwrap(), (600, 600), MSAA, DEPTH_TESTING).unwrap();
 
 
     // global pipeline
     let shader = gx.load_wgsl(include_wgsl_module!("./shaders/flat_text.wgsl"));
 
-    let pipeline = target.render_pipeline(
-        &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
-        &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        Primitive::TriangleList, None,
+    let pipeline = target.render_pipeline(&gx,
+        None, &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
+        (&shader, "vs_main", Primitive::TriangleList),
+        (&shader, "fs_main", ALPHA_BLENDING),
     );
-
-    // first render
 
     // colors
-    let texture = gx.texture_from_data(
-        (2, 1), 1, /*TexUse::COPY_SRC |*/ TexUse::TEXTURE_BINDING, TEXTURE,
+    let texture = TextureLot::new_2d_with_data(&gx,
+        (2, 1), 1, TEXTURE, /*TexUse::COPY_SRC |*/ TexUse::TEXTURE_BINDING,
         [[255u8, 0, 0, 255], [0, 0, 255, 50]]
     );
-
-    /*gx.with_encoder(|encoder, gx| {
-        let buff = gx.buffer_from_data::<(u8, u8, u8, u8)>(BufferUsage::COPY_SRC, &[
-            (255, 0, 0, 255), (0, 0, 255, 50),
-        ]);
-
-        buffer_to_texture(encoder, &buff, (2, 1, 0), &texture, (0, 0, 2, 1));
-    });*/
-
 
     // vertices
     let data = [
@@ -71,12 +60,10 @@ fn main() {
 
 
     // texture + sampler
-
-    let texture_view = texture.create_default_view();
     let sampler = gx.default_sampler();
 
     let binding = gx.bind(&pipeline.get_bind_group_layout(0), &[
-        bind!(0, TextureView, &texture_view),
+        bind!(0, TextureView, &texture.view),
         bind!(1, Sampler, &sampler),
     ]);
 
@@ -101,7 +88,8 @@ fn main() {
             },
 
             Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
-                target.update(&gx, (size.width, size.height));
+                let size = (size.width, size.height);
+                target.update(&gx, size);
             },
 
             Event::WindowEvent {
@@ -118,8 +106,13 @@ fn main() {
 
                 let then = Instant::now();
 
-                target.with_encoder_frame(&gx, |encoder, attachment| {
-                    encoder.render_bundles(attachment, Some(Color::GREEN), &bundles);
+                target.with_encoder_frame(&gx, |encoder, frame| {
+                    encoder.with_render_pass(
+                        frame.attachments(Some(Color::GREEN), Some(1.0)),
+                        |mut rpass| {
+                            rpass.execute_bundles(&bundles);
+                        }
+                    );
                 }).expect("frame error");
 
                 println!("{:?}", then.elapsed());

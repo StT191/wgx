@@ -13,8 +13,8 @@ use wgx::*;
 fn main() {
 
     const DEPTH_TESTING:bool = false;
-    const ALPHA_BLENDING:bool = true;
     const MSAA:u32 = 4;
+    const ALPHA_BLENDING:Option<BlendState> = Some(BlendState::ALPHA_BLENDING);
 
 
     let event_loop = EventLoop::new();
@@ -31,8 +31,8 @@ fn main() {
     window.set_title("WgFx");
 
 
-    let mut gx = block_on(Wgx::new(Some(&window), Features::empty(), limits!{})).unwrap();
-    let mut target = gx.surface_target((width, heigh), DEPTH_TESTING, MSAA).unwrap();
+    let (gx, surface) = block_on(Wgx::new(Some(&window), Features::empty(), limits!{})).unwrap();
+    let mut target = SurfaceTarget::new(&gx, surface.unwrap(), (width, heigh), MSAA, DEPTH_TESTING).unwrap();
 
 
     // global pipeline
@@ -46,26 +46,25 @@ fn main() {
 
 
     // colors
-    let color_texture = gx.texture_from_data(
-        (3, 1), 1, TexUse::TEXTURE_BINDING, TEXTURE,
+    let color_texture = TextureLot::new_2d_with_data(&gx,
+        (3, 1), 1, TEXTURE, TexUse::TEXTURE_BINDING,
         [[255u8, 0, 0, 255], [0, 255, 0, 255], [0, 0, 255, 255]]
     );
-    let color_texture_view = color_texture.create_default_view();
 
     let sampler = gx.default_sampler();
 
     // binding
     let binding = gx.bind(&layout, &[
-        bind!(0, TextureView, &color_texture_view),
+        bind!(0, TextureView, &color_texture.view),
         bind!(1, Sampler, &sampler),
     ]);
 
 
     // triangle pipeline
-    let t_pipeline = target.render_pipeline(
-        &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
-        &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        Primitive::TriangleStrip, Some((&[], &layout))
+    let t_pipeline = target.render_pipeline(&gx,
+        Some((&[], &[&layout])), &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
+        (&shader, "vs_main", Primitive::TriangleStrip),
+        (&shader, "fs_main", ALPHA_BLENDING),
     );
 
     let t_data = [
@@ -79,10 +78,10 @@ fn main() {
 
 
     // lines pipeline
-    let l_pipeline = target.render_pipeline(
-        &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
-        &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        Primitive::LineStrip, Some((&[], &layout))
+    let l_pipeline = target.render_pipeline(&gx,
+        Some((&[], &[&layout])), &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
+        (&shader, "vs_main", Primitive::LineStrip),
+        (&shader, "fs_main", ALPHA_BLENDING),
     );
 
     let l_data = [
@@ -98,10 +97,10 @@ fn main() {
 
 
     // points pipeline
-    let p_pipeline = target.render_pipeline(
-        &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
-        &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        Primitive::PointList, Some((&[], &layout))
+    let p_pipeline = target.render_pipeline(&gx,
+        Some((&[], &[&layout])), &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
+        (&shader, "vs_main", Primitive::PointList),
+        (&shader, "fs_main", ALPHA_BLENDING),
     );
 
     let p_data = [
@@ -121,21 +120,19 @@ fn main() {
 
     let (w, h) = (img.width(), img.height());
 
-    let image_texture = gx.texture_from_data((w, h), 1, TexUse::TEXTURE_BINDING, TEXTURE, img.as_raw().as_slice());
-    let image_texture_view = image_texture.create_default_view();
-
+    let image_texture = TextureLot::new_2d_with_data(&gx, (w, h), 1, TEXTURE, TexUse::TEXTURE_BINDING, img.as_raw().as_slice());
 
     // binding
     let img_binding = gx.bind(&layout, &[
-        bind!(0, TextureView, &image_texture_view),
+        bind!(0, TextureView, &image_texture.view),
         bind!(1, Sampler, &sampler),
     ]);
 
 
-    let i_pipeline = target.render_pipeline(
-        &gx, ALPHA_BLENDING, (&shader, "vs_main"), (&shader, "fs_main"),
-        &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        Primitive::TriangleStrip, Some((&[], &layout))
+    let i_pipeline = target.render_pipeline(&gx,
+        Some((&[], &[&layout])), &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
+        (&shader, "vs_main", Primitive::TriangleStrip),
+        (&shader, "fs_main", ALPHA_BLENDING),
     );
 
     let i_data = [
@@ -204,8 +201,8 @@ fn main() {
 
                 let then = Instant::now();
 
-                target.with_encoder_frame(&gx, |encoder, attachment| {
-                    encoder.render_bundles(attachment, Some(Color::GREEN), &bundles);
+                target.with_encoder_frame(&gx, |encoder, frame| {
+                    encoder.render_bundles(frame.attachments(Some(Color::GREEN), None), &bundles);
                 }).expect("frame error");
 
                 println!("{:?}", then.elapsed());

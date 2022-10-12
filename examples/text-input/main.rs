@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+#![allow(dead_code)] #![feature(result_flattening)]
 
 // imports
 use std::{time::{Instant}};
@@ -8,7 +8,7 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::Window, event::*,
 };
-use wgx::{*, cgmath::*};
+use wgx::{*, cgmath::*, error::Res};
 
 mod text_input;
 use text_input::*;
@@ -18,7 +18,7 @@ use text_input::*;
 fn main() {
 
     const DEPTH_TESTING:bool = false;
-    const ALPHA_BLENDING:bool = false;
+    const ALPHA_BLENDING:Option<BlendState> = None;
     const MSAA:u32 = 1;
 
 
@@ -36,13 +36,14 @@ fn main() {
 
 
     // wgx setup
-    let mut gx = block_on(Wgx::new(Some(&window), Features::empty(), limits!{})).unwrap();
-    let mut target = gx.surface_target((1200, 1000), DEPTH_TESTING, MSAA).unwrap();
+    let (gx, surface) = block_on(Wgx::new(Some(&window), Features::empty(), limits!{})).unwrap();
+    let mut target = SurfaceTarget::new(&gx, surface.unwrap(), (1200, 1000), MSAA, DEPTH_TESTING).unwrap();
 
 
     // text_render
     let font_data = include_bytes!("./fonts/font_active.ttf").to_vec();
 
+    // let mut glyphs = gx.glyph_brush_with_depth(target.format(), font_data).expect("invalid font");
     let mut glyphs = gx.glyph_brush(target.format(), font_data).expect("invalid font");
 
     let mut text_input = SimpleTextInput::new("Hey Ho!\nWhat is going on? Anyway?\n");
@@ -124,15 +125,19 @@ fn main() {
                     // Matrix4::from_angle_x(Deg(45.0)) *
                 ;
 
-                target.with_encoder_frame(&gx, |encoder, attachment| {
+                target.with_encoder_frame(&gx, |encoder, frame| -> Res<()> {
 
-                    encoder.render_pass(attachment, Some(Color::GREEN));
+                    encoder.render_pass(frame.attachments(Some(Color::GREEN), Some(1.0)));
 
-                    encoder.draw_glyphs(&gx, attachment, &mut glyphs, trf, None, &mut staging_belt).expect("glyph error");
+                    encoder.draw_glyphs( /*_with_depth(*/
+                        &gx, frame, /*frame.depth_attachment(None).ok_or("depth attachment missing")?,*/
+                        &mut glyphs, trf, None, &mut staging_belt
+                    )?;
 
                     staging_belt.finish();
 
-                }).expect("frame error");
+                    Ok(())
+                }).flatten().expect("frame error");
 
                 staging_belt.recall();
 
