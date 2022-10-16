@@ -165,12 +165,13 @@ impl Wgx {
 
     // command encoder
 
-    pub fn with_encoder<T>(&self, handler: impl FnOnce(&mut wgpu::CommandEncoder) -> T) -> T
+    pub fn with_encoder<C: ImplicitControlflow>(&self, handler: impl FnOnce(&mut wgpu::CommandEncoder) -> C)
     {
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-        let res = handler(&mut encoder);
-        self.queue.submit([encoder.finish()]);
-        res
+        let controlflow = handler(&mut encoder);
+        if controlflow.should_continue() {
+            self.queue.submit([encoder.finish()]);
+        }
     }
 
 

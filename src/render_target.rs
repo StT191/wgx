@@ -267,21 +267,23 @@ impl<'a> SurfaceTarget<'a> {
     }
 
 
-    pub fn with_encoder_frame<T>(
+    pub fn with_encoder_frame<C: ImplicitControlflow>(
         &mut self, gx:&Wgx,
-        handler: impl FnOnce(&mut wgpu::CommandEncoder, &SurfaceFrame) -> T
-    ) -> Res<T>
+        handler: impl FnOnce(&mut wgpu::CommandEncoder, &SurfaceFrame) -> C
+    ) -> Res<()>
     {
         let frame = self.surface.get_current_texture().map_err(error)?;
 
-        let res = gx.with_encoder(|mut encoder| handler(&mut encoder, &SurfaceFrame {
+        let controlflow = gx.with_encoder(|mut encoder| handler(&mut encoder, &SurfaceFrame {
             view: frame.texture.create_default_view(),
             target: self,
         }));
 
-        frame.present();
+        if controlflow.should_continue() {
+            frame.present();
+        }
 
-        Ok(res)
+        Ok(())
     }
 }
 

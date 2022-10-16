@@ -1,4 +1,4 @@
-#![allow(dead_code)] #![feature(result_flattening)]
+#![allow(dead_code)]
 
 // imports
 use std::{time::{Instant}};
@@ -8,7 +8,7 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::Window, event::*,
 };
-use wgx::{*, cgmath::*, error::Res};
+use wgx::{*, cgmath::*};
 
 mod text_input;
 use text_input::*;
@@ -125,19 +125,18 @@ fn main() {
                     // Matrix4::from_angle_x(Deg(45.0)) *
                 ;
 
-                target.with_encoder_frame(&gx, |encoder, frame| -> Res<()> {
+                target.with_encoder_frame(&gx, |encoder, frame| {
 
                     encoder.render_pass(frame.attachments(Some(Color::GREEN), Some(1.0)));
 
                     encoder.draw_glyphs( /*_with_depth(*/
                         &gx, frame, /*frame.depth_attachment(None).ok_or("depth attachment missing")?,*/
                         &mut glyphs, trf, None, &mut staging_belt
-                    )?;
+                    ).expect("glyphs error");
 
                     staging_belt.finish();
 
-                    Ok(())
-                }).flatten().expect("frame error");
+                }).expect("frame error");
 
                 staging_belt.recall();
 

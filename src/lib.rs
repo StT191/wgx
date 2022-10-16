@@ -100,3 +100,17 @@ pub mod error {
 
     pub type Res<T> = Result<T, Error>;
 }
+
+// helper
+
+pub trait ImplicitControlflow {
+    fn should_continue(&self) -> bool;
+}
+
+impl<A, B> ImplicitControlflow for std::ops::ControlFlow<A, B> {
+    fn should_continue(&self) -> bool { self.is_continue() }
+}
+
+impl ImplicitControlflow for () {
+    fn should_continue(&self) -> bool { true }
+}
