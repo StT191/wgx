@@ -2514,6 +2514,7 @@ dependencies = [
 name = "wgsl_modules_loader"
 version = "0.1.0"
 dependencies = [
+ "lazy_static",
  "regex",
  "tree-sitter",
  "tree-sitter-wgsl",

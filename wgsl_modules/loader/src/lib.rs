@@ -4,6 +4,7 @@ use std::{
     path::{Path, PathBuf}, fs:: read_to_string,
     collections::{HashMap, HashSet, LinkedList}, ops::Range, borrow::Cow, rc::Rc,
 };
+use lazy_static::lazy_static;
 use regex::Regex;
 
 
@@ -125,15 +126,23 @@ fn register_node(node_map: &mut HashMap<String, Node>, alias: &str, node: Node, 
     }
 }
 
+
+// import regexes
+lazy_static! {
+    static ref IMPORT_LINE_REGEX: Regex = Regex::new(r#"//\s*?&import\s+([\w,\s\*]*)\s+from\s+(?:"|')(.+?)(?:"|')\s*?\n"#).unwrap();
+    static ref IMPORT_SPAN_REGEX: Regex = Regex::new(r#"/\*\s*?&import\s+([\w,\s\*]*)\s+from\s+(?:"|')(.+?)(?:"|')\s*?\*/\n?"#).unwrap();
+    static ref IMPORT_REGEX1: Regex = Regex::new(r"^\w+$|^\*$").unwrap();
+    static ref IMPORT_REGEX3: Regex = Regex::new(r"^(\w+|\*)\s+as\s+([\w*]+)$").unwrap();
+}
+
 fn find_and_register_import_lines(
     import_lines: &mut Vec<ImportLine>,
     source_path: &Path, dir_path: &Path, source_code: &str, mut range: Range<usize>,
-    import_line_regex: &Regex, import_span_regex: &Regex, import_regex1: &Regex, import_regex3: &Regex,
 ) -> Res<()> {
 
     let mut source = &source_code[range.clone()];
 
-    while let Some(captures) = import_line_regex.captures(source).or(import_span_regex.captures(source)) {
+    while let Some(captures) = IMPORT_LINE_REGEX.captures(source).or(IMPORT_SPAN_REGEX.captures(source)) {
 
         let cp_range = captures.get(0).unwrap().range();
         let source_range = range.start + cp_range.start .. range.start + cp_range.end;
@@ -150,10 +159,10 @@ fn find_and_register_import_lines(
         for part in captures[1].split(",") {
             let part = part.trim();
             imports.push(Import {
-                r#ref: if import_regex1.is_match(part) {
+                r#ref: if IMPORT_REGEX1.is_match(part) {
                     Ok(ImportRef { path: path.clone(), name: part.to_string(), alias: None })
                 }
-                else if let Some(captures) = import_regex3.captures(part) {
+                else if let Some(captures) = IMPORT_REGEX3.captures(part) {
                     if &captures[1] == "*" && !captures[2].contains("*") {
                         return Err(format!("bad import '{part}'"))
                     }
@@ -174,6 +183,15 @@ fn find_and_register_import_lines(
     Ok(())
 }
 
+
+// module parsing regexes
+lazy_static! {
+    static ref FN_REGEX: Regex = Regex::new(r"fn\s+(\w+)").unwrap();
+    static ref STRUCT_REGEX: Regex = Regex::new(r"struct\s+(\w+)").unwrap();
+    static ref GLOBAL_REGEX: Regex = Regex::new(r"(\w+)\s*:").unwrap();
+    static ref VALUE_REGEX: Regex = Regex::new(r"let\s+(\w+)").unwrap();
+}
+
 impl Module {
     fn load_from_source(path: &PathBuf) -> Res<Self> {
 
@@ -189,17 +207,6 @@ impl Module {
 
         let tree = parser.parse(&source, None).unwrap();
         let mut cursor = tree.walk();
-
-        // regexes
-        let fn_regex = Regex::new(r"fn\s+(\w+)").unwrap();
-        let struct_regex = Regex::new(r"struct\s+(\w+)").unwrap();
-        let global_regex = Regex::new(r"(\w+)\s*:").unwrap();
-        let value_regex = Regex::new(r"let\s+(\w+)").unwrap();
-
-        let import_line_regex = Regex::new(r#"//\s*?&import\s+([\w,\s\*]*)\s+from\s+(?:"|')(.+?)(?:"|')\s*?\n"#).unwrap();
-        let import_span_regex = Regex::new(r#"/\*\s*?&import\s+([\w,\s\*]*)\s+from\s+(?:"|')(.+?)(?:"|')\s*?\*/\n?"#).unwrap();
-        let import_regex1 = Regex::new(r"^\w+$|^\*$").unwrap();
-        let import_regex3 = Regex::new(r"^(\w+|\*)\s+as\s+([\w*]+)$").unwrap();
 
         // module
         let mut module = Self {
@@ -219,25 +226,22 @@ impl Module {
             last_end = child.byte_range().end;
             line_comment = false;
 
-            find_and_register_import_lines(
-                &mut module.import_lines, &path, dir_path, &module.source, range,
-                &import_line_regex, &import_span_regex, &import_regex1, &import_regex3,
-            )?;
+            find_and_register_import_lines(&mut module.import_lines, &path, dir_path, &module.source, range)?;
 
             // find nodes
             let source = &module.source[child.byte_range()];
 
             if let (ty, Some(captures)) = match child.kind() {
-                "function_decl" => (Type::Function, fn_regex.captures(source)),
-                "struct_decl" => (Type::Struct, struct_regex.captures(source)),
-                "global_variable_decl" => (Type::Global, global_regex.captures(source)),
+                "function_decl" => (Type::Function, FN_REGEX.captures(source)),
+                "struct_decl" => (Type::Struct, STRUCT_REGEX.captures(source)),
+                "global_variable_decl" => (Type::Global, GLOBAL_REGEX.captures(source)),
 
                 "//" => { // mark line-comment start
                     line_comment = true;
                     (Type::Value, None)
                 },
 
-                _ => (Type::Value, value_regex.captures(source)) // test arbitrary as value
+                _ => (Type::Value, VALUE_REGEX.captures(source)) // test arbitrary as value
             } {
                 let found = captures.get(1).unwrap();
                 let name = found.as_str();
@@ -254,10 +258,7 @@ impl Module {
         // find import after last node
         let range = (last_end - if line_comment {2} else {0}) .. module.source.len();
 
-        find_and_register_import_lines(
-            &mut module.import_lines, &path, dir_path, &module.source, range,
-            &import_line_regex, &import_span_regex, &import_regex1, &import_regex3,
-        )?;
+        find_and_register_import_lines(&mut module.import_lines, &path, dir_path, &module.source, range)?;
 
 
         Ok(module)

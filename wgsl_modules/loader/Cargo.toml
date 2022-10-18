@@ -10,4 +10,5 @@ name = "wgsl_modules_loader"
 [dependencies]
 tree-sitter = { version = "0" }
 tree-sitter-wgsl = { version = "0" }
+lazy_static = { version = "1" }
 regex = { version = "1", features = ["unicode-perl"] }
