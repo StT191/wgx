@@ -1,3 +1,4 @@
+#![allow(unused)]
 
 use std::{time::{Instant/*, Duration*/}};
 use futures::executor::block_on;
@@ -6,33 +7,40 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::Window, event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCode},
 };
-use wgx::{*, /*cgmath::*,*/};
+use wgx::{*, cgmath::*};
 
 
 fn main() {
 
     const DEPTH_TESTING:bool = false;
-    const MSAA:u32 = 4;
+    const MSAA:u32 = 1;
     const ALPHA_BLENDING:Option<BlendState> = None;
 
 
-    let (width, height) = (1000, 1000);
+    let (width, height) = (1280, 900);
 
     let event_loop = EventLoop::new();
     let window = Window::new(&event_loop).unwrap();
     window.set_inner_size(PhysicalSize::<u32>::from((width, height)));
-    window.set_title("WgFx");
+    window.set_title("WgFx - Shader Program");
 
     let (gx, surface) = block_on(Wgx::new(Some(&window), Features::PUSH_CONSTANTS, limits!{max_push_constant_size: 4})).unwrap();
     let mut target = SurfaceTarget::new(&gx, surface.unwrap(), (width, height), MSAA, DEPTH_TESTING).unwrap();
 
 
+    let shader_src = match &*std::env::args().nth(1).expect("Specify a program!") {
+        "balls" => include_wgsl_module!("./programs/balls.wgsl"),
+        "opt" => include_wgsl_module!("./programs/opt.wgsl"),
+        "wavy" => include_wgsl_module!("./programs/wavy.wgsl"),
+        unkown => panic!("program '{unkown}' doesn't exist"),
+    };
+
     // pipeline
-    let shader = gx.load_wgsl(include_wgsl_module!("./wavy.wgsl"));
+    let shader = gx.load_wgsl(shader_src);
 
     let layout = gx.layout(&[
-        binding!(0, Shader::FRAGMENT, UniformBuffer, 8),
-        binding!(1, Shader::FRAGMENT, UniformBuffer, 8),
+        binding!(0, Shader::VERTEX_FRAGMENT, UniformBuffer, 12),
+        binding!(1, Shader::FRAGMENT, UniformBuffer, 4),
     ]);
 
     let pipeline = target.render_pipeline(&gx,
@@ -54,15 +62,17 @@ fn main() {
     // const DA:f32 = 3.0;
     const DT:f32 = 0.01;
 
-    let (width, height) = (width as f32, height as f32);
+    let (mut width, mut height) = (width as f32, height as f32);
     let (mut w, mut h) = (1.0, 1.0);
 
     let time = Instant::now();
 
 
     // buffer
-    let mut viewport_buffer = gx.buffer_from_data(BufUse::UNIFORM | BufUse::COPY_DST, &[width as f32, height as f32]);
-    let mut scale_buffer = gx.buffer_from_data(BufUse::UNIFORM | BufUse::COPY_DST, &[1.0 as f32, 1.0 as f32]);
+    let mut viewport_buffer = gx.buffer_from_data(BufUse::UNIFORM | BufUse::COPY_DST, &[
+        width as f32, height as f32, width as f32 / height as f32
+    ]);
+    let mut scale_buffer = gx.buffer_from_data(BufUse::UNIFORM | BufUse::COPY_DST, &[1.0 as f32]);
 
     // binding
     let binding = gx.bind(&layout, &[
@@ -70,18 +80,33 @@ fn main() {
         bind!(1, Buffer, &scale_buffer),
     ]);
 
+    // render bundles
+    let bundles = [target.render_bundle(&gx, |rpass| {
+        rpass.set_pipeline(&pipeline);
+        rpass.set_bind_group(0, &binding, &[]);
+        rpass.set_vertex_buffer(0, vertices.slice(..));
+        rpass.draw(0..vertex_data.len() as u32, 0..1);
+    })];
+
 
     // frame rate and counter
 
-    // let mut frame_timer = timer::AdaptRateInterval::from_per_sec(600.0, 0.1);
     let mut frame_timer = timer::StepInterval::from_secs(1.0 / 60.0);
-    let mut frame_counter = timer::IntervalCounter::from_secs(5.0);
+    // let mut frame_counter = timer::IntervalCounter::from_secs(5.0);
 
 
     // event loop
     event_loop.run(move |event, _, control_flow| {
 
+        *control_flow = ControlFlow::WaitUntil(frame_timer.next); // next frame
+
         match event {
+
+            Event::NewEvents(_) => {
+                if frame_timer.advance_if_elapsed() {
+                    window.request_redraw(); // request frame
+                }
+            },
 
             Event::WindowEvent {event: WindowEvent::CloseRequested, ..} => {
                 *control_flow = ControlFlow::Exit;
@@ -90,11 +115,11 @@ fn main() {
             Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
                 target.update(&gx, (size.width, size.height));
 
-                let width = size.width as f32;
-                let height = size.height as f32;
+                width = size.width as f32;
+                height = size.height as f32;
 
                 // write buffer
-                gx.write_buffer(&mut viewport_buffer, 0, &[width, height]);
+                gx.write_buffer(&mut viewport_buffer, 0, &[width, height, width / height]);
             },
 
             Event::WindowEvent { event:WindowEvent::KeyboardInput { input: KeyboardInput {
@@ -113,8 +138,8 @@ fn main() {
 
                     VirtualKeyCode::W => { h += DT; },
                     VirtualKeyCode::S => { h -= DT; },
-                    VirtualKeyCode::A => { w -= DT; },
-                    VirtualKeyCode::D => { w += DT; },
+                    // VirtualKeyCode::A => { w -= DT; },
+                    // VirtualKeyCode::D => { w += DT; },
 
                     VirtualKeyCode::R => {
                         // rot_matrix = Matrix4::identity();
@@ -125,7 +150,8 @@ fn main() {
                     _ => { update = false; }
                 } {
                     if update {
-                        gx.write_buffer(&mut scale_buffer, 0, &[w, h]);
+                        gx.write_buffer(&mut scale_buffer, 0, &[h]);
+                        // window.request_redraw();
                     }
                 }
             },
@@ -135,38 +161,24 @@ fn main() {
                 // draw
                 target.with_encoder_frame(&gx, |encoder, frame| {
                     encoder.with_render_pass(frame.attachments(Some(Color::BLACK), None), |mut rpass| {
+
+
                         rpass.set_pipeline(&pipeline);
                         rpass.set_bind_group(0, &binding, &[]);
                         rpass.set_vertex_buffer(0, vertices.slice(..));
                         rpass.set_push_constants(Shader::FRAGMENT, 0, &time.elapsed().as_secs_f32().to_ne_bytes());
                         rpass.draw(0..vertex_data.len() as u32, 0..1);
                     });
-
                 }).expect("frame error");
 
-
-                // next frame time
-                // frame_timer.advance();
-
-                // frame statistics
-                frame_counter.add();
+                // statistics
+                /*frame_counter.add();
                 if let Some(counted) = frame_counter.count() {
                     println!("{:?}, Duration {:?}", counted, frame_timer.duration);
-                }
+                }*/
             },
 
             _ => {}
-        }
-
-
-        if *control_flow != ControlFlow::Exit {
-
-            // if frame_timer.advance_if_elapsed() {
-            if frame_timer.advance_if_elapsed() {
-                window.request_redraw(); // request frame
-            }
-
-            *control_flow = ControlFlow::WaitUntil(frame_timer.next); // next frame
         }
     });
 }

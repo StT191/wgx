@@ -1,5 +1,6 @@
 
-// &import * from "../shader_imports/sdf_uniform_const.wgsl"
+// &import * from "../imports/uniform_const.wgsl"
+// &import * from "../imports/sdf.wgsl"
 
 // ray marching
 let MAX_DEPTH = 3000.0;
@@ -52,4 +53,4 @@ let bgColor = vec4<f32>(0.01, 0.5, 0.8, 1.0);
 
 
 // import ray marcher
-// &import * from "../shader_imports/ray_marcher.wgsl"
+// &import * from "../imports/ray_marcher.wgsl"
