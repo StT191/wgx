@@ -7,6 +7,9 @@ edition = "2021"
 [lib]
 name = "wgsl_modules"
 
+[features]
+loader = ["dep:wgsl_modules_loader"]
+
 [dependencies]
-wgsl_modules_loader = { path = "loader" }
 wgsl_modules_macro = { path = "macro" }
+wgsl_modules_loader = { path = "loader", optional = true }

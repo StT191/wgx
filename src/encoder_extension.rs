@@ -13,14 +13,14 @@ pub trait EncoderExtension {
 
     fn buffer_to_texture(
         &mut self,
-        buffer:&wgpu::Buffer, bf_extend:(u32, u32, u64),
-        texture:&wgpu::Texture, tx_extend:(u32, u32, u32, u32)
+        buffer:&wgpu::Buffer, bf_extend:(u64, [u32;2]),
+        texture:&wgpu::Texture, tx_extend:([u32;3], [u32;3])
     );
 
     fn texture_to_buffer(
         &mut self,
-        texture:&wgpu::Texture, tx_extend:(u32, u32, u32, u32),
-        buffer:&wgpu::Buffer, bf_extend:(u32, u32, u64),
+        texture:&wgpu::Texture, tx_extend:([u32;3], [u32;3]),
+        buffer:&wgpu::Buffer, bf_extend:(u64, [u32;2]),
     );
 
     fn compute_pass<'a>(&'a mut self) -> wgpu::ComputePass<'a>;
@@ -56,8 +56,8 @@ impl EncoderExtension for wgpu::CommandEncoder {
 
     fn buffer_to_texture(
         &mut self,
-        buffer:&wgpu::Buffer, (buffer_width, buffer_height, offset):(u32, u32, u64),
-        texture:&wgpu::Texture, (x, y, width, height):(u32, u32, u32, u32)
+        buffer:&wgpu::Buffer, (offset, [buffer_width, buffer_height]):(u64, [u32;2]),
+        texture:&wgpu::Texture, ([x, y, z], [width, height, layers]):([u32;3], [u32;3])
     ) {
         self.copy_buffer_to_texture(
             wgpu::ImageCopyBuffer {
@@ -68,19 +68,19 @@ impl EncoderExtension for wgpu::CommandEncoder {
                     rows_per_image: NonZeroU32::new(buffer_height),
                 }
             },
-            wgpu::ImageCopyTexture { texture, mip_level: 0, origin: wgpu::Origin3d { x, y, z: 0, }, aspect: wgpu::TextureAspect::All },
-            wgpu::Extent3d {width, height, depth_or_array_layers: 1},
+            wgpu::ImageCopyTexture { texture, mip_level: 0, origin: wgpu::Origin3d { x, y, z, }, aspect: wgpu::TextureAspect::All },
+            wgpu::Extent3d {width, height, depth_or_array_layers: layers},
         );
     }
 
 
     fn texture_to_buffer(
         &mut self,
-        texture:&wgpu::Texture, (x, y, width, height):(u32, u32, u32, u32),
-        buffer:&wgpu::Buffer, (buffer_width, buffer_height, offset):(u32, u32, u64)
+        texture:&wgpu::Texture, ([x, y, z], [width, height, layers]):([u32;3], [u32;3]),
+        buffer:&wgpu::Buffer, (offset, [buffer_width, buffer_height]):(u64, [u32;2])
     ) {
         self.copy_texture_to_buffer(
-            wgpu::ImageCopyTexture { texture, mip_level: 0, origin: wgpu::Origin3d { x, y, z: 0, }, aspect: wgpu::TextureAspect::All },
+            wgpu::ImageCopyTexture { texture, mip_level: 0, origin: wgpu::Origin3d { x, y, z, }, aspect: wgpu::TextureAspect::All },
             wgpu::ImageCopyBuffer {
                 buffer,
                 layout: wgpu::ImageDataLayout {
@@ -89,7 +89,7 @@ impl EncoderExtension for wgpu::CommandEncoder {
                     rows_per_image: NonZeroU32::new(buffer_height),
                 }
             },
-            wgpu::Extent3d {width, height, depth_or_array_layers: 1},
+            wgpu::Extent3d {width, height, depth_or_array_layers: layers},
         );
     }
 

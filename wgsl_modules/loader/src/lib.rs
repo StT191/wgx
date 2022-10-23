@@ -47,7 +47,7 @@ impl ImportRef {
         }
     }
     fn not_found(&self) -> String {
-        format!("couldn't find {} in {}", &self.name, self.path.to_str().unwrap())
+        format!("couldn't find {} in {}", &self.name, self.path.display())
     }
 }
 
@@ -120,7 +120,7 @@ pub struct Module {
 
 fn register_node(node_map: &mut HashMap<String, Node>, alias: &str, node: Node, path: &PathBuf) -> Res<()> {
     if node_map.insert(alias.to_string(), node).is_some() {
-        Err(format!("duplicate identifier '{alias}' in {}", path.to_str().unwrap()))
+        Err(format!("duplicate identifier '{alias}' in {}", path.display()))
     } else {
         Ok(())
     }
@@ -151,7 +151,7 @@ fn find_and_register_import_lines(
         path.push(&captures[2]);
 
         let path = path.canonicalize().map_err(|err|
-            format!("{err} '{}' from '{}'", path.to_str().unwrap(), source_path.to_str().unwrap())
+            format!("{err} '{}' from '{}'", path.display(), source_path.display())
         )?;
 
         let mut imports = Vec::new();
@@ -196,10 +196,10 @@ impl Module {
     fn load_from_source(path: &PathBuf) -> Res<Self> {
 
         // normalize path
-        let dir_path = path.parent().ok_or(format!("path '{}' has no parent", path.to_str().unwrap()))?;
+        let dir_path = path.parent().ok_or(format!("path '{}' has no parent", path.display()))?;
 
         // fetch source
-        let source = read_to_string(&path).map_err(|err| format!("{err} '{}'", path.to_str().unwrap()))?;
+        let source = read_to_string(&path).map_err(|err| format!("{err} '{}'", path.display()))?;
 
         // parse wgsl
         let mut parser = tree_sitter::Parser::new();
@@ -273,8 +273,8 @@ fn resolve_module<'a>(modules: &'a mut ModuleCache, module_trace: &mut Vec<PathB
 
     if module_trace.contains(&path) { return Err(format!(
         "circular dependency {} from {}",
-        &path.to_str().unwrap(),
-        &module_trace.last().unwrap().to_str().unwrap(),
+        &path.display(),
+        &module_trace.last().unwrap().display(),
     )) }
 
     if !modules.contains_key(path) {
@@ -372,7 +372,7 @@ impl Module {
 
 fn canonicalize(path: impl AsRef<Path>) -> Res<PathBuf> {
     let path = path.as_ref();
-    path.canonicalize().map_err(|err| format!("{err} '{}'", path.to_str().unwrap()))
+    path.canonicalize().map_err(|err| format!("{err} '{}'", path.display()))
 }
 
 

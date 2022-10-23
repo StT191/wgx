@@ -59,8 +59,8 @@ fn main() {
 
 
   // vertexes
-  let steps = 64usize;
-  let smooth = true;
+  let steps = 24usize;
+  let smooth = false;
 
 
   let step_a = steps as f32 / std::f32::consts::FRAC_PI_2; // step angle

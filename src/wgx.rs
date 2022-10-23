@@ -43,7 +43,7 @@ impl Wgx {
 
         let (device, queue) = adapter.request_device(
             &wgpu::DeviceDescriptor {label: None, features, limits}, None,
-        ).await.map_err(error)?;
+        ).await.convert()?;
 
         Ok((Self { instance, adapter, device, queue }, surface))
     }

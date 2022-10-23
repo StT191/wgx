@@ -55,17 +55,21 @@ impl Program for Controls {
         let color = self.color;
 
         Column::new().width(Length::Fill).height(Length::Fill).align_items(Alignment::Center)
-        .padding(15).spacing(15)
+        .padding(15).spacing(10)
         .push(Text::new(&self.text).size(22).style(Color::WHITE.iced()).width(Length::Fill).height(Length::Fill))
         .push(TextInput::new(/*&mut self.text_input, */"input text", &self.text, Message::Text).size(22))
         .push(Text::new("Background color").style(Color::WHITE.iced()))
         .push(
-            Row::new().width(Length::Units(500)).spacing(20)
-            .push(Slider::new(0.0..=1.0, color.r, move |v| Message::Color(Color {r: v, ..color})).step(0.01))
-            .push(Slider::new(0.0..=1.0, color.g, move |v| Message::Color(Color {g: v, ..color})).step(0.01))
-            .push(Slider::new(0.0..=1.0, color.b, move |v| Message::Color(Color {b: v, ..color})).step(0.01))
+            Row::new().width(Length::Units(500)).spacing(10)
+            .push(Slider::new(0.0..=1.0, color.r, move |v| Message::Color(Color {r: v, ..color})).step(0.00390625))
+            .push(Slider::new(0.0..=1.0, color.g, move |v| Message::Color(Color {g: v, ..color})).step(0.00390625))
+            .push(Slider::new(0.0..=1.0, color.b, move |v| Message::Color(Color {b: v, ..color})).step(0.00390625))
         )
-        .push(Text::new(format!("{:?}", color)).size(18).style(Color::WHITE.iced()))
+        .push(
+            Row::new().width(Length::Units(65)).push(
+                Text::new(format!("{}", color.hex_rgb())).size(18).style(Color::WHITE.iced())
+            )
+        )
         .into()
     }
 }

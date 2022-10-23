@@ -98,6 +98,8 @@ fn srgb_component(u: f32) -> f32 {
     }
 }
 
+use arrayvec::ArrayString;
+use std::fmt::Write;
 
 impl Color {
     pub fn new(r:f32, g:f32, b:f32, a:f32) -> Self { Self {r, g, b, a} }
@@ -110,6 +112,20 @@ impl Color {
 
     pub fn u8(self) -> [u8; 4] { self.into() }
     pub fn u8_rgb(self) -> [u8; 3] { self.into() }
+
+    pub fn hex(self) -> ArrayString<9> {
+        let mut hex = ArrayString::new();
+        let cl = self.u8();
+        hex.write_fmt(format_args!("#{:02x}{:02x}{:02x}{:02x}", cl[0], cl[1], cl[2], cl[3])).unwrap();
+        hex
+    }
+
+    pub fn hex_rgb(self) -> ArrayString<7> {
+        let mut hex = ArrayString::new();
+        let cl = self.u8_rgb();
+        hex.write_fmt(format_args!("#{:02x}{:02x}{:02x}", cl[0], cl[1], cl[2])).unwrap();
+        hex
+    }
 
     pub fn linear(self) -> Self {
         Self {

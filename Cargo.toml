@@ -19,6 +19,7 @@ glyph = ["dep:wgpu_glyph", "projection"]
 iced = ["dep:iced_winit", "dep:iced_wgpu"]
 webgl = ["wgpu/webgl"]
 wgsl_modules = ["dep:wgsl_modules"]
+wgsl_modules_loader = ["wgsl_modules", "wgsl_modules/loader"]
 
 
 [dependencies]

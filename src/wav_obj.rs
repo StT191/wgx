@@ -8,7 +8,7 @@ use std::str::{FromStr};
 
 fn parse_vec<'a>(line:&mut impl Iterator<Item=&'a str>) -> Res<[f32;3]> {
 
-    let vec:Vec<f32> = line.map(|v| f32::from_str(v)).collect::<Result<_, _>>().map_err(error)?;
+    let vec:Vec<f32> = line.map(|v| f32::from_str(v)).collect::<Result<_, _>>().convert()?;
 
     if vec.len() < 2 {
         Err(format!("bad vec length {}", vec.len()))
@@ -23,7 +23,7 @@ fn parse_face<'a>(line:&mut impl Iterator<Item=&'a str>) -> Res<Vec<(usize, Opti
 
     let face:Vec<(usize, Option<usize>, Option<usize>)> = line.map(|part| {
 
-        let part:Vec<usize> = part.split("/").map(|v| usize::from_str(v)).collect::<Result<_, _>>().map_err(error)?;
+        let part:Vec<usize> = part.split("/").map(|v| usize::from_str(v)).collect::<Result<_, _>>().convert()?;
 
         if part.len() == 0 {
             Err("bad face".to_string())
@@ -35,7 +35,7 @@ fn parse_face<'a>(line:&mut impl Iterator<Item=&'a str>) -> Res<Vec<(usize, Opti
                 if let Some(v) = part.get(2) { Some(v-1) } else { None },
             ))
         }
-    }).collect::<Result<_, _>>().map_err(error)?;
+    }).collect::<Result<_, _>>().convert()?;
 
 
     let len = face.len();

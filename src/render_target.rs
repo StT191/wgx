@@ -272,7 +272,7 @@ impl<'a> SurfaceTarget<'a> {
         handler: impl FnOnce(&mut wgpu::CommandEncoder, &SurfaceFrame) -> C
     ) -> Res<()>
     {
-        let frame = self.surface.get_current_texture().map_err(error)?;
+        let frame = self.surface.get_current_texture().convert()?;
 
         let controlflow = gx.with_encoder(|mut encoder| handler(&mut encoder, &SurfaceFrame {
             view: frame.texture.create_default_view(),

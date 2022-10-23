@@ -1,4 +1,4 @@
-#![feature(div_duration, duration_constants)]
+#![feature(div_duration, duration_constants, array_methods)]
 
 // passs wgpu types
 pub use wgpu::{
@@ -81,36 +81,26 @@ pub use iced_winit;
 
 // wgsl modules
 #[cfg(feature = "wgsl_modules")]
-pub use wgsl_modules::{
-    load as load_wgsl_module,
-    include as include_wgsl_module,
-};
+pub use wgsl_modules::include as include_wgsl_module;
+
+#[cfg(feature = "wgsl_modules_loader")]
+pub use wgsl_modules::load as load_wgsl_module;
 
 
 // error handling
+pub mod error;
 
-pub mod error {
-    // Results and error Handling
-    pub type Error = String;
 
-    // map most errors to Error
-    pub fn error(err: impl std::fmt::Display) -> Error {
-        err.to_string()
-    }
-
-    pub type Res<T> = Result<T, Error>;
-}
-
-// helper
+// control flow helper
 
 pub trait ImplicitControlflow {
     fn should_continue(&self) -> bool;
 }
 
-impl<A, B> ImplicitControlflow for std::ops::ControlFlow<A, B> {
-    fn should_continue(&self) -> bool { self.is_continue() }
-}
-
 impl ImplicitControlflow for () {
     fn should_continue(&self) -> bool { true }
+}
+
+impl<A, B> ImplicitControlflow for std::ops::ControlFlow<A, B> {
+    fn should_continue(&self) -> bool { self.is_continue() }
 }
