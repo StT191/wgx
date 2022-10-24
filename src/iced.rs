@@ -2,41 +2,52 @@
 use iced_wgpu::{Viewport, Renderer};
 use iced_winit::{
     winit::{
-        dpi::PhysicalPosition,
-        window::Window, event::{WindowEvent, ModifiersState},
+        dpi::PhysicalPosition, window::Window,
+        event::{WindowEvent, ModifiersState as Modifiers},
     },
     renderer::{Style}, program::{Program, State}, mouse::Interaction,
-    *
+    Clipboard as NativeClipboard,
+    *,
 };
+#[cfg(target_family = "wasm")]
+use iced_winit::winit::event::{KeyboardInput};
+
+use iced_native::clipboard::Clipboard as ClipboardTrait;
 
 use wgpu::{CommandEncoder, util::StagingBelt};
-
 use crate::{Wgx, RenderAttachable};
 
 
-pub struct Iced<P:'static + Program<Renderer=Renderer>> {
+pub struct Iced<P:'static + Program<Renderer=Renderer>, C: ClipboardTrait> {
     renderer: Renderer,
     program_state: State<P>,
     viewport: Viewport,
     cursor: PhysicalPosition<f64>,
     interaction: Interaction,
-    modifiers: ModifiersState,
-    clipboard: Clipboard,
+    pub modifiers: Modifiers,
+    clipboard: C,
     staging_belt: StagingBelt,
     debug: Debug,
 }
 
 
-impl <P:'static + iced_winit::Program<Renderer=Renderer>>Iced<P> {
+impl<P:'static + iced_winit::Program<Renderer=Renderer>> Iced<P, NativeClipboard> {
+    pub fn new_native(renderer:Renderer, program:P, size:(u32, u32), window:&Window) -> Self {
+        let clipboard = NativeClipboard::connect(window);
+        Self::new_with_clipboad(renderer, program, size, window, clipboard)
+    }
+}
 
-    pub fn new(mut renderer:Renderer, program:P, (width, height):(u32, u32), window:&Window) -> Self {
+
+impl<P:'static + iced_winit::Program<Renderer=Renderer>, C: ClipboardTrait> Iced<P, C> {
+
+    pub fn new_with_clipboad(mut renderer:Renderer, program:P, (width, height):(u32, u32), window:&Window, clipboard: C) -> Self {
 
         let mut debug = Debug::new();
 
         let viewport = Viewport::with_physical_size(Size::new(width, height), window.scale_factor());
 
         let cursor = PhysicalPosition::new(-1.0, -1.0);
-        let clipboard = Clipboard::connect(&window);
 
         let program_state = State::new(
             program, viewport.logical_size(),
@@ -47,44 +58,74 @@ impl <P:'static + iced_winit::Program<Renderer=Renderer>>Iced<P> {
 
         Self {
             renderer, program_state, viewport, cursor, interaction,
-            modifiers: ModifiersState::default(),
+            modifiers: Modifiers::default(),
             clipboard,
             staging_belt: StagingBelt::new(10240),
             debug,
         }
     }
 
-
     pub fn program(&mut self) -> &P {
         self.program_state.program()
     }
 
+    pub fn clipboard(&mut self) -> &mut C {
+        &mut self.clipboard
+    }
 
-    pub fn event(&mut self, event:&WindowEvent, window:&Window) {
+    pub fn event(&mut self, event:&WindowEvent) {
+
+        // on wasm we need to track if modifiers changed manually and fire the modifiers changed event manually
+        #[cfg(target_family = "wasm")]
+        let mut modifiers_changed = false;
+
         match event {
+            WindowEvent::CursorMoved { position, .. } => {
+                self.cursor = *position;
+            }
+
+            WindowEvent::ModifiersChanged(modifiers) => {
+                self.modifiers = *modifiers;
+            }
+
+            // collect modifiers manually on web platform
+            #[cfg(target_family = "wasm")]
+            #[allow(deprecated)]
+            WindowEvent::KeyboardInput { input: KeyboardInput { modifiers, .. }, ..} => {
+                if &self.modifiers != modifiers {
+                    self.modifiers = *modifiers;
+                    modifiers_changed = true;
+                }
+            }
+
             WindowEvent::Resized(size) => {
                 self.viewport = Viewport::with_physical_size(
                     Size::new(size.width, size.height),
-                    window.scale_factor(),
+                    self.viewport.scale_factor(),
                 );
             }
+
             WindowEvent::ScaleFactorChanged { scale_factor, ref new_inner_size } => {
                 self.viewport = Viewport::with_physical_size(
                     Size::new(new_inner_size.width, new_inner_size.height),
                     *scale_factor,
                 );
             }
-            WindowEvent::CursorMoved { position, .. } => {
-                self.cursor = *position;
-            }
-            WindowEvent::ModifiersChanged(modifiers) => {
-                self.modifiers = *modifiers;
-            }
+
             _ => (),
         }
 
+        #[cfg(target_family = "wasm")]
+        if modifiers_changed {
+            if let Some(event) = iced_winit::conversion::window_event(
+                &WindowEvent::ModifiersChanged(self.modifiers), self.viewport.scale_factor(), self.modifiers,
+            ) {
+                self.program_state.queue_event(event);
+            }
+        }
+
         if let Some(event) = iced_winit::conversion::window_event(
-            &event, window.scale_factor(), self.modifiers,
+            &event, self.viewport.scale_factor(), self.modifiers,
         ) {
             self.program_state.queue_event(event);
         }

@@ -2537,6 +2537,7 @@ dependencies = [
  "arrayvec 0.7.2",
  "cgmath",
  "futures",
+ "iced_native",
  "iced_wgpu",
  "iced_winit",
  "image",

@@ -1,4 +1,3 @@
-#![feature(duration_consts_float)]
 
 use futures::executor::block_on;
 use iced_wgpu::Settings;
@@ -107,7 +106,7 @@ fn main() {
     // iced setup
     let renderer = gx.iced_renderer(Settings::default(), target.format());
 
-    let mut gui = Iced::new(renderer, Controls::new(), (width, height), &window);
+    let mut gui = Iced::new_native(renderer, Controls::new(), (width, height), &window);
 
 
     let mut frame_timer = timer::StepInterval::from_secs(1.0 / 60.0);
@@ -144,7 +143,7 @@ fn main() {
                     _ => (),
                 }
 
-                gui.event(&event, &window);
+                gui.event(&event);
             }
 
             Event::MainEventsCleared => {

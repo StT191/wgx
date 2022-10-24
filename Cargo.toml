@@ -16,7 +16,7 @@ projection = ["dep:cgmath"]
 wav_obj = ["projection"]
 timer = ["dep:instant"]
 glyph = ["dep:wgpu_glyph", "projection"]
-iced = ["dep:iced_winit", "dep:iced_wgpu"]
+iced = ["dep:iced_native", "dep:iced_winit", "iced_wgpu"]
 webgl = ["wgpu/webgl"]
 wgsl_modules = ["dep:wgsl_modules"]
 wgsl_modules_loader = ["wgsl_modules", "wgsl_modules/loader"]
@@ -31,6 +31,7 @@ arrayvec = "0.7"
 cgmath = { version = "0", optional = true }
 instant = { version = "0.1", features = ["now", "wasm-bindgen"], optional = true }
 wgpu_glyph = { version = "0", optional = true }
+iced_native = { git = "https://github.com/iced-rs/iced/", rev = "77c8380", optional = true }
 iced_winit = { git = "https://github.com/iced-rs/iced/", rev = "77c8380", optional = true }
 iced_wgpu = { git = "https://github.com/iced-rs/iced/", rev = "77c8380", optional = true }
 wgsl_modules = { path = "wgsl_modules", optional = true }
