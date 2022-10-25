@@ -26,11 +26,7 @@ impl Wgx {
 
         let instance = wgpu::Instance::new(wgpu::Backends::all());
 
-        let surface = if let Some(window) = window {
-           unsafe { Some(instance.create_surface(window)) }
-        }
-        else { None };
-
+        let surface = window.map(|win| unsafe {instance.create_surface(win)});
 
         let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions {
             power_preference: wgpu::PowerPreference::HighPerformance,
@@ -208,12 +204,11 @@ impl Wgx {
         layout:Option<(&[wgpu::PushConstantRange], &[&wgpu::BindGroupLayout])>
     ) -> wgpu::ComputePipeline {
 
-        let layout = if let Some(layout) = layout {
-            Some(self.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: None, push_constant_ranges: layout.0, bind_group_layouts: layout.1
-            }))
-        }
-        else { None };
+        let layout = layout.map(|(push_constant_ranges, bind_group_layouts)|
+            self.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: None, push_constant_ranges, bind_group_layouts,
+            })
+        );
 
         self.device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: None,

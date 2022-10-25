@@ -8,7 +8,7 @@ use std::str::{FromStr};
 
 fn parse_vec<'a>(line:&mut impl Iterator<Item=&'a str>) -> Res<[f32;3]> {
 
-    let vec:Vec<f32> = line.map(|v| f32::from_str(v)).collect::<Result<_, _>>().convert()?;
+    let vec:Vec<f32> = line.map(f32::from_str).collect::<Result<_, _>>().convert()?;
 
     if vec.len() < 2 {
         Err(format!("bad vec length {}", vec.len()))
@@ -23,16 +23,16 @@ fn parse_face<'a>(line:&mut impl Iterator<Item=&'a str>) -> Res<Vec<(usize, Opti
 
     let face:Vec<(usize, Option<usize>, Option<usize>)> = line.map(|part| {
 
-        let part:Vec<usize> = part.split("/").map(|v| usize::from_str(v)).collect::<Result<_, _>>().convert()?;
+        let part:Vec<usize> = part.split('/').map(usize::from_str).collect::<Result<_, _>>().convert()?;
 
-        if part.len() == 0 {
+        if part.is_empty() {
             Err("bad face".to_string())
         }
         else {
             Ok((
                 part[0]-1,
-                if let Some(v) = part.get(1) { Some(v-1) } else { None },
-                if let Some(v) = part.get(2) { Some(v-1) } else { None },
+                part.get(1).map(|v| v - 1),
+                part.get(2).map(|v| v - 1),
             ))
         }
     }).collect::<Result<_, _>>().convert()?;
@@ -40,7 +40,7 @@ fn parse_face<'a>(line:&mut impl Iterator<Item=&'a str>) -> Res<Vec<(usize, Opti
 
     let len = face.len();
 
-    if len < 3 || len > 4 {
+    if !(3..=4).contains(&len) {
         Err(format!("bad face length: {}", len))
     }
     else {
@@ -57,9 +57,9 @@ pub fn parse(raw:&str) -> Res<Vec<[[[f32;3];3];3]>> {
 
     let mut faces:Vec<Vec<(usize, Option<usize>, Option<usize>)>> = Vec::new();
 
-    for line in raw.split("\n") {
+    for line in raw.split('\n') {
 
-        let mut line = line.trim().split(" ").filter(|v| v.trim() != "");
+        let mut line = line.trim().split(' ').filter(|v| v.trim() != "");
 
         match line.next() {
             Some("v") => { vertices.push(parse_vec(&mut line)?); }

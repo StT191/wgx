@@ -16,14 +16,14 @@ pub struct ColorAttachment<'a> {
     pub clear: Option<(Color, bool)>,
 }
 
-impl<'a> Into<wgpu::RenderPassColorAttachment<'a>> for ColorAttachment<'a> {
-    fn into(self) -> wgpu::RenderPassColorAttachment<'a> {
-        wgpu::RenderPassColorAttachment {
-            view: if let Some(msaa_view) = self.msaa { &msaa_view } else { self.view },
-            resolve_target: if self.msaa.is_some() { Some(self.view) } else { None },
+impl<'a> From<ColorAttachment<'a>> for wgpu::RenderPassColorAttachment<'a> {
+    fn from(att: ColorAttachment<'a>) -> Self {
+        Self {
+            view: if let Some(msaa_view) = att.msaa { msaa_view } else { att.view },
+            resolve_target: if att.msaa.is_some() { Some(att.view) } else { None },
             ops: wgpu::Operations {
-                load: if let Some((color, srgb)) = self.clear { wgpu::LoadOp::Clear(
-                    if self.msaa.is_none() || !srgb { color.linear().into() } // convert to linear color space
+                load: if let Some((color, srgb)) = att.clear { wgpu::LoadOp::Clear(
+                    if att.msaa.is_none() || !srgb { color.linear().into() } // convert to linear color space
                     else { color.into() } // unless using attachment with srgb
                 )}
                 else { wgpu::LoadOp::Load },
@@ -39,12 +39,12 @@ pub struct DepthAttachment<'a> {
     pub clear: Option<f32>,
 }
 
-impl<'a> Into<wgpu::RenderPassDepthStencilAttachment<'a>> for DepthAttachment<'a> {
-    fn into(self) -> wgpu::RenderPassDepthStencilAttachment<'a> {
-        wgpu::RenderPassDepthStencilAttachment {
-            view: self.view,
+impl<'a> From<DepthAttachment<'a>> for wgpu::RenderPassDepthStencilAttachment<'a> {
+    fn from(att: DepthAttachment<'a>) -> Self {
+        Self {
+            view: att.view,
             depth_ops: Some(wgpu::Operations {
-                load: if let Some(cl) = self.clear { wgpu::LoadOp::Clear(cl) } else { wgpu::LoadOp::Load },
+                load: if let Some(cl) = att.clear { wgpu::LoadOp::Clear(cl) } else { wgpu::LoadOp::Load },
                 store: true,
             }),
             stencil_ops: None,
@@ -274,12 +274,18 @@ impl<'a> SurfaceTarget<'a> {
     {
         let frame = self.surface.get_current_texture().convert()?;
 
-        let controlflow = gx.with_encoder(|mut encoder| handler(&mut encoder, &SurfaceFrame {
-            view: frame.texture.create_default_view(),
-            target: self,
-        }));
+        let mut present_frame = false;
 
-        if controlflow.should_continue() {
+        gx.with_encoder(|encoder| {
+            let controlflow = handler(encoder, &SurfaceFrame {
+                view: frame.texture.create_default_view(),
+                target: self,
+            });
+            present_frame = controlflow.should_continue();
+            controlflow
+        });
+
+        if present_frame {
             frame.present();
         }
 

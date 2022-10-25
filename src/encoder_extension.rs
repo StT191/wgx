@@ -23,7 +23,7 @@ pub trait EncoderExtension {
         buffer:&wgpu::Buffer, bf_extend:(u64, [u32;2]),
     );
 
-    fn compute_pass<'a>(&'a mut self) -> wgpu::ComputePass<'a>;
+    fn compute_pass(&mut self) -> wgpu::ComputePass;
 
     fn with_compute_pass<'a, T>(&'a mut self, handler: impl FnOnce(wgpu::ComputePass<'a>) -> T) -> T;
 
@@ -94,7 +94,7 @@ impl EncoderExtension for wgpu::CommandEncoder {
     }
 
 
-    fn compute_pass<'a>(&'a mut self) -> wgpu::ComputePass<'a> {
+    fn compute_pass(&mut self) -> wgpu::ComputePass {
         self.begin_compute_pass(&wgpu::ComputePassDescriptor { label: None })
     }
 

@@ -42,8 +42,8 @@ impl ImportRef {
         if self.is_wildcard() { None }
         else {
             self.alias.as_deref().map(|a|
-                if a.contains("*") { a.replace("*", &self.name).into() } else { a.into() }
-            ).or(Some((&self.name).into()))
+                if a.contains('*') { a.replace('*', &self.name).into() } else { a.into() }
+            ).or_else(|| Some((&self.name).into()))
         }
     }
     fn not_found(&self) -> String {
@@ -60,8 +60,8 @@ impl ImportArtifact {
         let mut alias = Cow::from(&self.artifact.name);
         for import_ref in self.trace.iter().rev() {
             if let Some(name_alias) =
-                import_ref.name_alias().map(|v| v.into()) // direct import
-                .or(import_ref.alias.as_ref().map(|a| a.replace("*", &alias).into())) // aliased wildcard
+                import_ref.name_alias() // direct import
+                .or_else(|| import_ref.alias.as_ref().map(|a| a.replace('*', &alias).into())) // aliased wildcard
             {
                 alias = name_alias;
             }
@@ -99,7 +99,7 @@ impl Node {
     }
     pub fn artifact(&self) -> &Artifact {
         match &self {
-            Node::Artifact(artifact) => &artifact,
+            Node::Artifact(artifact) => artifact,
             Node::Import(import_artifact) => &import_artifact.artifact,
         }
     }
@@ -118,7 +118,7 @@ pub struct Module {
     pub code: String,
 }
 
-fn register_node(node_map: &mut HashMap<String, Node>, alias: &str, node: Node, path: &PathBuf) -> Res<()> {
+fn register_node(node_map: &mut HashMap<String, Node>, alias: &str, node: Node, path: &Path) -> Res<()> {
     if node_map.insert(alias.to_string(), node).is_some() {
         Err(format!("duplicate identifier '{alias}' in {}", path.display()))
     } else {
@@ -142,7 +142,9 @@ fn find_and_register_import_lines(
 
     let mut source = &source_code[range.clone()];
 
-    while let Some(captures) = IMPORT_LINE_REGEX.captures(source).or(IMPORT_SPAN_REGEX.captures(source)) {
+    while let Some(captures) = IMPORT_LINE_REGEX.captures(source)
+        .or_else(|| IMPORT_SPAN_REGEX.captures(source))
+    {
 
         let cp_range = captures.get(0).unwrap().range();
         let source_range = range.start + cp_range.start .. range.start + cp_range.end;
@@ -156,14 +158,14 @@ fn find_and_register_import_lines(
 
         let mut imports = Vec::new();
 
-        for part in captures[1].split(",") {
+        for part in captures[1].split(',') {
             let part = part.trim();
             imports.push(Import {
                 r#ref: if IMPORT_REGEX1.is_match(part) {
                     Ok(ImportRef { path: path.clone(), name: part.to_string(), alias: None })
                 }
                 else if let Some(captures) = IMPORT_REGEX3.captures(part) {
-                    if &captures[1] == "*" && !captures[2].contains("*") {
+                    if &captures[1] == "*" && !captures[2].contains('*') {
                         return Err(format!("bad import '{part}'"))
                     }
                     Ok(ImportRef { path: path.clone(), name: captures[1].to_string(), alias: Some(captures[2].to_string()) })
@@ -193,13 +195,13 @@ lazy_static! {
 }
 
 impl Module {
-    fn load_from_source(path: &PathBuf) -> Res<Self> {
+    fn load_from_source(path: &Path) -> Res<Self> {
 
         // normalize path
         let dir_path = path.parent().ok_or(format!("path '{}' has no parent", path.display()))?;
 
         // fetch source
-        let source = read_to_string(&path).map_err(|err| format!("{err} '{}'", path.display()))?;
+        let source = read_to_string(path).map_err(|err| format!("{err} '{}'", path.display()))?;
 
         // parse wgsl
         let mut parser = tree_sitter::Parser::new();
@@ -210,7 +212,7 @@ impl Module {
 
         // module
         let mut module = Self {
-            path: path.clone(), nodes: LinkedList::new(), node_map: HashMap::new(), import_lines: Vec::new(),
+            path: path.to_owned(), nodes: LinkedList::new(), node_map: HashMap::new(), import_lines: Vec::new(),
             dependent_files: HashSet::new(), source, code: "".to_string(),
         };
 
@@ -226,7 +228,7 @@ impl Module {
             last_end = child.byte_range().end;
             line_comment = false;
 
-            find_and_register_import_lines(&mut module.import_lines, &path, dir_path, &module.source, range)?;
+            find_and_register_import_lines(&mut module.import_lines, path, dir_path, &module.source, range)?;
 
             // find nodes
             let source = &module.source[child.byte_range()];
@@ -251,14 +253,14 @@ impl Module {
                 }.into());
 
                 module.nodes.push_back(node.clone());
-                register_node(&mut module.node_map, &name, node, &path)?;
+                register_node(&mut module.node_map, name, node, path)?;
             }
         }
 
         // find import after last node
         let range = (last_end - if line_comment {2} else {0}) .. module.source.len();
 
-        find_and_register_import_lines(&mut module.import_lines, &path, dir_path, &module.source, range)?;
+        find_and_register_import_lines(&mut module.import_lines, path, dir_path, &module.source, range)?;
 
 
         Ok(module)
@@ -271,7 +273,7 @@ pub type ModuleCache = HashMap<PathBuf, Module>;
 
 fn resolve_module<'a>(modules: &'a mut ModuleCache, module_trace: &mut Vec<PathBuf>, path: &PathBuf) -> Res<&'a mut Module> {
 
-    if module_trace.contains(&path) { return Err(format!(
+    if module_trace.contains(path) { return Err(format!(
         "circular dependency {} from {}",
         &path.display(),
         &module_trace.last().unwrap().display(),
@@ -301,13 +303,19 @@ impl Module {
 
             let module = resolve_module(modules, module_trace, &line.path)?;
 
-            while cursor.current().and_then(|node| {
+            // sync node curser to line
+            let is_before_line = |node: &mut Node| {
                 if let Node::Artifact(artifact) = node {
-                    if line.source_range.start < artifact.source_range.start { return None }
+                    if artifact.source_range.start > line.source_range.start { return None }
                 }
                 Some(())
-            }).is_some() { cursor.move_next() }
+            };
 
+            while cursor.current().and_then(is_before_line).is_some() {
+                cursor.move_next();
+            }
+
+            // ... before inserting import nodes
 
             for import in line.imports.iter_mut() {
                 for (name, node) in
@@ -320,7 +328,7 @@ impl Module {
                     }
                     else {
                         if let Some(node) = module.node_map.get(&import.r#ref.name) {
-                            Ok(vec![(import.r#ref.name_alias().unwrap().into(), node.clone())])
+                            Ok(vec![(import.r#ref.name_alias().unwrap(), node.clone())])
                         }
                         else { Err(import.r#ref.not_found()) }?
                     }
@@ -386,7 +394,7 @@ pub fn load(path: impl AsRef<Path>) -> Res<Module> {
     Ok(module)
 }
 
-pub fn load_with_cache<'a>(cache: &'a mut ModuleCache, path: impl AsRef<Path>) -> Res<&'a mut Module> {
+pub fn load_with_cache(cache: &mut ModuleCache, path: impl AsRef<Path>) -> Res<&mut Module> {
 
     let module = resolve_module(cache, &mut Vec::new(), &canonicalize(path)?)?;
 

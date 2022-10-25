@@ -11,7 +11,7 @@ pub struct NormInterval {
 impl NormInterval {
 
     pub fn new(duration: Duration) -> Self {
-        Self { instant: Instant::now(), duration: duration }
+        Self { instant: Instant::now(), duration }
     }
 
     pub fn from_secs(duration_secs: f64) -> Self {
@@ -37,7 +37,7 @@ impl NormInterval {
 
     pub fn advance_by_full_elapsed(&mut self) -> f64 {
         let elapsed = self.elapsed();
-        if elapsed >= 1.0 || elapsed < 0.0 {
+        if !(0.0..1.0).contains(&elapsed) {
             self.advance_by(elapsed.floor());
         }
         elapsed
@@ -157,7 +157,7 @@ impl AdaptRateInterval {
         let duration = interval_duration.div_f64(target_rate);
         let next = Instant::now() + duration;
         Self {
-            next, duration, target_rate, min_duration: min_duration,
+            next, duration, target_rate, min_duration,
             count_interval: NormInterval::new(interval_duration), count: 0.0,
         }
     }

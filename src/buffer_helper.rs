@@ -25,16 +25,16 @@ fn write_into_vec<T: Copy>(target: &mut Vec<T>, offset: usize, source: &[T]) -> 
       unsafe {
         if need > 0 {
           target.reserve(need as usize);
-          target.set_len(end);
+          target.set_len(end); // this is fine, as we'll copy over the new length
         }
 
-        target[offset..end].copy_from_slice(&source);
+        target[offset..end].copy_from_slice(source);
       }
 
       offset..end
     },
     Ordering::Equal => {
-      target.extend_from_slice(&source);
+      target.extend_from_slice(source);
       target_len..target.len()
     },
     Ordering::Greater => {
@@ -99,12 +99,14 @@ impl<T: Copy> VecBuffer<T> {
         Bound::Unbounded => 0,
       };
 
+      // may panic if getting larger than size
       gx.write_buffer(&self.buffer, offset as u64, data_slice);
     }
   }
 
   pub fn size(&self) -> usize { self.size }
   pub fn len(&self) -> usize { self.data.len() }
+  pub fn is_empty(&self) -> bool { self.data.is_empty() }
 }
 
 

@@ -14,7 +14,7 @@ impl From<[f32; 3]> for Color {
 }
 
 impl From<[f64; 4]> for Color {
-    fn from([r, g, b, a]:[f64; 4]) -> Self { Self::new((r as f32).into(), (g as f32).into(), (b as f32).into(), (a as f32).into()) }
+    fn from([r, g, b, a]:[f64; 4]) -> Self { Self::new(r as f32, g as f32, b as f32, a as f32) }
 }
 impl From<[f64; 3]> for Color {
     fn from([r, g, b]:[f64; 3]) -> Self { Self::from([r, g, b, 1.0]) }
@@ -43,40 +43,39 @@ impl From<iced_wgpu::Color> for Color {
 }
 
 
-// Into
+// Into other types
 
-impl Into<[f64; 4]> for Color {
-    fn into(self) -> [f64; 4] { [self.r as f64, self.g as f64, self.b as f64, self.a as f64] }
+impl From<Color> for [f64; 4] {
+    fn from(cl: Color) -> Self { [cl.r as f64, cl.g as f64, cl.b as f64, cl.a as f64] }
 }
-impl Into<[f64; 3]> for Color {
-    fn into(self) -> [f64; 3] { [self.r as f64, self.g as f64, self.b as f64] }
-}
-
-
-impl Into<[f32; 4]> for Color {
-    fn into(self) -> [f32; 4] { [self.r, self.g, self.b, self.a] }
-}
-impl Into<[f32; 3]> for Color {
-    fn into(self) -> [f32; 3] { [self.r, self.g, self.b] }
+impl From<Color> for [f64; 3] {
+    fn from(cl: Color) -> Self { [cl.r as f64, cl.g as f64, cl.b as f64] }
 }
 
-
-impl Into<[u8; 4]> for Color {
-    fn into(self) -> [u8; 4] { [(F*self.r) as u8, (F*self.g) as u8, (F*self.b) as u8, (F*self.a) as u8] }
+impl From<Color> for [f32; 4] {
+    fn from(cl: Color) -> Self { [cl.r, cl.g, cl.b, cl.a] }
 }
-impl Into<[u8; 3]> for Color {
-    fn into(self) -> [u8; 3] { [(F*self.r) as u8, (F*self.g) as u8, (F*self.b) as u8] }
+impl From<Color> for [f32; 3] {
+    fn from(cl: Color) -> Self { [cl.r, cl.g, cl.b] }
 }
 
 
-impl Into<wgpu::Color> for Color {
-    fn into(self) -> wgpu::Color { wgpu::Color {r: self.r as f64, g: self.g as f64, b: self.b as f64, a: self.a as f64} }
+impl From<Color> for [u8; 4] {
+    fn from(cl: Color) ->Self { [(F*cl.r) as u8, (F*cl.g) as u8, (F*cl.b) as u8, (F*cl.a) as u8] }
+}
+impl From<Color> for [u8; 3] {
+    fn from(cl: Color) ->Self { [(F*cl.r) as u8, (F*cl.g) as u8, (F*cl.b) as u8] }
+}
+
+
+impl From<Color> for wgpu::Color {
+    fn from(cl: Color) -> Self { Self {r: cl.r as f64, g: cl.g as f64, b: cl.b as f64, a: cl.a as f64} }
 }
 
 
 #[cfg(feature = "iced")]
-impl Into<iced_wgpu::Color> for Color {
-    fn into(self) -> iced_wgpu::Color { iced_wgpu::Color {r: self.r, g: self.g, b: self.b, a: self.a} }
+impl From<Color> for iced_wgpu::Color {
+    fn from(cl: Color) -> Self { Self {r: cl.r, g: cl.g, b: cl.b, a: cl.a} }
 }
 
 

@@ -125,7 +125,7 @@ impl<P:'static + iced_winit::Program<Renderer=Renderer>, C: ClipboardTrait> Iced
         }
 
         if let Some(event) = iced_winit::conversion::window_event(
-            &event, self.viewport.scale_factor(), self.modifiers,
+            event, self.viewport.scale_factor(), self.modifiers,
         ) {
             self.program_state.queue_event(event);
         }
