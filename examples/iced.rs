@@ -1,8 +1,6 @@
 
 use futures::executor::block_on;
-use iced_wgpu::Settings;
-use iced_winit::winit;
-use self::winit::{
+use iced_winit::winit::{
     dpi::{PhysicalSize},
     event_loop::{ControlFlow, EventLoop},
     window::{Window, Icon}, event::*,
@@ -12,11 +10,12 @@ use wgx::{*, /*cgmath::**/};
 
 // gui
 
-use iced_wgpu::Renderer;
+use iced_wgpu::{Renderer, Settings};
 use iced_winit::{
-    Alignment, Command, Element, Length, Program,
-    widget::{Column, Row, Text, TextInput, Slider}
+    Alignment, Command, Element, Length, Program, Theme,
+    widget::{Column, Row, Text, TextInput, Slider},
 };
+use iced_graphics::{widget::{Canvas, canvas::{self, Cursor, Geometry, Frame, Path, event::Status}}, Rectangle};
 
 
 #[derive(Debug, Clone)]
@@ -33,6 +32,29 @@ pub struct Controls {
 impl Controls {
     pub fn new() -> Controls {
         Controls { color: Color::from([0.46, 0.60, 0.46]), text: "".to_string() }
+    }
+}
+
+
+struct Circle(f32);
+
+impl canvas::Program<Message> for Circle {
+    type State = Color;
+    fn draw(&self, state: &Color, _theme: &Theme, bounds: Rectangle, _cursor: Cursor) -> Vec<Geometry>{
+        let mut frame = Frame::new(bounds.size());
+        let circle = Path::circle(frame.center(), self.0);
+        frame.fill(&circle, state.iced());
+        vec![frame.into_geometry()]
+    }
+    fn update(&self, state: &mut Color, _event: canvas::Event, bounds: Rectangle, cursor: Cursor) -> (Status, Option<Message>){
+        if cursor.is_over(&bounds) {
+            *state = Color::GREEN;
+            (Status::Captured, None)
+        }
+        else {
+            *state = Color::RED;
+            (Status::Ignored, None)
+        }
     }
 }
 
@@ -55,8 +77,14 @@ impl Program for Controls {
 
         Column::new().width(Length::Fill).height(Length::Fill).align_items(Alignment::Center)
         .padding(15).spacing(10)
+        .push(
+            Row::new().spacing(65)
+            .push(Canvas::new(Circle(color.r * 50.0)))
+            .push(Canvas::new(Circle(color.g * 50.0)))
+            .push(Canvas::new(Circle(color.b * 50.0)))
+        )
         .push(Text::new(&self.text).size(22).style(Color::WHITE.iced()).width(Length::Fill).height(Length::Fill))
-        .push(TextInput::new(/*&mut self.text_input, */"input text", &self.text, Message::Text).size(22))
+        .push(TextInput::new("input text", &self.text, Message::Text).size(22))
         .push(Text::new("Background color").style(Color::WHITE.iced()))
         .push(
             Row::new().width(Length::Units(500)).spacing(10)
@@ -104,7 +132,7 @@ fn main() {
 
 
     // iced setup
-    let renderer = gx.iced_renderer(Settings::default(), target.format());
+    let renderer = gx.iced_renderer(Settings::default(), target.format(), Some(4));
 
     let mut gui = Iced::new_native(renderer, Controls::new(), (width, height), &window);
 

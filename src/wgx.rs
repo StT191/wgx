@@ -1,6 +1,6 @@
 
 #[cfg(feature = "iced")]
-use iced_wgpu::{Renderer, Backend, Settings};
+use iced_wgpu::{Renderer, Backend, Settings, Antialiasing};
 use std::num::NonZeroU32;
 use arrayvec::ArrayVec;
 use wgpu::util::DeviceExt;
@@ -158,7 +158,16 @@ impl Wgx {
 
     // iced_backend
     #[cfg(feature = "iced")]
-    pub fn iced_renderer(&self, settings:Settings, format:wgpu::TextureFormat) -> Renderer {
+    pub fn iced_renderer(&self, mut settings:Settings, format:wgpu::TextureFormat, msaa: Option<u32>) -> Renderer {
+        if let Some(msaa) = msaa {
+            settings.antialiasing = match msaa {
+                2 => Some(Antialiasing::MSAAx2),
+                4 => Some(Antialiasing::MSAAx4),
+                8 => Some(Antialiasing::MSAAx8),
+                16 => Some(Antialiasing::MSAAx16),
+                _ => None,
+            }
+        }
         Renderer::new(Backend::new(&self.device, settings, format))
     }
 

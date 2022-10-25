@@ -80,6 +80,12 @@ impl Into<iced_wgpu::Color> for Color {
 }
 
 
+// default
+impl Default for Color {
+    fn default() -> Self { Self::TRANSPARENT }
+}
+
+
 // color channel srgb to linear
 fn linear_component(u: f32) -> f32 {
     if u < 0.04045 {
