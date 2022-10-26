@@ -41,7 +41,8 @@ fn main() {
 
 
     // text_render
-    let font_data = include_bytes!("./fonts/font_active.ttf").to_vec();
+    let font_data = include_bytes!("./fonts/caladea.ttf").to_vec();
+    // let font_data = include_bytes!("./fonts/font_active.ttf").to_vec();
 
     // let mut glyphs = gx.glyph_brush_with_depth(target.format(), font_data).expect("invalid font");
     let mut glyphs = gx.glyph_brush(target.format(), font_data).expect("invalid font");
@@ -101,16 +102,26 @@ fn main() {
                 let (width, height) = target.size();
                 let (width, height) = (width as f32, height as f32);
 
+                // let scale_factor = window.scale_factor() as f32; // gives better font-clarity
+                // let scale_factor = window.scale_factor() as f32 * 4.0/3.0; // gives better font-clarity
+                let scale_factor = 1.0; // gives better font-clarity
+                // let scale_factor = 1.0; // gives better font-clarity
+
+                let font_size = 20.0 * window.scale_factor() as f32 * scale_factor;
+                let color = Color::from([0x02,0x02,0x12]);
+                // let cursor_color = Color::LIGHT_GREY;
+                let cursor_color = Color::LIGHT_GREY;
+
                 glyphs.add_text(
                     vec![
-                        Text::new(&text_input.text_before_curser()).with_scale(65.0)
-                        .with_color(Color::from([0x2,0x2,0x12])),
-                        Text::new("|").with_scale(65.0)
-                        .with_color(Color::WHITE),
-                        Text::new(text_input.text_after_curser()).with_scale(65.0)
-                        .with_color(Color::from([0x2,0x2,0x12])),
+                        Text::new(&text_input.text_before_curser()).with_scale(font_size)
+                        .with_color(color),
+                        Text::new("|").with_scale(font_size)
+                        .with_color(cursor_color),
+                        Text::new(text_input.text_after_curser()).with_scale(font_size)
+                        .with_color(color),
                     ],
-                    None, Some((width - 40.0, f32::INFINITY)),
+                    None, Some(((width - 40.0) * scale_factor, f32::INFINITY)),
                     Some(layout!(Wrap, Left, Top))
                 );
 
@@ -121,13 +132,14 @@ fn main() {
                     // Matrix4::from_angle_z(Deg(45.0)) *
                     // Matrix4::from_angle_y(Deg(88.0)) *
                     // Matrix4::from_translation((-1200.0, 900.0, 0.0).into()) *
-                    Matrix4::from_translation((20.0, 20.0, 0.0).into())
+                    Matrix4::from_translation((20.0, 20.0, 0.0).into()) *
+                    Matrix4::from_scale(1.0/scale_factor)
                     // Matrix4::from_angle_x(Deg(45.0)) *
                 ;
 
                 target.with_encoder_frame(&gx, |encoder, frame| {
 
-                    encoder.render_pass(frame.attachments(Some(Color::GREEN), Some(1.0)));
+                    encoder.render_pass(frame.attachments(Some(Color::WHITE), Some(1.0)));
 
                     encoder.draw_glyphs( /*_with_depth(*/
                         &gx, frame, /*frame.depth_attachment(None).ok_or("depth attachment missing")?,*/

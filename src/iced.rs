@@ -5,43 +5,57 @@ use iced_winit::{
         dpi::PhysicalPosition, window::Window,
         event::{WindowEvent, ModifiersState as Modifiers},
     },
-    renderer::{Style}, program::{Program, State}, mouse::Interaction,
-    Clipboard as NativeClipboard,
-    *,
+    mouse::Interaction, conversion, Clipboard as NativeClipboard,
 };
 #[cfg(target_family = "wasm")]
 use iced_winit::winit::event::{KeyboardInput};
 
-use iced_native::clipboard::Clipboard as ClipboardTrait;
+use iced_native::{
+    renderer::{Style}, program::{Program, State}, application::StyleSheet,
+    Command, Debug, Size, clipboard::Clipboard as ClipboardTrait
+};
 
 use wgpu::{CommandEncoder, util::StagingBelt};
 use crate::{Wgx, RenderAttachable};
 
 
-pub struct Iced<P:'static + Program<Renderer=Renderer>, C: ClipboardTrait> {
-    renderer: Renderer,
-    program_state: State<P>,
+pub struct Iced<T, P, C> where
+    T: StyleSheet,
+    P:'static + Program<Renderer=Renderer<T>>,
+    C: ClipboardTrait,
+{
+    renderer: Renderer<T>,
+    state: State<P>,
     viewport: Viewport,
     cursor: PhysicalPosition<f64>,
     interaction: Interaction,
-    pub modifiers: Modifiers,
+    modifiers: Modifiers,
+    pub theme: T,
+    pub style: Style,
     clipboard: C,
     staging_belt: StagingBelt,
     debug: Debug,
 }
 
 
-impl<P:'static + iced_winit::Program<Renderer=Renderer>> Iced<P, NativeClipboard> {
-    pub fn new_native(renderer:Renderer, program:P, size:(u32, u32), window:&Window) -> Self {
+impl<T, P> Iced<T, P, NativeClipboard> where
+    T: StyleSheet + Default,
+    P:'static + Program<Renderer=Renderer<T>>,
+{
+    pub fn new_native(renderer:Renderer<T>, program:P, size:(u32, u32), window:&Window) -> Self {
         let clipboard = NativeClipboard::connect(window);
         Self::new_with_clipboad(renderer, program, size, window, clipboard)
     }
 }
 
 
-impl<P:'static + iced_winit::Program<Renderer=Renderer>, C: ClipboardTrait> Iced<P, C> {
+impl<T, P, C> Iced<T, P, C> where
+    T: StyleSheet + Default,
+    P:'static + Program<Renderer=Renderer<T>>,
+    C: ClipboardTrait,
+{
 
-    pub fn new_with_clipboad(mut renderer:Renderer, program:P, (width, height):(u32, u32), window:&Window, clipboard: C) -> Self {
+    pub fn new_with_clipboad(mut renderer:Renderer<T>, program:P, (width, height):(u32, u32), window:&Window, clipboard: C) -> Self {
 
         let mut debug = Debug::new();
 
@@ -49,16 +63,18 @@ impl<P:'static + iced_winit::Program<Renderer=Renderer>, C: ClipboardTrait> Iced
 
         let cursor = PhysicalPosition::new(-1.0, -1.0);
 
-        let program_state = State::new(
+        let state = State::new(
             program, viewport.logical_size(),
             &mut renderer, &mut debug,
         );
 
-        let interaction = program_state.mouse_interaction();
+        let interaction = state.mouse_interaction();
 
         Self {
-            renderer, program_state, viewport, cursor, interaction,
+            renderer, state, viewport, cursor, interaction,
             modifiers: Modifiers::default(),
+            theme: T::default(),
+            style: Style::default(),
             clipboard,
             staging_belt: StagingBelt::new(10240),
             debug,
@@ -66,7 +82,7 @@ impl<P:'static + iced_winit::Program<Renderer=Renderer>, C: ClipboardTrait> Iced
     }
 
     pub fn program(&mut self) -> &P {
-        self.program_state.program()
+        self.state.program()
     }
 
     pub fn clipboard(&mut self) -> &mut C {
@@ -120,25 +136,25 @@ impl<P:'static + iced_winit::Program<Renderer=Renderer>, C: ClipboardTrait> Iced
             if let Some(event) = iced_winit::conversion::window_event(
                 &WindowEvent::ModifiersChanged(self.modifiers), self.viewport.scale_factor(), self.modifiers,
             ) {
-                self.program_state.queue_event(event);
+                self.state.queue_event(event);
             }
         }
 
         if let Some(event) = iced_winit::conversion::window_event(
             event, self.viewport.scale_factor(), self.modifiers,
         ) {
-            self.program_state.queue_event(event);
+            self.state.queue_event(event);
         }
     }
 
 
     pub fn message(&mut self, message:P::Message) {
-        self.program_state.queue_message(message)
+        self.state.queue_message(message)
     }
 
 
     pub fn update_cursor(&mut self, window: &Window) {
-        let interaction = self.program_state.mouse_interaction();
+        let interaction = self.state.mouse_interaction();
         if self.interaction != interaction {
             window.set_cursor_icon(conversion::mouse_interaction(interaction));
             self.interaction = interaction;
@@ -147,17 +163,17 @@ impl<P:'static + iced_winit::Program<Renderer=Renderer>, C: ClipboardTrait> Iced
 
 
     pub fn update(&mut self) -> (bool, Option<Command<P::Message>>) {
-        if !self.program_state.is_queue_empty() {
+        if !self.state.is_queue_empty() {
 
-            let (_events, command) = self.program_state.update(
+            let (_events, command) = self.state.update(
                 self.viewport.logical_size(),
                 conversion::cursor_position(
                     self.cursor,
                     self.viewport.scale_factor(),
                 ),
                 &mut self.renderer,
-                &Theme::Light,
-                &Style { text_color: Color::BLACK },
+                &self.theme,
+                &self.style,
                 &mut self.clipboard,
                 &mut self.debug,
             );

@@ -11,8 +11,8 @@ use wgx::{*, /*cgmath::**/};
 // gui
 
 use iced_wgpu::{Renderer, Settings};
-use iced_winit::{
-    Alignment, Command, Element, Length, Program, Theme,
+use iced_native::{
+    Alignment, Command, Element, Length, Program,
     widget::{Column, Row, Text, TextInput, Slider},
 };
 use iced_graphics::{widget::{Canvas, canvas::{self, Cursor, Geometry, Frame, Path, event::Status}}, Rectangle};
@@ -38,9 +38,9 @@ impl Controls {
 
 struct Circle(f32);
 
-impl canvas::Program<Message> for Circle {
+impl<T> canvas::Program<Message, T> for Circle {
     type State = Color;
-    fn draw(&self, state: &Color, _theme: &Theme, bounds: Rectangle, _cursor: Cursor) -> Vec<Geometry>{
+    fn draw(&self, state: &Color, _theme: &T, bounds: Rectangle, _cursor: Cursor) -> Vec<Geometry>{
         let mut frame = Frame::new(bounds.size());
         let circle = Path::circle(frame.center(), self.0);
         frame.fill(&circle, state.iced());
@@ -75,17 +75,27 @@ impl Program for Controls {
     fn view(&self) -> Element<Message, Renderer> {
         let color = self.color;
 
-        Column::new().width(Length::Fill).height(Length::Fill).align_items(Alignment::Center)
+        Column::new()
+        .width(Length::Fill).height(Length::Fill)
         .padding(15).spacing(10)
+        .align_items(Alignment::Center)
         .push(
             Row::new().spacing(65)
             .push(Canvas::new(Circle(color.r * 50.0)))
             .push(Canvas::new(Circle(color.g * 50.0)))
             .push(Canvas::new(Circle(color.b * 50.0)))
         )
-        .push(Text::new(&self.text).size(22).style(Color::WHITE.iced()).width(Length::Fill).height(Length::Fill))
-        .push(TextInput::new("input text", &self.text, Message::Text).size(22))
-        .push(Text::new("Background color").style(Color::WHITE.iced()))
+        .push(
+            Text::new(&self.text)
+            .width(Length::Fill).height(Length::Fill)
+            .size(20).style(Color::WHITE.iced())
+        )
+        .push(
+            TextInput::new("input text", &self.text, Message::Text).size(20).padding(4)
+        )
+        .push(
+            Text::new("Background color").style(Color::WHITE.iced())
+        )
         .push(
             Row::new().width(Length::Units(500)).spacing(10)
             .push(Slider::new(0.0..=1.0, color.r, move |v| Message::Color(Color {r: v, ..color})).step(0.00390625))
@@ -135,7 +145,6 @@ fn main() {
     let renderer = gx.iced_renderer(Settings::default(), target.format(), Some(4));
 
     let mut gui = Iced::new_native(renderer, Controls::new(), (width, height), &window);
-
 
     let mut frame_timer = timer::StepInterval::from_secs(1.0 / 60.0);
     // let mut frame_counter = timer::IntervalCounter::from_secs(5.0);
