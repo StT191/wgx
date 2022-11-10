@@ -32,6 +32,7 @@ fn main() {
         "balls" => include_wgsl_module!("./programs/balls.wgsl"),
         "opt" => include_wgsl_module!("./programs/opt.wgsl"),
         "wavy" => include_wgsl_module!("./programs/wavy.wgsl"),
+        "stars" => include_wgsl_module!("./programs/stars.wgsl"),
         unkown => panic!("program '{unkown}' doesn't exist"),
     };
 
