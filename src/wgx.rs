@@ -4,7 +4,7 @@ use iced_wgpu::{Renderer, Backend, Settings, Antialiasing};
 use std::num::NonZeroU32;
 use arrayvec::ArrayVec;
 use wgpu::util::DeviceExt;
-use raw_window_handle::HasRawWindowHandle;
+use raw_window_handle::{HasRawWindowHandle, HasRawDisplayHandle};
 use crate::{*, byte_slice::AsByteSlice, error::*};
 
 
@@ -20,7 +20,7 @@ pub struct Wgx {
 
 impl Wgx {
 
-    pub async fn new<W: HasRawWindowHandle>(window:Option<&W>, features:wgpu::Features, limits:wgpu::Limits,)
+    pub async fn new<W: HasRawWindowHandle + HasRawDisplayHandle>(window:Option<&W>, features:wgpu::Features, limits:wgpu::Limits,)
         -> Res<(Self, Option<wgpu::Surface>)>
     {
 

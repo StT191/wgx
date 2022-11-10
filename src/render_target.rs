@@ -209,6 +209,7 @@ const SURFACE_CONFIGURATION: wgpu::SurfaceConfiguration = wgpu::SurfaceConfigura
     usage: TexUse::RENDER_ATTACHMENT,
     format: TEXTURE, width: 0, height: 0,
     present_mode: Prs::Mailbox,
+    alpha_mode: wgpu::CompositeAlphaMode::Auto,
 };
 
 
@@ -226,7 +227,7 @@ impl<'a> SurfaceTarget<'a> {
         let format = *formats.iter().find(|fmt| fmt.describe().srgb).ok_or("couldn't get srgb format")?;
         config.format = format;
 
-        let modes = surface.get_supported_modes(&gx.adapter);
+        let modes = surface.get_supported_present_modes(&gx.adapter);
 
         config.present_mode =
             if modes.contains(&Prs::Mailbox) { Prs::Mailbox }
