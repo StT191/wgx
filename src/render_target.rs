@@ -80,7 +80,7 @@ pub trait RenderTarget {
     }
 
     fn render_pipeline(
-        &self, gx: &Wgx,
+        &self, gx: &impl WgxDevice,
         layout: Option<(&[wgpu::PushConstantRange], &[&wgpu::BindGroupLayout])>,
         buffers: &[wgpu::VertexBufferLayout],
         vertex_state: (&wgpu::ShaderModule, &str, wgpu::PrimitiveTopology),
@@ -124,31 +124,31 @@ pub struct TextureLot<'a> {
 }
 
 impl<'a> TextureLot<'a> {
-    pub fn new(gx:&Wgx, descriptor: TexDsc<'a>) -> Self {
+    pub fn new(gx:&impl WgxDevice, descriptor: TexDsc<'a>) -> Self {
         let texture = gx.texture(&descriptor);
         let view = texture.create_default_view();
         TextureLot { texture, descriptor, view }
     }
-    pub fn new_2d(gx:&Wgx, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse) -> Self {
+    pub fn new_2d(gx:&impl WgxDevice, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse) -> Self {
         Self::new(gx, TexDsc::new_2d(size, sample_count, format, usage))
     }
-    pub fn new_2d_bound(gx:&Wgx, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse) -> Self {
+    pub fn new_2d_bound(gx:&impl WgxDevice, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse) -> Self {
         Self::new_2d(gx, size, sample_count, format, TexUse::TEXTURE_BINDING | usage)
     }
-    pub fn new_2d_attached(gx:&Wgx, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse) -> Self {
+    pub fn new_2d_attached(gx:&impl WgxDevice, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse) -> Self {
         Self::new_2d(gx, size, sample_count, format, TexUse::RENDER_ATTACHMENT | usage)
     }
-    pub fn new_with_data<T: AsByteSlice<U>, U>(gx:&Wgx, descriptor: TexDsc<'a>, data: T) -> Self {
+    pub fn new_with_data<T: AsByteSlice<U>, U>(gx:&impl WgxDeviceQueue, descriptor: TexDsc<'a>, data: T) -> Self {
         let texture = gx.texture_with_data(&descriptor, data);
         let view = texture.create_default_view();
         TextureLot { texture, descriptor, view }
     }
     pub fn new_2d_with_data<T: AsByteSlice<U>, U>(
-        gx:&Wgx, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse, data: T)
+        gx:&impl WgxDeviceQueue, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse, data: T)
     -> Self {
         Self::new_with_data(gx, TexDsc::new_2d(size, sample_count, format, usage), data)
     }
-    pub fn update(&mut self, gx: &Wgx) { *self = Self::new(gx, self.descriptor.clone()) }
+    pub fn update(&mut self, gx: &impl WgxDevice) { *self = Self::new(gx, self.descriptor.clone()) }
 }
 
 impl RenderTarget for TextureLot<'_> {
@@ -217,17 +217,19 @@ impl<'a> SurfaceTarget<'a> {
 
     pub fn new(gx:&Wgx, surface:wgpu::Surface, size:(u32, u32), msaa:u32, depth_testing:bool) -> Res<Self>
     {
+        let adapter = gx.adapter.as_ref().ok_or("Wgx-Instance doesn't contain an adapter")?;
+
         let mut config = SURFACE_CONFIGURATION.clone();
         config.width = size.0;
         config.height = size.1;
 
-        let formats = surface.get_supported_formats(&gx.adapter);
+        let formats = surface.get_supported_formats(adapter);
 
         // let format = *formats.get(0).ok_or("couldn't get default format")?;
         let format = *formats.iter().find(|fmt| fmt.describe().srgb).ok_or("couldn't get srgb format")?;
         config.format = format;
 
-        let modes = surface.get_supported_present_modes(&gx.adapter);
+        let modes = surface.get_supported_present_modes(adapter);
 
         config.present_mode =
             if modes.contains(&Prs::Mailbox) { Prs::Mailbox }
@@ -235,7 +237,7 @@ impl<'a> SurfaceTarget<'a> {
             else { *modes.get(0).ok_or("couldn't get default mode")? }
         ;
 
-        surface.configure(&gx.device, &config);
+        surface.configure(&gx.device(), &config);
 
         Ok(Self {
             config, surface, msaa,
@@ -245,12 +247,12 @@ impl<'a> SurfaceTarget<'a> {
     }
 
 
-    pub fn update(&mut self, gx:&Wgx, size:(u32, u32)) {
+    pub fn update(&mut self, gx:&impl WgxDevice, size:(u32, u32)) {
 
         self.config.width = size.0;
         self.config.height = size.1;
 
-        self.surface.configure(&gx.device, &self.config);
+        self.surface.configure(&gx.device(), &self.config);
 
         let map_opt = |lot:&TextureLot<'a>| {
             let mut descriptor = lot.descriptor.clone();
@@ -269,7 +271,7 @@ impl<'a> SurfaceTarget<'a> {
 
 
     pub fn with_encoder_frame<C: ImplicitControlflow>(
-        &mut self, gx:&Wgx,
+        &mut self, gx:&impl WgxDeviceQueue,
         handler: impl FnOnce(&mut wgpu::CommandEncoder, &SurfaceFrame) -> C
     ) -> Res<()>
     {
@@ -326,7 +328,7 @@ impl RenderAttachable for TextureTarget<'_> {
 impl<'a> TextureTarget<'a> {
 
     pub fn new(
-        gx:&Wgx, size:(u32, u32), msaa:u32, depth_testing: bool, format:wgpu::TextureFormat, usage:wgpu::TextureUsages,
+        gx:&impl WgxDevice, size:(u32, u32), msaa:u32, depth_testing: bool, format:wgpu::TextureFormat, usage:wgpu::TextureUsages,
     ) -> Self
     {
         let TextureLot { texture, descriptor, view } = TextureLot::new_2d(gx, size, 1, format, usage | TexUse::RENDER_ATTACHMENT);
@@ -338,7 +340,7 @@ impl<'a> TextureTarget<'a> {
         }
     }
 
-    pub fn update(&mut self, gx:&Wgx, size:(u32, u32)) {
+    pub fn update(&mut self, gx:&impl WgxDevice, size:(u32, u32)) {
 
         let map_opt = |descriptor: &TexDsc<'a>| {
             let mut descriptor = descriptor.clone();

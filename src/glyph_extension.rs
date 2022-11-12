@@ -1,5 +1,5 @@
 
-use crate::{Wgx, DEPTH, RenderAttachable, DepthAttachment, error::*};
+use crate::{WgxDevice, DEPTH, RenderAttachable, DepthAttachment, error::*};
 use cgmath::Matrix4;
 use wgpu_glyph::{*, ab_glyph::{FontArc, InvalidFont}};
 use wgpu::util::StagingBelt;
@@ -15,13 +15,13 @@ pub trait WgxGlyphBrushBuilderExtension {
         -> Result<GlyphBrush<wgpu::DepthStencilState, FontArc>, InvalidFont>;
 }
 
-impl WgxGlyphBrushBuilderExtension for Wgx {
+impl<WDev: WgxDevice> WgxGlyphBrushBuilderExtension for WDev {
 
     fn glyph_brush(&self, format:wgpu::TextureFormat, font_data:Vec<u8>)
         -> Result<GlyphBrush<(), FontArc>, InvalidFont>
     {
         let font = FontArc::try_from_vec(font_data)?;
-        Ok(GlyphBrushBuilder::using_font(font).build(&self.device, format))
+        Ok(GlyphBrushBuilder::using_font(font).build(&self.device(), format))
     }
 
 
@@ -38,7 +38,7 @@ impl WgxGlyphBrushBuilderExtension for Wgx {
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
             })
-            .build(&self.device, format)
+            .build(&self.device(), format)
         )
     }
 }
@@ -94,12 +94,12 @@ impl<D> GlyphBrushExtension for GlyphBrush<D> {
 // extend encoder
 pub trait EncoderGlyphDrawExtension {
     fn draw_glyphs(
-        &mut self, gx:&Wgx, target:&impl RenderAttachable, glypths:&mut GlyphBrush<()>,
+        &mut self, gx:&impl WgxDevice, target:&impl RenderAttachable, glypths:&mut GlyphBrush<()>,
         transform:Matrix4<f32>, region:Option<[u32; 4]>, staging_belt:&mut StagingBelt,
     ) -> Res<()>;
 
     fn draw_glyphs_with_depth(
-        &mut self, gx:&Wgx, target:&impl RenderAttachable, depth_attachment: DepthAttachment,
+        &mut self, gx:&impl WgxDevice, target:&impl RenderAttachable, depth_attachment: DepthAttachment,
         glypths:&mut GlyphBrush<wgpu::DepthStencilState>,
         transform:Matrix4<f32>, region:Option<[u32; 4]>, staging_belt:&mut StagingBelt,
     ) -> Res<()>;
@@ -108,26 +108,26 @@ pub trait EncoderGlyphDrawExtension {
 impl EncoderGlyphDrawExtension for wgpu::CommandEncoder<> {
 
     fn draw_glyphs (
-        &mut self, gx:&Wgx, target:&impl RenderAttachable, glypths:&mut GlyphBrush<()>,
+        &mut self, gx:&impl WgxDevice, target:&impl RenderAttachable, glypths:&mut GlyphBrush<()>,
         transform:Matrix4<f32>, region:Option<[u32; 4]>, staging_belt:&mut StagingBelt,
     ) -> Res<()> {
         let view = target.color_views().0;
 
         if let Some(region) = region {
             glypths.draw_queued_with_transform_and_scissoring(
-                &gx.device, staging_belt, self, view, *transform.as_ref(),
+                &gx.device(), staging_belt, self, view, *transform.as_ref(),
                 Region {x: region[0], y: region[1], width: region[2], height: region[3]},
             )
         }
         else {
             glypths.draw_queued_with_transform(
-                &gx.device, staging_belt, self, view, *transform.as_ref()
+                &gx.device(), staging_belt, self, view, *transform.as_ref()
             )
         }
     }
 
     fn draw_glyphs_with_depth(
-        &mut self, gx:&Wgx, target:&impl RenderAttachable, depth_attachment: DepthAttachment,
+        &mut self, gx:&impl WgxDevice, target:&impl RenderAttachable, depth_attachment: DepthAttachment,
         glypths:&mut GlyphBrush<wgpu::DepthStencilState>,
         transform:Matrix4<f32>, region:Option<[u32; 4]>, staging_belt:&mut StagingBelt,
     ) -> Res<()> {
@@ -135,14 +135,14 @@ impl EncoderGlyphDrawExtension for wgpu::CommandEncoder<> {
 
         if let Some(region) = region {
             glypths.draw_queued_with_transform_and_scissoring(
-                &gx.device, staging_belt, self, view, depth_attachment.into(),
+                &gx.device(), staging_belt, self, view, depth_attachment.into(),
                 *transform.as_ref(),
                 Region {x: region[0], y: region[1], width: region[2], height: region[3]},
             )
         }
         else {
             glypths.draw_queued_with_transform(
-                &gx.device, staging_belt, self, view, depth_attachment.into(),
+                &gx.device(), staging_belt, self, view, depth_attachment.into(),
                 *transform.as_ref(),
             )
         }

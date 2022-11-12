@@ -11,21 +11,20 @@ use crate::{*, byte_slice::AsByteSlice, error::*};
 // wgx
 
 pub struct Wgx {
-    pub instance: wgpu::Instance,
-    pub adapter: wgpu::Adapter,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
+    pub instance: Option<wgpu::Instance>,
+    pub adapter: Option<wgpu::Adapter>,
 }
 
-
 impl Wgx {
+    pub fn instance() -> wgpu::Instance {
+        wgpu::Instance::new(wgpu::Backends::all())
+    }
 
-    pub async fn new<W: HasRawWindowHandle + HasRawDisplayHandle>(window:Option<&W>, features:wgpu::Features, limits:wgpu::Limits,)
-        -> Res<(Self, Option<wgpu::Surface>)>
+    pub async fn request_adapter<W: HasRawWindowHandle + HasRawDisplayHandle>(instance: &wgpu::Instance, window: Option<&W>)
+        -> Res<(wgpu::Adapter, Option<wgpu::Surface>)>
     {
-
-        let instance = wgpu::Instance::new(wgpu::Backends::all());
-
         let surface = window.map(|win| unsafe {instance.create_surface(win)});
 
         let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions {
@@ -34,6 +33,10 @@ impl Wgx {
             compatible_surface: surface.as_ref(),
         }).await.ok_or("couldn't get adapter")?;
 
+        Ok((adapter, surface))
+    }
+
+    pub async fn with_adapter(adapter: &wgpu::Adapter, features:wgpu::Features, limits:wgpu::Limits) -> Res<Self> {
 
         #[cfg(target_family = "wasm")] let limits = limits.using_resolution(adapter.limits());
 
@@ -41,61 +44,55 @@ impl Wgx {
             &wgpu::DeviceDescriptor {label: None, features, limits}, None,
         ).await.convert()?;
 
-        Ok((Self { instance, adapter, device, queue }, surface))
+        Ok(Self { device, queue, instance: None, adapter: None})
     }
 
+    pub async fn new<W: HasRawWindowHandle + HasRawDisplayHandle>(window:Option<&W>, features:wgpu::Features, limits:wgpu::Limits)
+        -> Res<(Self, Option<wgpu::Surface>)>
+    {
+        let instance = Self::instance();
+        let (adapter, surface) = Self::request_adapter(&instance, window).await?;
+        let Self {device, queue, ..} = Self::with_adapter(&adapter, features, limits).await?;
+        Ok((Self {device, queue, instance: Some(instance), adapter: Some(adapter)}, surface))
+    }
+}
+
+
+// device methods
+pub trait WgxDevice {
+
+    fn device(&self) -> &wgpu::Device;
 
     // texture
-    pub fn texture(&self, descriptor:&TexDsc) -> wgpu::Texture {
-        self.device.create_texture(descriptor)
+
+    fn texture(&self, descriptor:&TexDsc) -> wgpu::Texture {
+        self.device().create_texture(descriptor)
     }
 
-    pub fn texture_2d(&self, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse)
+    fn texture_2d(&self, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse)
         -> wgpu::Texture
     {
         self.texture(&TexDsc::new_2d(size, sample_count, format, usage))
     }
 
-    pub fn texture_2d_bound(&self, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse)
+    fn texture_2d_bound(&self, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse)
         -> wgpu::Texture
     {
         self.texture_2d(size, sample_count, format, TexUse::TEXTURE_BINDING | usage)
     }
 
-    pub fn texture_2d_attached(&self, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse)
+    fn texture_2d_attached(&self, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse)
         -> wgpu::Texture
     {
         self.texture_2d(size, sample_count, format, TexUse::RENDER_ATTACHMENT | usage)
     }
 
-    pub fn texture_with_data<T: AsByteSlice<U>, U>(&self, descriptor: &TexDsc, data: T) -> wgpu::Texture {
-        self.device.create_texture_with_data(&self.queue, descriptor, data.as_byte_slice())
+    fn sampler(&self, descriptor: &wgpu::SamplerDescriptor) -> wgpu::Sampler {
+        self.device().create_sampler(descriptor)
     }
 
-    pub fn texture_2d_with_data<T: AsByteSlice<U>, U>(
-        &self, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse, data: T
-    ) -> wgpu::Texture {
-        self.texture_with_data(&TexDsc::new_2d(size, sample_count, format, usage), data)
-    }
-
-    pub fn write_texture<T: AsByteSlice<U>, U>(&self, texture:&wgpu::Texture, (x, y, w, h):(u32, u32, u32, u32), data:T) {
-        self.queue.write_texture(
-            wgpu::ImageCopyTexture {
-                texture, mip_level: 0, origin: wgpu::Origin3d { x, y, z: 0 },
-                aspect: wgpu::TextureAspect::All
-            },
-            data.as_byte_slice(),
-            wgpu::ImageDataLayout { offset: 0, bytes_per_row: NonZeroU32::new(4 * w), rows_per_image: NonZeroU32::new(h) },
-            wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
-        )
-    }
-
-    pub fn sampler(&self, descriptor: &wgpu::SamplerDescriptor) -> wgpu::Sampler {
-        self.device.create_sampler(descriptor)
-    }
-
-    pub fn default_sampler(&self) -> wgpu::Sampler {
-        self.device.create_sampler(&wgpu::SamplerDescriptor {
+    fn default_sampler(&self) -> wgpu::Sampler {
+        self.device().create_sampler(&wgpu::SamplerDescriptor {
             label: None,
             border_color: None,
             address_mode_u: wgpu::AddressMode::ClampToEdge,
@@ -114,47 +111,44 @@ impl Wgx {
 
     // buffer
 
-    pub fn buffer(&self, usage:BufUse, size:u64, mapped_at_creation:bool) -> wgpu::Buffer {
-        self.device.create_buffer(&wgpu::BufferDescriptor {usage, size, mapped_at_creation, label: None})
+    fn buffer(&self, usage:BufUse, size:u64, mapped_at_creation:bool) -> wgpu::Buffer {
+        self.device().create_buffer(&wgpu::BufferDescriptor {usage, size, mapped_at_creation, label: None})
     }
 
-    pub fn buffer_from_data<T: AsByteSlice<U>, U>(&self, usage:BufUse, data:T) -> wgpu::Buffer {
-        self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+    fn buffer_from_data<T: AsByteSlice<U>, U>(&self, usage:BufUse, data:T) -> wgpu::Buffer {
+        self.device().create_buffer_init(&wgpu::util::BufferInitDescriptor {
             usage, contents: data.as_byte_slice(), label: None
         })
-    }
-
-    pub fn write_buffer<T: AsByteSlice<U>, U>(&self, buffer:&wgpu::Buffer, offset:u64, data:T) {
-        self.queue.write_buffer(buffer, offset, data.as_byte_slice());
     }
 
 
     // shader
 
-    pub fn load_wgsl(&self, code:&str) -> wgpu::ShaderModule {
+    fn load_wgsl(&self, code:&str) -> wgpu::ShaderModule {
         let source = wgpu::ShaderSource::Wgsl(code.into());
-        self.device.create_shader_module(wgpu::ShaderModuleDescriptor { label: None, source })
+        self.device().create_shader_module(wgpu::ShaderModuleDescriptor { label: None, source })
     }
 
 
     // bind group
 
-    pub fn layout(&self, entries:&[wgpu::BindGroupLayoutEntry]) -> wgpu::BindGroupLayout {
-        self.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+    fn layout(&self, entries:&[wgpu::BindGroupLayoutEntry]) -> wgpu::BindGroupLayout {
+        self.device().create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries, label: None
         })
     }
 
-    pub fn bind(&self, layout:&wgpu::BindGroupLayout, entries:&[wgpu::BindGroupEntry]) -> wgpu::BindGroup {
-        self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+    fn bind(&self, layout:&wgpu::BindGroupLayout, entries:&[wgpu::BindGroupEntry]) -> wgpu::BindGroup {
+        self.device().create_bind_group(&wgpu::BindGroupDescriptor {
             layout, entries, label: None
         })
     }
 
 
     // iced_backend
+
     #[cfg(feature = "iced")]
-    pub fn iced_renderer(&self, mut settings:Settings, format:wgpu::TextureFormat, msaa: Option<u32>) -> Renderer {
+    fn iced_renderer(&self, mut settings:Settings, format:wgpu::TextureFormat, msaa: Option<u32>) -> Renderer {
         if let Some(msaa) = msaa {
             settings.antialiasing = match msaa {
                 2 => Some(Antialiasing::MSAAx2),
@@ -164,28 +158,16 @@ impl Wgx {
                 _ => None,
             }
         }
-        Renderer::new(Backend::new(&self.device, settings, format))
-    }
-
-
-    // command encoder
-
-    pub fn with_encoder<C: ImplicitControlflow>(&self, handler: impl FnOnce(&mut wgpu::CommandEncoder) -> C)
-    {
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-        let controlflow = handler(&mut encoder);
-        if controlflow.should_continue() {
-            self.queue.submit([encoder.finish()]);
-        }
+        Renderer::new(Backend::new(&self.device(), settings, format))
     }
 
 
     // render bundle
 
-    pub fn render_bundle_encoder(&self, formats: &[Option<wgpu::TextureFormat>], depth_testing:bool, msaa:u32)
+    fn render_bundle_encoder(&self, formats: &[Option<wgpu::TextureFormat>], depth_testing:bool, msaa:u32)
         -> wgpu::RenderBundleEncoder
     {
-        self.device.create_render_bundle_encoder(&wgpu::RenderBundleEncoderDescriptor {
+        self.device().create_render_bundle_encoder(&wgpu::RenderBundleEncoderDescriptor {
             label: None,
             color_formats: formats,
             depth_stencil: if depth_testing { Some(wgpu::RenderBundleDepthStencil {
@@ -199,18 +181,18 @@ impl Wgx {
 
     // compute pipeline
 
-    pub fn compute_pipeline(
+    fn compute_pipeline(
         &self, (module, entry_point):(&wgpu::ShaderModule, &str),
         layout:Option<(&[wgpu::PushConstantRange], &[&wgpu::BindGroupLayout])>
     ) -> wgpu::ComputePipeline {
 
         let layout = layout.map(|(push_constant_ranges, bind_group_layouts)|
-            self.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            self.device().create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: None, push_constant_ranges, bind_group_layouts,
             })
         );
 
-        self.device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+        self.device().create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: None,
             layout: layout.as_ref(),
             module, entry_point,
@@ -220,7 +202,7 @@ impl Wgx {
 
     // render pipeline
 
-    pub fn render_pipeline<const S: usize>(
+    fn render_pipeline<const S: usize>(
         &self,
         depth_testing: bool, msaa: u32,
         layout: Option<(&[wgpu::PushConstantRange], &[&wgpu::BindGroupLayout])>,
@@ -234,13 +216,13 @@ impl Wgx {
         let targets: ArrayVec<_, S>;
 
 
-        self.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        self.device().create_render_pipeline(&wgpu::RenderPipelineDescriptor {
 
             label: None,
 
             layout: if let Some((push_constant_ranges, bind_group_layouts)) = layout {
 
-                pipeline_layout = self.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                pipeline_layout = self.device().create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: None, push_constant_ranges, bind_group_layouts,
                 });
 
@@ -291,3 +273,67 @@ impl Wgx {
     }
 }
 
+
+// queue methods
+pub trait WgxQueue {
+
+    fn queue(&self) -> &wgpu::Queue;
+
+    fn write_texture<T: AsByteSlice<U>, U>(&self, texture:&wgpu::Texture, (x, y, w, h):(u32, u32, u32, u32), data:T) {
+        self.queue().write_texture(
+            wgpu::ImageCopyTexture {
+                texture, mip_level: 0, origin: wgpu::Origin3d { x, y, z: 0 },
+                aspect: wgpu::TextureAspect::All
+            },
+            data.as_byte_slice(),
+            wgpu::ImageDataLayout { offset: 0, bytes_per_row: NonZeroU32::new(4 * w), rows_per_image: NonZeroU32::new(h) },
+            wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
+        )
+    }
+
+    fn write_buffer<T: AsByteSlice<U>, U>(&self, buffer:&wgpu::Buffer, offset:u64, data:T) {
+        self.queue().write_buffer(buffer, offset, data.as_byte_slice());
+    }
+}
+
+
+pub trait WgxDeviceQueue: WgxDevice + WgxQueue {
+
+    fn texture_with_data<T: AsByteSlice<U>, U>(&self, descriptor: &TexDsc, data: T) -> wgpu::Texture {
+        self.device().create_texture_with_data(&self.queue(), descriptor, data.as_byte_slice())
+    }
+
+    fn texture_2d_with_data<T: AsByteSlice<U>, U>(
+        &self, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse, data: T
+    ) -> wgpu::Texture {
+        self.texture_with_data(&TexDsc::new_2d(size, sample_count, format, usage), data)
+    }
+
+    // with CommandEncoder
+
+    fn with_encoder<C: ImplicitControlflow>(&self, handler: impl FnOnce(&mut wgpu::CommandEncoder) -> C)
+    {
+        let mut encoder = self.device().create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+        let controlflow = handler(&mut encoder);
+        if controlflow.should_continue() {
+            self.queue().submit([encoder.finish()]);
+        }
+    }
+}
+
+
+// impl
+
+impl<DevQue: WgxDevice + WgxQueue> WgxDeviceQueue for DevQue {}
+
+impl WgxDevice for Wgx { fn device(&self) -> &wgpu::Device { &self.device } }
+impl WgxQueue for Wgx { fn queue(&self) -> &wgpu::Queue { &self.queue } }
+
+impl WgxDevice for wgpu::Device { fn device(&self) -> &wgpu::Device { &self } }
+impl WgxQueue for wgpu::Queue { fn queue(&self) -> &wgpu::Queue { &self } }
+
+impl WgxDevice for (wgpu::Device, wgpu::Queue) { fn device(&self) -> &wgpu::Device { &self.0 } }
+impl WgxQueue for (wgpu::Device, wgpu::Queue) { fn queue(&self) -> &wgpu::Queue { &self.1 } }
+
+impl WgxDevice for (&wgpu::Device, &wgpu::Queue) { fn device(&self) -> &wgpu::Device { self.0 } }
+impl WgxQueue for (&wgpu::Device, &wgpu::Queue) { fn queue(&self) -> &wgpu::Queue { self.1 } }

@@ -46,7 +46,7 @@ fn write_into_vec<T: Copy>(target: &mut Vec<T>, offset: usize, source: &[T]) -> 
 
 impl<T: Copy> VecBuffer<T> {
 
-  pub fn new(gx: &Wgx, usage: BufUse, size: usize) -> Self {
+  pub fn new(gx: &impl WgxDevice, usage: BufUse, size: usize) -> Self {
     Self {
       data: Vec::with_capacity(size),
       buffer: gx.buffer(BufUse::COPY_DST | usage, (size_of::<T>() * size) as u64, false),
@@ -87,7 +87,7 @@ impl<T: Copy> VecBuffer<T> {
     }
   }
 
-  pub fn write_buffer(&mut self, gx: &Wgx, range: impl SliceIndex<[T], Output = [T]> + RangeBounds<usize> + Clone) {
+  pub fn write_buffer(&mut self, gx: &impl WgxDeviceQueue, range: impl SliceIndex<[T], Output = [T]> + RangeBounds<usize> + Clone) {
 
     let data_slice = &self.data[range.clone()];
 
@@ -122,7 +122,7 @@ type Desc = (Option<BufUse>, usize); // (Buffer usages, max size)
 
 impl<Vertex:Copy, InstanceData:Copy> MultiDrawIndirect<Vertex, InstanceData> {
 
-  pub fn new(gx: &Wgx, vertex_desc: Desc, instance_desc: Desc, indirect_desc: Desc) -> Self {
+  pub fn new(gx: &impl WgxDevice, vertex_desc: Desc, instance_desc: Desc, indirect_desc: Desc) -> Self {
     Self {
       vertices: VecBuffer::new(gx, vertex_desc.0.unwrap_or(BufUse::from_bits_truncate(0)) | BufUse::VERTEX, vertex_desc.1),
       instances: VecBuffer::new(gx, instance_desc.0.unwrap_or(BufUse::from_bits_truncate(0)) | BufUse::VERTEX, instance_desc.1),
@@ -130,7 +130,7 @@ impl<Vertex:Copy, InstanceData:Copy> MultiDrawIndirect<Vertex, InstanceData> {
     }
   }
 
-  pub fn write_buffers(&mut self, gx: &Wgx,
+  pub fn write_buffers(&mut self, gx: &impl WgxDeviceQueue,
     vertices_range: impl SliceIndex<[Vertex], Output = [Vertex]> + RangeBounds<usize> + Clone,
     instances_range: impl SliceIndex<[InstanceData], Output = [InstanceData]> + RangeBounds<usize> + Clone,
     indirect_range: impl SliceIndex<[DrawIndirect], Output = [DrawIndirect]> + RangeBounds<usize> + Clone,

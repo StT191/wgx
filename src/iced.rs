@@ -16,7 +16,7 @@ use iced_native::{
 };
 
 use wgpu::{CommandEncoder, util::StagingBelt};
-use crate::{Wgx, RenderAttachable};
+use crate::{WgxDevice, RenderAttachable};
 
 
 pub struct Iced<T, P, C> where
@@ -184,14 +184,14 @@ impl<T, P, C> Iced<T, P, C> where
     }
 
 
-    pub fn draw(&mut self, gx:&Wgx, encoder:&mut CommandEncoder, target: &impl RenderAttachable) {
+    pub fn draw(&mut self, gx:&impl WgxDevice, encoder:&mut CommandEncoder, target: &impl RenderAttachable) {
 
         // borrow before the closure
         let (staging_belt, viewport, debug) = (&mut self.staging_belt, &self.viewport, &self.debug);
 
         self.renderer.with_primitives(|backend, primitive| {
             backend.present(
-                &gx.device,
+                &gx.device(),
                 staging_belt,
                 encoder,
                 target.color_views().0,
