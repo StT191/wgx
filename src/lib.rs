@@ -68,16 +68,6 @@ mod glyph_extension;
 pub use glyph_extension::*;
 
 
-// iced
-#[cfg(feature = "iced")]
-mod iced;
-#[cfg(feature = "iced")]
-pub use iced::Iced;
-#[cfg(feature = "iced")]
-pub use iced_wgpu;
-#[cfg(feature = "iced")]
-pub use iced_winit;
-
 
 // wgsl modules
 #[cfg(feature = "wgsl_modules")]

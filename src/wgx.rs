@@ -1,6 +1,4 @@
 
-#[cfg(feature = "iced")]
-use iced_wgpu::{Renderer, Backend, Settings, Antialiasing};
 use std::num::NonZeroU32;
 use arrayvec::ArrayVec;
 use wgpu::util::DeviceExt;
@@ -145,23 +143,6 @@ pub trait WgxDevice {
     }
 
 
-    // iced_backend
-
-    #[cfg(feature = "iced")]
-    fn iced_renderer(&self, mut settings:Settings, format:wgpu::TextureFormat, msaa: Option<u32>) -> Renderer {
-        if let Some(msaa) = msaa {
-            settings.antialiasing = match msaa {
-                2 => Some(Antialiasing::MSAAx2),
-                4 => Some(Antialiasing::MSAAx4),
-                8 => Some(Antialiasing::MSAAx8),
-                16 => Some(Antialiasing::MSAAx16),
-                _ => None,
-            }
-        }
-        Renderer::new(Backend::new(&self.device(), settings, format))
-    }
-
-
     // render bundle
 
     fn render_bundle_encoder(&self, formats: &[Option<wgpu::TextureFormat>], depth_testing:bool, msaa:u32)
@@ -300,7 +281,7 @@ pub trait WgxQueue {
 pub trait WgxDeviceQueue: WgxDevice + WgxQueue {
 
     fn texture_with_data<T: AsByteSlice<U>, U>(&self, descriptor: &TexDsc, data: T) -> wgpu::Texture {
-        self.device().create_texture_with_data(&self.queue(), descriptor, data.as_byte_slice())
+        self.device().create_texture_with_data(self.queue(), descriptor, data.as_byte_slice())
     }
 
     fn texture_2d_with_data<T: AsByteSlice<U>, U>(
@@ -329,8 +310,8 @@ impl<DevQue: WgxDevice + WgxQueue> WgxDeviceQueue for DevQue {}
 impl WgxDevice for Wgx { fn device(&self) -> &wgpu::Device { &self.device } }
 impl WgxQueue for Wgx { fn queue(&self) -> &wgpu::Queue { &self.queue } }
 
-impl WgxDevice for wgpu::Device { fn device(&self) -> &wgpu::Device { &self } }
-impl WgxQueue for wgpu::Queue { fn queue(&self) -> &wgpu::Queue { &self } }
+impl WgxDevice for wgpu::Device { fn device(&self) -> &wgpu::Device { self } }
+impl WgxQueue for wgpu::Queue { fn queue(&self) -> &wgpu::Queue { self } }
 
 impl WgxDevice for (wgpu::Device, wgpu::Queue) { fn device(&self) -> &wgpu::Device { &self.0 } }
 impl WgxQueue for (wgpu::Device, wgpu::Queue) { fn queue(&self) -> &wgpu::Queue { &self.1 } }

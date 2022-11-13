@@ -1,6 +1,6 @@
 [package]
 name = "wgx"
-version = "0.14.1"
+version = "0.14.2"
 authors = ["Stefan Tammer <st.tammer@gmail.com>"]
 edition = "2021"
 
@@ -16,7 +16,6 @@ projection = ["dep:cgmath"]
 wav_obj = ["projection"]
 timer = ["dep:instant"]
 glyph = ["dep:wgpu_glyph", "projection"]
-iced = ["dep:iced_native", "dep:iced_winit", "dep:iced_wgpu"]
 webgl = ["wgpu/webgl"]
 wgsl_modules = ["dep:wgsl_modules"]
 wgsl_modules_loader = ["wgsl_modules", "wgsl_modules/loader"]
@@ -31,9 +30,6 @@ arrayvec = "0.7"
 cgmath = { version = "0", optional = true }
 instant = { version = "0.1", features = ["now", "wasm-bindgen"], optional = true }
 wgpu_glyph = { version = "0.18", optional = true }
-iced_native = { version = "0.6", optional = true }
-iced_winit = { version = "0.5", optional = true }
-iced_wgpu = { version = "0.6", optional = true }
 wgsl_modules = { path = "wgsl_modules", optional = true }
 
 
@@ -41,4 +37,3 @@ wgsl_modules = { path = "wgsl_modules", optional = true }
 winit = "*"
 futures = "*"
 image = "*"
-iced_graphics = { version = "*", features = ["canvas"] }

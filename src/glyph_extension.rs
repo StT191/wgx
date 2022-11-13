@@ -21,7 +21,7 @@ impl<WDev: WgxDevice> WgxGlyphBrushBuilderExtension for WDev {
         -> Result<GlyphBrush<(), FontArc>, InvalidFont>
     {
         let font = FontArc::try_from_vec(font_data)?;
-        Ok(GlyphBrushBuilder::using_font(font).build(&self.device(), format))
+        Ok(GlyphBrushBuilder::using_font(font).build(self.device(), format))
     }
 
 
@@ -38,7 +38,7 @@ impl<WDev: WgxDevice> WgxGlyphBrushBuilderExtension for WDev {
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
             })
-            .build(&self.device(), format)
+            .build(self.device(), format)
         )
     }
 }
@@ -115,13 +115,13 @@ impl EncoderGlyphDrawExtension for wgpu::CommandEncoder<> {
 
         if let Some(region) = region {
             glypths.draw_queued_with_transform_and_scissoring(
-                &gx.device(), staging_belt, self, view, *transform.as_ref(),
+                gx.device(), staging_belt, self, view, *transform.as_ref(),
                 Region {x: region[0], y: region[1], width: region[2], height: region[3]},
             )
         }
         else {
             glypths.draw_queued_with_transform(
-                &gx.device(), staging_belt, self, view, *transform.as_ref()
+                gx.device(), staging_belt, self, view, *transform.as_ref()
             )
         }
     }
@@ -135,14 +135,14 @@ impl EncoderGlyphDrawExtension for wgpu::CommandEncoder<> {
 
         if let Some(region) = region {
             glypths.draw_queued_with_transform_and_scissoring(
-                &gx.device(), staging_belt, self, view, depth_attachment.into(),
+                gx.device(), staging_belt, self, view, depth_attachment.into(),
                 *transform.as_ref(),
                 Region {x: region[0], y: region[1], width: region[2], height: region[3]},
             )
         }
         else {
             glypths.draw_queued_with_transform(
-                &gx.device(), staging_belt, self, view, depth_attachment.into(),
+                gx.device(), staging_belt, self, view, depth_attachment.into(),
                 *transform.as_ref(),
             )
         }

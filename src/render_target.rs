@@ -237,7 +237,7 @@ impl<'a> SurfaceTarget<'a> {
             else { *modes.get(0).ok_or("couldn't get default mode")? }
         ;
 
-        surface.configure(&gx.device(), &config);
+        surface.configure(gx.device(), &config);
 
         Ok(Self {
             config, surface, msaa,
@@ -252,7 +252,7 @@ impl<'a> SurfaceTarget<'a> {
         self.config.width = size.0;
         self.config.height = size.1;
 
-        self.surface.configure(&gx.device(), &self.config);
+        self.surface.configure(gx.device(), &self.config);
 
         let map_opt = |lot:&TextureLot<'a>| {
             let mut descriptor = lot.descriptor.clone();
