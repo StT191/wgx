@@ -1,12 +1,11 @@
 
 use std::{time::{Instant}};
-use futures::executor::block_on;
+use pollster::FutureExt;
 use winit::{
     dpi::PhysicalSize,
     event_loop::{ControlFlow, EventLoop},
     window::Window, event::{Event, WindowEvent},
 };
-use image;
 use wgx::*;
 
 
@@ -31,7 +30,7 @@ fn main() {
     window.set_title("WgFx");
 
 
-    let (gx, surface) = block_on(Wgx::new(Some(&window), Features::empty(), limits!{})).unwrap();
+    let (gx, surface) = Wgx::new(Some(&window), Features::empty(), limits!{}).block_on().unwrap();
     let mut target = SurfaceTarget::new(&gx, surface.unwrap(), (width, heigh), MSAA, DEPTH_TESTING).unwrap();
 
 
@@ -114,13 +113,19 @@ fn main() {
 
 
     // picture pipeline
-    let img = image::load_from_memory(include_bytes!("img/logo_red.png"))
+    let decoder = png::Decoder::new(&include_bytes!("img/logo_red.png")[..]);
+    let mut reader = decoder.read_info().expect("failed decoding image");
+
+    let mut img_data = vec![0; reader.output_buffer_size()];
+
+
+    let info = reader.next_frame(&mut img_data).expect("failed reading image");
+
+    /*let img = image::load_from_memory(include_bytes!("img/logo_red.png"))
         .expect("failed loading image")
-        .into_rgba8();
+        .into_rgba8();*/
 
-    let (w, h) = (img.width(), img.height());
-
-    let image_texture = TextureLot::new_2d_with_data(&gx, (w, h), 1, TEXTURE, TexUse::TEXTURE_BINDING, img.as_raw().as_slice());
+    let image_texture = TextureLot::new_2d_with_data(&gx, (info.width, info.height), 1, TEXTURE, TexUse::TEXTURE_BINDING, img_data);
 
     // binding
     let img_binding = gx.bind(&layout, &[

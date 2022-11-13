@@ -35,5 +35,5 @@ wgsl_modules = { path = "wgsl_modules", optional = true }
 
 [dev-dependencies]
 winit = "*"
-futures = "*"
-image = "*"
+pollster = "*"
+png = "*"

@@ -1,7 +1,7 @@
 #![allow(unused)]
 
 use std::{time::{Instant/*, Duration*/}};
-use futures::executor::block_on;
+use pollster::FutureExt;
 use winit::{
     dpi::PhysicalSize,
     event_loop::{ControlFlow, EventLoop},
@@ -24,7 +24,7 @@ fn main() {
     window.set_inner_size(PhysicalSize::<u32>::from((width, height)));
     window.set_title("WgFx - Shader Program");
 
-    let (gx, surface) = block_on(Wgx::new(Some(&window), Features::PUSH_CONSTANTS, limits!{max_push_constant_size: 4})).unwrap();
+    let (gx, surface) = Wgx::new(Some(&window), Features::PUSH_CONSTANTS, limits!{max_push_constant_size: 4}).block_on().unwrap();
     let mut target = SurfaceTarget::new(&gx, surface.unwrap(), (width, height), MSAA, DEPTH_TESTING).unwrap();
 
 

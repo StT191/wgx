@@ -2,7 +2,7 @@
 
 // imports
 use std::{time::{Instant}};
-use futures::executor::block_on;
+use pollster::FutureExt;
 use winit::{
     dpi::PhysicalSize,
     event_loop::{ControlFlow, EventLoop},
@@ -36,7 +36,7 @@ fn main() {
 
 
     // wgx setup
-    let (gx, surface) = block_on(Wgx::new(Some(&window), Features::empty(), limits!{})).unwrap();
+    let (gx, surface) = Wgx::new(Some(&window), Features::empty(), limits!{}).block_on().unwrap();
     let mut target = SurfaceTarget::new(&gx, surface.unwrap(), (1200, 1000), MSAA, DEPTH_TESTING).unwrap();
 
 
