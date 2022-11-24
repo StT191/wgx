@@ -7,10 +7,10 @@ pub struct Color { pub r: f32, pub g: f32, pub b: f32, pub a: f32 }
 // From
 
 impl From<[f32; 4]> for Color {
-    fn from([r, g, b, a]:[f32; 4]) -> Self { Self {r, g, b, a} }
+    fn from(val: [f32; 4]) -> Self { Self::from_f32(val) }
 }
 impl From<[f32; 3]> for Color {
-    fn from([r, g, b]:[f32; 3]) -> Self { Self::from([r, g, b, 1.0]) }
+    fn from(val: [f32; 3]) -> Self { Self::from_f32_rgb(val) }
 }
 
 impl From<[f64; 4]> for Color {
@@ -39,18 +39,18 @@ impl From<wgpu::Color> for Color {
 
 // Into other types
 
+impl From<Color> for [f32; 4] {
+    fn from(cl: Color) -> Self { cl.f32() }
+}
+impl From<Color> for [f32; 3] {
+    fn from(cl: Color) -> Self { cl.f32_rgb() }
+}
+
 impl From<Color> for [f64; 4] {
     fn from(cl: Color) -> Self { [cl.r as f64, cl.g as f64, cl.b as f64, cl.a as f64] }
 }
 impl From<Color> for [f64; 3] {
     fn from(cl: Color) -> Self { [cl.r as f64, cl.g as f64, cl.b as f64] }
-}
-
-impl From<Color> for [f32; 4] {
-    fn from(cl: Color) -> Self { [cl.r, cl.g, cl.b, cl.a] }
-}
-impl From<Color> for [f32; 3] {
-    fn from(cl: Color) -> Self { [cl.r, cl.g, cl.b] }
 }
 
 
@@ -101,10 +101,13 @@ use arrayvec::ArrayString;
 use std::fmt::Write;
 
 impl Color {
-    pub fn new(r:f32, g:f32, b:f32, a:f32) -> Self { Self {r, g, b, a} }
+    pub const fn new(r:f32, g:f32, b:f32, a:f32) -> Self { Self {r, g, b, a} }
 
-    pub fn f32(self) -> [f32; 4] { self.into() }
-    pub fn f32_rgb(self) -> [f32; 3] { self.into() }
+    pub const fn from_f32([r, g, b, a]:[f32; 4]) -> Self { Self {r, g, b, a} }
+    pub const fn from_f32_rgb([r, g, b]:[f32; 3]) -> Self { Self {r, g, b, a: 1.0} }
+
+    pub const fn f32(self) -> [f32; 4] { [self.r, self.g, self.b, self.a] }
+    pub const fn f32_rgb(self) -> [f32; 3] { [self.r, self.g, self.b] }
 
     pub fn f64(self) -> [f64; 4] { self.into() }
     pub fn f64_rgb(self) -> [f64; 3] { self.into() }
@@ -156,17 +159,17 @@ impl Color {
     pub fn wgpu(self) -> wgpu::Color { self.into() }
 
 
-    pub const TRANSPARENT:Self = Color { r: 0.0, g: 0.0, b: 0.0, a: 0.0 };
-    pub const BLACK:Self = Color { r: 0.0, g: 0.0, b: 0.0, a: 1.0 };
-    pub const WHITE:Self = Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 };
-    pub const RED:Self = Color { r: 1.0, g: 0.0, b: 0.0, a: 1.0 };
-    pub const GREEN:Self = Color { r: 0.0, g: 1.0, b: 0.0, a: 1.0 };
-    pub const BLUE:Self = Color { r: 0.0, g: 0.0, b: 1.0, a: 1.0 };
-    pub const YELLOW:Self = Color { r: 1.0, g: 1.0, b: 0.0, a: 1.0 };
-    pub const ORANGE:Self = Color { r: 1.0, g: 0.5, b: 0.0, a: 1.0 };
-    pub const TURKIS:Self = Color { r: 0.0, g: 1.0, b: 1.0, a: 1.0 };
-    pub const PURPLE:Self = Color { r: 1.0, g: 0.0, b: 1.0, a: 1.0 };
-    pub const GREY:Self = Color { r: 0.5, g: 0.5, b: 0.5, a: 1.0 };
-    pub const DARK_GREY:Self = Color { r: 0.25, g: 0.25, b: 0.25, a: 1.0 };
-    pub const LIGHT_GREY:Self = Color { r: 0.75, g: 0.75, b: 0.75, a: 1.0 };
+    pub const TRANSPARENT:Self = Color::new(0.0, 0.0, 0.0, 0.0);
+    pub const BLACK:Self = Color::new(0.0, 0.0, 0.0, 1.0);
+    pub const WHITE:Self = Color::new(1.0, 1.0, 1.0, 1.0);
+    pub const RED:Self = Color::new(1.0, 0.0, 0.0, 1.0);
+    pub const GREEN:Self = Color::new(0.0, 1.0, 0.0, 1.0);
+    pub const BLUE:Self = Color::new(0.0, 0.0, 1.0, 1.0);
+    pub const YELLOW:Self = Color::new(1.0, 1.0, 0.0, 1.0);
+    pub const ORANGE:Self = Color::new(1.0, 0.5, 0.0, 1.0);
+    pub const TURKIS:Self = Color::new(0.0, 1.0, 1.0, 1.0);
+    pub const PURPLE:Self = Color::new(1.0, 0.0, 1.0, 1.0);
+    pub const GREY:Self = Color::new(0.5, 0.5, 0.5, 1.0);
+    pub const DARK_GREY:Self = Color::new(0.25, 0.25, 0.25, 1.0);
+    pub const LIGHT_GREY:Self = Color::new(0.75, 0.75, 0.75, 1.0);
 }
