@@ -1,6 +1,6 @@
 
 use std::{mem::size_of, slice::SliceIndex, ops::{Range, RangeBounds, Bound}, cmp::Ordering};
-use crate::*;
+use crate::{*, error::*};
 pub use wgpu::{util::DrawIndirect};
 
 
@@ -20,7 +20,7 @@ fn write_into_vec<T: Copy>(target: &mut Vec<T>, offset: usize, source: &[T]) -> 
     Ordering::Less => {
 
       let end = offset + source.len();
-      let need = end as isize - target_len as isize;
+      let need = isize::try_from(end).unwrap() - isize::try_from(target_len).unwrap() ;
 
       unsafe {
         if need > 0 {
@@ -90,7 +90,7 @@ impl<T: Copy> VecBuffer<T> {
     }
   }
 
-  pub fn write_buffer(&mut self, gx: &impl WgxDeviceQueue, range: impl SliceIndex<[T], Output = [T]> + RangeBounds<usize> + Clone) {
+  pub fn write_buffer(&self, gx: &impl WgxDeviceQueue, range: impl SliceIndex<[T], Output = [T]> + RangeBounds<usize> + Clone) {
 
     let data_slice = &self.data[range.clone()];
 
@@ -127,9 +127,9 @@ impl<Vertex:Copy, InstanceData:Copy> MultiDrawIndirect<Vertex, InstanceData> {
 
   pub fn new(gx: &impl WgxDevice, vertex_desc: Desc, instance_desc: Desc, indirect_desc: Desc) -> Self {
     Self {
-      vertices: VecBuffer::new(gx, vertex_desc.0.unwrap_or(BufUse::from_bits_truncate(0)) | BufUse::VERTEX, vertex_desc.1),
-      instances: VecBuffer::new(gx, instance_desc.0.unwrap_or(BufUse::from_bits_truncate(0)) | BufUse::VERTEX, instance_desc.1),
-      indirect: VecBuffer::new(gx, indirect_desc.0.unwrap_or(BufUse::from_bits_truncate(0)) | BufUse::INDIRECT, indirect_desc.1),
+      vertices: VecBuffer::new(gx, vertex_desc.0.unwrap_or(BufUse::empty()) | BufUse::VERTEX, vertex_desc.1),
+      instances: VecBuffer::new(gx, instance_desc.0.unwrap_or(BufUse::empty()) | BufUse::VERTEX, instance_desc.1),
+      indirect: VecBuffer::new(gx, indirect_desc.0.unwrap_or(BufUse::empty()) | BufUse::INDIRECT, indirect_desc.1),
     }
   }
 
@@ -145,17 +145,17 @@ impl<Vertex:Copy, InstanceData:Copy> MultiDrawIndirect<Vertex, InstanceData> {
 }
 
 
-pub trait DrawIndirectFromRanges {
-  fn from_ranges(vertex_range: Range<usize>, instance_range: Range<usize>) -> Self;
+pub trait DrawIndirectFromRanges: Sized {
+  fn from_ranges(vertex_range: Range<usize>, instance_range: Range<usize>) -> Res<Self>;
 }
 
 impl DrawIndirectFromRanges for DrawIndirect {
-  fn from_ranges(vertex_range: Range<usize>, instance_range: Range<usize>) -> Self {
-    Self {
-      base_vertex: vertex_range.start as u32,
-      vertex_count: vertex_range.len() as u32,
-      base_instance: instance_range.start as u32,
-      instance_count: instance_range.len() as u32,
-    }
+  fn from_ranges(vertex_range: Range<usize>, instance_range: Range<usize>) -> Res<Self> {
+    Ok(Self {
+      base_vertex: u32::try_from(vertex_range.start).map_err(|_| "DrawIndirect base_vertex overflow")?,
+      vertex_count: u32::try_from(vertex_range.len()).map_err(|_| "DrawIndirect vertex_count overflow")?,
+      base_instance: u32::try_from(instance_range.start).map_err(|_| "DrawIndirect base_instance overflow")?,
+      instance_count: u32::try_from(instance_range.len()).map_err(|_| "DrawIndirect instance_count overflow")?,
+    })
   }
 }

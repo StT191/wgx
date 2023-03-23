@@ -138,7 +138,7 @@ fn main() {
   let mesh_range = group.vertices.write_multiple(None, &mesh);
   let instance_range = group.instances.write_multiple(None, &instance_data);
 
-  group.indirect.write(None, &DrawIndirect::from_ranges(mesh_range, instance_range));
+  group.indirect.write(None, &DrawIndirect::from_ranges(mesh_range, instance_range).unwrap());
 
   group.write_buffers(&gx, .., .., ..);
 
