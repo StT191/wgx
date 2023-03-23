@@ -114,7 +114,7 @@ fn main() {
 
                 glyphs.add_text(
                     vec![
-                        Text::new(&text_input.text_before_curser()).with_scale(font_size)
+                        Text::new(text_input.text_before_curser()).with_scale(font_size)
                         .with_color(color),
                         Text::new("|").with_scale(font_size)
                         .with_color(cursor_color),

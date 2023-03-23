@@ -21,15 +21,15 @@ impl SimpleTextInput {
         self.curser
     }
 
-    pub fn text<'a>(&'a self) -> &'a str {
+    pub fn text(&self) -> &str {
         &self.text[..]
     }
 
-    pub fn text_before_curser<'a>(&'a self) -> &'a str {
+    pub fn text_before_curser(&self) -> &str {
         &self.text[..self.curser]
     }
 
-    pub fn text_after_curser<'a>(&'a self) -> &'a str {
+    pub fn text_after_curser(&self) -> &str {
         &self.text[self.curser..]
     }
 

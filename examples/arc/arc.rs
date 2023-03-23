@@ -41,7 +41,7 @@ pub fn main() {
 
     // corners
     let c = [
-        [ 0.0,  0.0, 0.0 as f32],
+        [ 0.0,  0.0, 0.0_f32],
         [-1.0,  0.0, 0.0],
         [ 0.0, -1.0, 0.0],
         [ 1.0,  0.0, 0.0],
@@ -81,9 +81,9 @@ pub fn main() {
 
 
     // projection
-    let mut world_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 64, false);
-    let mut clip_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 64, false);
-    let mut viewport_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 8, false);
+    let world_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 64, false);
+    let clip_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 64, false);
+    let viewport_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 8, false);
 
 
     // binding
@@ -120,9 +120,9 @@ pub fn main() {
         // Matrix4::from_translation((width/2.0, height/2.0, 0.0).into())
     ;
 
-    gx.write_buffer(&mut world_buffer, 0, AsRef::<[f32; 16]>::as_ref(&world_matrix));
-    gx.write_buffer(&mut clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&projection));
-    gx.write_buffer(&mut viewport_buffer, 0, &[width, height]);
+    gx.write_buffer(&world_buffer, 0, AsRef::<[f32; 16]>::as_ref(&world_matrix));
+    gx.write_buffer(&clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&projection));
+    gx.write_buffer(&viewport_buffer, 0, [width, height]);
 
 
     // event loop
@@ -144,8 +144,8 @@ pub fn main() {
                 // projection
                 let world_matrix = rot_matrix * Matrix4::from_nonuniform_scale(w*width, h*height, 1.0);
 
-                gx.write_buffer(&mut world_buffer, 0, AsRef::<[f32; 16]>::as_ref(&world_matrix));
-                gx.write_buffer(&mut viewport_buffer, 0, &[width, height]);
+                gx.write_buffer(&world_buffer, 0, AsRef::<[f32; 16]>::as_ref(&world_matrix));
+                gx.write_buffer(&viewport_buffer, 0, [width, height]);
             },
 
             Event::WindowEvent { event:WindowEvent::KeyboardInput { input: KeyboardInput {
@@ -177,7 +177,7 @@ pub fn main() {
 
                         let world_matrix = rot_matrix * Matrix4::from_nonuniform_scale(w*width, h*height, 1.0);
 
-                        gx.write_buffer(&mut world_buffer, 0, AsRef::<[f32; 16]>::as_ref(&world_matrix));
+                        gx.write_buffer(&world_buffer, 0, AsRef::<[f32; 16]>::as_ref(&world_matrix));
 
                         window.request_redraw();
                     }

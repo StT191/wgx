@@ -69,10 +69,8 @@ fn main() {
 
 
     // buffer
-    let mut viewport_buffer = gx.buffer_from_data(BufUse::UNIFORM | BufUse::COPY_DST, &[
-        width as f32, height as f32, width as f32 / height as f32
-    ]);
-    let mut scale_buffer = gx.buffer_from_data(BufUse::UNIFORM | BufUse::COPY_DST, &[1.0 as f32]);
+    let mut viewport_buffer = gx.buffer_from_data(BufUse::UNIFORM | BufUse::COPY_DST, [width, height, width/height]);
+    let mut scale_buffer = gx.buffer_from_data(BufUse::UNIFORM | BufUse::COPY_DST, [1.0_f32]);
 
     // binding
     let binding = gx.bind(&layout, &[
@@ -119,7 +117,7 @@ fn main() {
                 height = size.height as f32;
 
                 // write buffer
-                gx.write_buffer(&mut viewport_buffer, 0, &[width, height, width / height]);
+                gx.write_buffer(&viewport_buffer, 0, [width, height, width / height]);
             },
 
             Event::WindowEvent { event:WindowEvent::KeyboardInput { input: KeyboardInput {
@@ -150,7 +148,7 @@ fn main() {
                     _ => { update = false; }
                 } {
                     if update {
-                        gx.write_buffer(&mut scale_buffer, 0, &[h]);
+                        gx.write_buffer(&scale_buffer, 0, [h]);
                         // window.request_redraw();
                     }
                 }

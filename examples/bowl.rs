@@ -47,8 +47,8 @@ fn main() {
   let sampler = gx.default_sampler();
 
 
-  let mut clip_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 64, false);
-  let mut light_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 64, false);
+  let clip_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 64, false);
+  let light_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 64, false);
 
   let binding = gx.bind(&pipeline.get_bind_group_layout(0), &[
     bind!(0, Buffer, &clip_buffer),
@@ -175,10 +175,10 @@ fn main() {
 
   let clip_matrix = projection * obj_mat;
 
-  // gx.write_buffer(&mut world_buffer, 0, AsRef::<[f32; 16]>::as_ref(&world_matrix));
-  gx.write_buffer(&mut clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&clip_matrix));
-  gx.write_buffer(&mut light_buffer, 0, AsRef::<[f32; 16]>::as_ref(&(light_matrix)));
-  // gx.write_buffer(&mut viewport_buffer, 0, &[width, height]);
+  // gx.write_buffer(&world_buffer, 0, AsRef::<[f32; 16]>::as_ref(&world_matrix));
+  gx.write_buffer(&clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&clip_matrix));
+  gx.write_buffer(&light_buffer, 0, AsRef::<[f32; 16]>::as_ref(&(light_matrix)));
+  // gx.write_buffer(&viewport_buffer, 0, &[width, height]);
 
 
   // event loop
@@ -203,8 +203,8 @@ fn main() {
         // projection
         let clip_matrix = projection * rot_matrix * world_matrix * obj_mat;
 
-        gx.write_buffer(&mut clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&clip_matrix));
-        // gx.write_buffer(&mut viewport_buffer, 0, &[width, height]);
+        gx.write_buffer(&clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&clip_matrix));
+        // gx.write_buffer(&&viewport_buffer, 0, &[width, height]);
       },
 
       Event::WindowEvent { event:WindowEvent::KeyboardInput { input: KeyboardInput {
@@ -243,8 +243,8 @@ fn main() {
             // let light_matrix = rot_matrix * light_matrix;
             let light_matrix = light_matrix;
 
-            gx.write_buffer(&mut clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&clip_matrix));
-            gx.write_buffer(&mut light_buffer, 0, AsRef::<[f32; 16]>::as_ref(&light_matrix));
+            gx.write_buffer(&clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&clip_matrix));
+            gx.write_buffer(&light_buffer, 0, AsRef::<[f32; 16]>::as_ref(&light_matrix));
 
             window.request_redraw();
           }

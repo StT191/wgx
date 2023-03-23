@@ -61,10 +61,10 @@ pub fn main() {
     // projection
     let projection = Matrix4::<f32>::identity();
 
-    let mut pj_buffer = gx.buffer_from_data(BufUse::UNIFORM | BufUse::COPY_DST, AsRef::<[f32; 16]>::as_ref(&projection));
-    // let mut tf_buffer = gx.buffer_from_data(BufUse::UNIFORM | BufUse::COPY_DST, AsRef::<[f32; 16]>::as_ref(&projection));
+    let pj_buffer = gx.buffer_from_data(BufUse::UNIFORM | BufUse::COPY_DST, AsRef::<[f32; 16]>::as_ref(&projection));
+    // let tf_buffer = gx.buffer_from_data(BufUse::UNIFORM | BufUse::COPY_DST, AsRef::<[f32; 16]>::as_ref(&projection));
 
-    let mut dim_buffer = gx.buffer_from_data(BufUse::UNIFORM | BufUse::COPY_DST, &[1.0_f32; 4]);
+    let dim_buffer = gx.buffer_from_data(BufUse::UNIFORM | BufUse::COPY_DST, [1.0_f32; 4]);
 
     // binding
     let binding = gx.bind(&pipeline.get_bind_group_layout(0), &[
@@ -116,10 +116,10 @@ pub fn main() {
                     obj_mat
                 ;
 
-                gx.write_buffer(&mut pj_buffer, 0, AsRef::<[f32; 16]>::as_ref(&projection));
-                gx.write_buffer(&mut dim_buffer, 0, &[dim_x, dim_y, dim_x_p/dim_x, dim_y_p/dim_y]);
-                // gx.write_buffer(&mut dim_buffer, 0, &[dim_x_p, dim_y_p, 1.0, 1.0]);
-                // gx.write_buffer(&mut dim_buffer, 0, &[dim_x, dim_y, 1.0, 1.0]);
+                gx.write_buffer(&pj_buffer, 0, AsRef::<[f32; 16]>::as_ref(&projection));
+                gx.write_buffer(&dim_buffer, 0, [dim_x, dim_y, dim_x_p/dim_x, dim_y_p/dim_y]);
+                // gx.write_buffer(&dim_buffer, 0, &[dim_x_p, dim_y_p, 1.0, 1.0]);
+                // gx.write_buffer(&dim_buffer, 0, &[dim_x, dim_y, 1.0, 1.0]);
             },
 
             Event::WindowEvent {

@@ -44,7 +44,7 @@ pub fn main() {
 
     // corners
     let c = [
-        [ 0.0,  0.0, 0.0 as f32],
+        [ 0.0,  0.0, 0.0_f32],
         [-1.0,  0.0, 0.0],
         [ 0.0, -1.0, 0.0],
         [ 1.0,  0.0, 0.0],
@@ -65,7 +65,7 @@ pub fn main() {
         instance_data.push(instance_data[3]);
     }
 
-    let steps = 64 as u32;
+    let steps = 64_u32;
 
     let vertex_len = instance_data.len() as u32 * 3 * steps;
 
@@ -75,9 +75,9 @@ pub fn main() {
 
 
     // projection
-    // let mut world_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 64, false);
-    let mut clip_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 64, false);
-    // let mut viewport_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 8, false);
+    // let world_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 64, false);
+    let clip_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 64, false);
+    // let viewport_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 8, false);
 
 
     // binding
@@ -111,9 +111,9 @@ pub fn main() {
 
     let clip_matrix = projection * rot_matrix * Matrix4::from_nonuniform_scale(w*width, h*height, 1.0);
 
-    // gx.write_buffer(&mut world_buffer, 0, AsRef::<[f32; 16]>::as_ref(&world_matrix));
-    gx.write_buffer(&mut clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&clip_matrix));
-    // gx.write_buffer(&mut viewport_buffer, 0, &[width, height]);
+    // gx.write_buffer(&world_buffer, 0, AsRef::<[f32; 16]>::as_ref(&world_matrix));
+    gx.write_buffer(&clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&clip_matrix));
+    // gx.write_buffer(&viewport_buffer, 0, &[width, height]);
 
 
     // event loop
@@ -135,8 +135,8 @@ pub fn main() {
                 // projection
                 let clip_matrix = projection * rot_matrix * Matrix4::from_nonuniform_scale(w*width, h*height, 1.0);
 
-                gx.write_buffer(&mut clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&clip_matrix));
-                // gx.write_buffer(&mut viewport_buffer, 0, &[width, height]);
+                gx.write_buffer(&clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&clip_matrix));
+                // gx.write_buffer(&viewport_buffer, 0, &[width, height]);
             },
 
             Event::WindowEvent { event:WindowEvent::KeyboardInput { input: KeyboardInput {
@@ -168,7 +168,7 @@ pub fn main() {
 
                         let clip_matrix = projection * rot_matrix * Matrix4::from_nonuniform_scale(w*width, h*height, 1.0);
 
-                        gx.write_buffer(&mut clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&clip_matrix));
+                        gx.write_buffer(&clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&clip_matrix));
 
                         window.request_redraw();
                     }
@@ -191,7 +191,7 @@ pub fn main() {
                         rpass.set_pipeline(&pipeline);
                         rpass.set_bind_group(0, &binding, &[]);
                         rpass.set_vertex_buffer(0, vertex_buffer.slice(..));
-                        rpass.draw(0..vertex_len as u32, 0..1);
+                        rpass.draw(0..vertex_len, 0..1);
                     });
 
                 }).expect("frame error");
