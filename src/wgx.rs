@@ -3,7 +3,7 @@ use std::num::NonZeroU32;
 use arrayvec::ArrayVec;
 use wgpu::util::DeviceExt;
 use raw_window_handle::{HasRawWindowHandle, HasRawDisplayHandle};
-use crate::{*, byte_slice::AsByteSlice, error::*};
+use crate::{*, read_bytes::ReadBytes, error::*};
 
 
 // wgx
@@ -20,10 +20,11 @@ impl Wgx {
         wgpu::Instance::new(wgpu::Backends::all())
     }
 
-    pub async fn request_adapter<W: HasRawWindowHandle + HasRawDisplayHandle>(instance: &wgpu::Instance, window: Option<&W>)
+    pub async unsafe fn request_adapter<W: HasRawWindowHandle + HasRawDisplayHandle>(instance: &wgpu::Instance, window: Option<&W>)
         -> Res<(wgpu::Adapter, Option<wgpu::Surface>)>
     {
-        let surface = window.map(|win| unsafe {instance.create_surface(win)});
+        // SAFETY: caller must keep window around
+        let surface = window.map(|win| instance.create_surface(win));
 
         let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions {
             power_preference: wgpu::PowerPreference::HighPerformance,
@@ -45,7 +46,7 @@ impl Wgx {
         Ok(Self { device, queue, instance: None, adapter: None})
     }
 
-    pub async fn new<W: HasRawWindowHandle + HasRawDisplayHandle>(window:Option<&W>, features:wgpu::Features, limits:wgpu::Limits)
+    pub async unsafe fn new<W: HasRawWindowHandle + HasRawDisplayHandle>(window:Option<&W>, features:wgpu::Features, limits:wgpu::Limits)
         -> Res<(Self, Option<wgpu::Surface>)>
     {
         let instance = Self::instance();
@@ -113,10 +114,12 @@ pub trait WgxDevice {
         self.device().create_buffer(&wgpu::BufferDescriptor {usage, size, mapped_at_creation, label: None})
     }
 
-    fn buffer_from_data<T: AsByteSlice<U>, U>(&self, usage:BufUse, data:T) -> wgpu::Buffer {
-        self.device().create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            usage, contents: data.as_byte_slice(), label: None
-        })
+    fn buffer_from_data<T: ReadBytes<V>, V>(&self, usage:BufUse, data:T) -> wgpu::Buffer {
+        unsafe { // SAFETY: copy immediately
+            self.device().create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                usage, contents: data.read_bytes(), label: None
+            })
+        }
     }
 
 
@@ -260,31 +263,34 @@ pub trait WgxQueue {
 
     fn queue(&self) -> &wgpu::Queue;
 
-    fn write_texture<T: AsByteSlice<U>, U>(&self, texture:&wgpu::Texture, (x, y, w, h):(u32, u32, u32, u32), data:T) {
+    fn write_texture<T: ReadBytes<V>, V>(&self, texture:&wgpu::Texture, (x, y, w, h):(u32, u32, u32, u32), data:T) {
+        // SAFETY: copy immediately
         self.queue().write_texture(
             wgpu::ImageCopyTexture {
                 texture, mip_level: 0, origin: wgpu::Origin3d { x, y, z: 0 },
                 aspect: wgpu::TextureAspect::All
             },
-            data.as_byte_slice(),
+            unsafe { data.read_bytes() },
             wgpu::ImageDataLayout { offset: 0, bytes_per_row: NonZeroU32::new(4 * w), rows_per_image: NonZeroU32::new(h) },
             wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
         )
     }
 
-    fn write_buffer<T: AsByteSlice<U>, U>(&self, buffer:&wgpu::Buffer, offset:u64, data:T) {
-        self.queue().write_buffer(buffer, offset, data.as_byte_slice());
+    fn write_buffer<T: ReadBytes<V>, V>(&self, buffer:&wgpu::Buffer, offset:u64, data:T) {
+        // SAFETY: copy immediately
+        self.queue().write_buffer(buffer, offset, unsafe { data.read_bytes() });
     }
 }
 
 
 pub trait WgxDeviceQueue: WgxDevice + WgxQueue {
 
-    fn texture_with_data<T: AsByteSlice<U>, U>(&self, descriptor: &TexDsc, data: T) -> wgpu::Texture {
-        self.device().create_texture_with_data(self.queue(), descriptor, data.as_byte_slice())
+    fn texture_with_data<T: ReadBytes<V>, V>(&self, descriptor: &TexDsc, data: T) -> wgpu::Texture {
+        // SAFETY: copy immediately
+        self.device().create_texture_with_data(self.queue(), descriptor, unsafe { data.read_bytes() })
     }
 
-    fn texture_2d_with_data<T: AsByteSlice<U>, U>(
+    fn texture_2d_with_data<T: ReadBytes<V>, V>(
         &self, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse, data: T
     ) -> wgpu::Texture {
         self.texture_with_data(&TexDsc::new_2d(size, sample_count, format, usage), data)

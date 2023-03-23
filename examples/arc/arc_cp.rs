@@ -23,7 +23,7 @@ pub fn main() {
     window.set_inner_size(PhysicalSize::<u32>::from((width, height)));
     window.set_title("WgFx");
 
-    let (gx, surface) = Wgx::new(Some(&window), Features::VERTEX_WRITABLE_STORAGE, limits!{}).block_on().unwrap();
+    let (gx, surface) = unsafe {Wgx::new(Some(&window), Features::VERTEX_WRITABLE_STORAGE, limits!{})}.block_on().unwrap();
     let mut target = SurfaceTarget::new(&gx, surface.unwrap(), (width, height), MSAA, DEPTH_TESTING).unwrap();
 
 

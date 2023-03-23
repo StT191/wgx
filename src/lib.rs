@@ -17,7 +17,7 @@ mod macros;
 pub use macros::*;
 
 // common types
-mod byte_slice;
+mod read_bytes;
 
 mod color;
 pub use color::*;

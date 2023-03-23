@@ -25,7 +25,10 @@ fn write_into_vec<T: Copy>(target: &mut Vec<T>, offset: usize, source: &[T]) -> 
       unsafe {
         if need > 0 {
           target.reserve(need as usize);
-          target.set_len(end); // this is fine, as we'll copy over the new length
+
+          // SAFETY: This is only safe because we'll copy over the uninitialized length right away
+          //         and nothing needs to be dropped.
+          target.set_len(end);
         }
 
         target[offset..end].copy_from_slice(source);

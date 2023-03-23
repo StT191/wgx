@@ -36,7 +36,7 @@ fn main() {
 
 
     // wgx setup
-    let (gx, surface) = Wgx::new(Some(&window), Features::empty(), limits!{}).block_on().unwrap();
+    let (gx, surface) = unsafe {Wgx::new(Some(&window), Features::empty(), limits!{})}.block_on().unwrap();
     let mut target = SurfaceTarget::new(&gx, surface.unwrap(), (1200, 1000), MSAA, DEPTH_TESTING).unwrap();
 
 

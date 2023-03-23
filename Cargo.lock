@@ -1660,7 +1660,7 @@ dependencies = [
 
 [[package]]
 name = "wgx"
-version = "0.14.3"
+version = "0.14.4"
 dependencies = [
  "arrayvec",
  "cgmath",

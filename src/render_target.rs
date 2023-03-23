@@ -1,5 +1,5 @@
 
-use crate::{*, error::*, byte_slice::AsByteSlice};
+use crate::{*, error::*, read_bytes::ReadBytes};
 use wgpu::PresentMode as Prs;
 
 
@@ -138,12 +138,12 @@ impl<'a> TextureLot<'a> {
     pub fn new_2d_attached(gx:&impl WgxDevice, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse) -> Self {
         Self::new_2d(gx, size, sample_count, format, TexUse::RENDER_ATTACHMENT | usage)
     }
-    pub fn new_with_data<T: AsByteSlice<U>, U>(gx:&impl WgxDeviceQueue, descriptor: TexDsc<'a>, data: T) -> Self {
+    pub fn new_with_data<T: ReadBytes<V>, V>(gx:&impl WgxDeviceQueue, descriptor: TexDsc<'a>, data: T) -> Self {
         let texture = gx.texture_with_data(&descriptor, data);
         let view = texture.create_default_view();
         TextureLot { texture, descriptor, view }
     }
-    pub fn new_2d_with_data<T: AsByteSlice<U>, U>(
+    pub fn new_2d_with_data<T: ReadBytes<V>, V>(
         gx:&impl WgxDeviceQueue, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse, data: T)
     -> Self {
         Self::new_with_data(gx, TexDsc::new_2d(size, sample_count, format, usage), data)
