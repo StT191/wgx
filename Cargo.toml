@@ -3,6 +3,7 @@ name = "wgx"
 version = "0.14.5"
 authors = ["Stefan Tammer <st.tammer@gmail.com>"]
 edition = "2021"
+license = "MIT"
 
 [lib]
 name = "wgx"
