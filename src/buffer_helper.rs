@@ -5,7 +5,7 @@ pub use wgpu::{util::DrawIndirect};
 
 
 #[derive(Debug)]
-pub struct VecBuffer<T: Copy>{
+pub struct VecBuffer<T: Copy + ReadBytes>{
   pub data: Vec<T>,
   pub buffer: wgpu::Buffer,
   size: usize,
@@ -47,7 +47,7 @@ fn write_into_vec<T: Copy>(target: &mut Vec<T>, offset: usize, source: &[T]) -> 
 }
 
 
-impl<T: Copy> VecBuffer<T> {
+impl<T: Copy + ReadBytes> VecBuffer<T> {
 
   pub fn new(gx: &impl WgxDevice, usage: BufUse, size: usize) -> Self {
     Self {
@@ -115,7 +115,7 @@ impl<T: Copy> VecBuffer<T> {
 
 
 
-pub struct MultiDrawIndirect<Vertex:Copy, InstanceData:Copy> {
+pub struct MultiDrawIndirect<Vertex: Copy + ReadBytes, InstanceData: Copy + ReadBytes> {
   pub vertices: VecBuffer<Vertex>,
   pub instances: VecBuffer<InstanceData>,
   pub indirect: VecBuffer<DrawIndirect>,
@@ -123,7 +123,7 @@ pub struct MultiDrawIndirect<Vertex:Copy, InstanceData:Copy> {
 
 type Desc = (Option<BufUse>, usize); // (Buffer usages, max size)
 
-impl<Vertex:Copy, InstanceData:Copy> MultiDrawIndirect<Vertex, InstanceData> {
+impl<Vertex: Copy + ReadBytes, InstanceData: Copy + ReadBytes> MultiDrawIndirect<Vertex, InstanceData> {
 
   pub fn new(gx: &impl WgxDevice, vertex_desc: Desc, instance_desc: Desc, indirect_desc: Desc) -> Self {
     Self {

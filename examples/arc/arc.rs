@@ -54,19 +54,24 @@ pub fn main() {
     // let a:f32 = 0.2;
     // let b:f32 = 0.2;
 
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    struct Inst([f32;3], [f32;3], [f32;3], f32, [u8; 4]);
+    unsafe impl wgx::ReadBytes for Inst {}
+
     let instance_data = vec![
-        // (c[1], c[0], c[2], 50.0 as f32, blue),
-        // (c[2], c[0], c[3], 50.0, blue),
-        (c[1], c[0], c[2], a, blue),
-        (c[2], c[0], c[3], b, blue),
-        (c[3], c[0], c[4], a, blue),
-        (c[4], c[0], c[1], b, blue),
-        // (c[1], c[0], c[2], 1.0/a, blue),
-        // (c[2], c[0], c[3], 1.0/a, blue),
-        // (c[3], c[0], c[4], 1.0/b, blue),
-        // (c[4], c[0], c[1], 1.0/b, blue),
-        // (c[3], c[0], c[4], -1.0 as f32, red),
-        // (c[4], c[0], c[1], 0.0, red),
+        // Inst(c[1], c[0], c[2], 50.0 as f32, blue),
+        // Inst(c[2], c[0], c[3], 50.0, blue),
+        Inst(c[1], c[0], c[2], a, blue),
+        Inst(c[2], c[0], c[3], b, blue),
+        Inst(c[3], c[0], c[4], a, blue),
+        Inst(c[4], c[0], c[1], b, blue),
+        // Inst(c[1], c[0], c[2], 1.0/a, blue),
+        // Inst(c[2], c[0], c[3], 1.0/a, blue),
+        // Inst(c[3], c[0], c[4], 1.0/b, blue),
+        // Inst(c[4], c[0], c[1], 1.0/b, blue),
+        // Inst(c[3], c[0], c[4], -1.0 as f32, red),
+        // Inst(c[4], c[0], c[1], 0.0, red),
     ];
 
     /*for _ in 0..1000 {

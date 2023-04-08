@@ -51,11 +51,16 @@ pub fn main() {
         [ 0.0,  1.0, 0.0],
     ];
 
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    struct Inst([f32;3], [f32;3], [f32;3], [u8; 4]);
+    unsafe impl wgx::ReadBytes for Inst {}
+
     let mut instance_data = vec![
-        (c[1], c[0], c[2], blue),
-        (c[2], c[0], c[3], red),
-        (c[3], c[0], c[4], blue),
-        (c[4], c[0], c[1], red),
+        Inst(c[1], c[0], c[2], blue),
+        Inst(c[2], c[0], c[3], red),
+        Inst(c[3], c[0], c[4], blue),
+        Inst(c[4], c[0], c[1], red),
     ];
 
     for _ in 0..100 {

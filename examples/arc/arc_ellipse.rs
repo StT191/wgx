@@ -42,12 +42,17 @@ pub fn main() {
 
     let color = Color::RED.f32();
 
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    struct Vtx([f32;2], [f32; 4]);
+    unsafe impl wgx::ReadBytes for Vtx {}
+
     // corners
     let c = [
-        ([-1.0, -1.0f32], color),
-        ([ 1.0, -1.0],    color),
-        ([ 1.0,  1.0],    color),
-        ([-1.0,  1.0],    color),
+        Vtx([-1.0, -1.0f32], color),
+        Vtx([ 1.0, -1.0],    color),
+        Vtx([ 1.0,  1.0],    color),
+        Vtx([-1.0,  1.0],    color),
     ];
 
     // vertices

@@ -47,13 +47,17 @@ fn main() {
     // sampler
     let sampler = gx.default_sampler();
 
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    struct Vtx([f32;3], [f32;2]);
+    unsafe impl wgx::ReadBytes for Vtx {}
 
     // vertices
     let vertex_data = [
-        ([ 0.5,  0.5, 0.0f32], [1.0, 0.0f32]),
-        ([-0.5,  0.5, 0.0], [0.0, 0.0]),
-        ([ 0.5, -0.5, 0.0], [1.0, 1.0]),
-        ([-0.5, -0.5, 0.0], [0.0, 1.0]),
+        Vtx([ 0.5,  0.5, 0.0f32], [1.0, 0.0f32]),
+        Vtx([-0.5,  0.5, 0.0], [0.0, 0.0]),
+        Vtx([ 0.5, -0.5, 0.0], [1.0, 1.0]),
+        Vtx([-0.5, -0.5, 0.0], [0.0, 1.0]),
     ];
     let vertices = gx.buffer_from_data(BufUse::VERTEX, &vertex_data[..]);
 
