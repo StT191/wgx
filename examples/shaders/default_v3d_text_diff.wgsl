@@ -14,9 +14,9 @@ struct VertexData {
 @group(0) @binding(3) var color_sampler: sampler;
 
 
-let LL = vec2<f32>(0.02, 0.10); // light levels (min, min lit)
-let hL = 0.15; // highlights
-let hlPow = 5.0; // highlight power
+const LL = vec2<f32>(0.02, 0.10); // light levels (min, min lit)
+const hL = 0.15; // highlights
+const hlPow = 5.0; // highlight power
 
 
 fn highlight(Rd: vec3<f32>, N: vec3<f32>, Ln: vec3<f32>) -> f32 {

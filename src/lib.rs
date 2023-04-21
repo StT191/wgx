@@ -9,7 +9,6 @@ pub use wgpu::{
     ShaderStages as Shader,
     Features, Limits,
     BlendState, BlendComponent, BlendFactor, BlendOperation,
-    TextureDescriptor as TexDsc,
 };
 
 // macros

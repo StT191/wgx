@@ -36,7 +36,7 @@ pub trait EncoderExtension {
 
     fn render_bundles<'a, const S: usize>(
         &'a mut self, attachments: RenderAttachments<'a, S>,
-        bundles: impl IntoIterator<Item = &'a wgpu::RenderBundle>
+        bundles: impl IntoIterator<Item = &'a wgpu::RenderBundle> + 'a
     );
 }
 
@@ -123,7 +123,7 @@ impl EncoderExtension for wgpu::CommandEncoder {
 
     fn render_bundles<'a, const S: usize>(
         &'a mut self, attachments: RenderAttachments<'a, S>,
-        bundles: impl IntoIterator<Item = &'a wgpu::RenderBundle>
+        bundles: impl IntoIterator<Item = &'a wgpu::RenderBundle> + 'a
     ) {
         self.render_pass(attachments).execute_bundles(bundles.into_iter());
     }

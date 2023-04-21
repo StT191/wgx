@@ -1,6 +1,6 @@
 
 use crate::{*, error::*};
-use wgpu::PresentMode as Prs;
+use wgpu::{PresentMode as Prs, SurfaceCapabilities};
 
 
 pub type RenderAttachments<'a, const S: usize> = (
@@ -117,14 +117,14 @@ pub trait RenderAttachable: RenderTarget {
 
 // helper
 #[derive(Debug)]
-pub struct TextureLot<'a> {
+pub struct TextureLot {
     pub texture: wgpu::Texture,
-    pub descriptor: TexDsc<'a>,
+    pub descriptor: TexDsc,
     pub view: wgpu::TextureView,
 }
 
-impl<'a> TextureLot<'a> {
-    pub fn new(gx:&impl WgxDevice, descriptor: TexDsc<'a>) -> Self {
+impl TextureLot {
+    pub fn new(gx:&impl WgxDevice, descriptor: TexDsc) -> Self {
         let texture = gx.texture(&descriptor);
         let view = texture.create_default_view();
         TextureLot { texture, descriptor, view }
@@ -138,7 +138,7 @@ impl<'a> TextureLot<'a> {
     pub fn new_2d_attached(gx:&impl WgxDevice, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse) -> Self {
         Self::new_2d(gx, size, sample_count, format, TexUse::RENDER_ATTACHMENT | usage)
     }
-    pub fn new_with_data<T: ReadBytes>(gx:&impl WgxDeviceQueue, descriptor: TexDsc<'a>, data: T) -> Self {
+    pub fn new_with_data<T: ReadBytes>(gx:&impl WgxDeviceQueue, descriptor: TexDsc, data: T) -> Self {
         let texture = gx.texture_with_data(&descriptor, data);
         let view = texture.create_default_view();
         TextureLot { texture, descriptor, view }
@@ -151,14 +151,14 @@ impl<'a> TextureLot<'a> {
     pub fn update(&mut self, gx: &impl WgxDevice) { *self = Self::new(gx, self.descriptor.clone()) }
 }
 
-impl RenderTarget for TextureLot<'_> {
+impl RenderTarget for TextureLot {
     fn size(&self) -> (u32, u32) { self.descriptor.size_2d() }
     fn msaa(&self) -> u32 { 1 }
     fn depth_testing(&self) -> bool { false }
     fn format(&self) -> wgpu::TextureFormat { self.descriptor.format }
 }
 
-impl RenderAttachable for TextureLot<'_> {
+impl RenderAttachable for TextureLot {
     fn color_views(&self) -> (&wgpu::TextureView, Option<&wgpu::TextureView>) { (&self.view, None) }
     fn depth_view(&self) -> Option<&wgpu::TextureView> { None }
 }
@@ -166,15 +166,15 @@ impl RenderAttachable for TextureLot<'_> {
 
 
 #[derive(Debug)]
-pub struct SurfaceTarget<'a> {
+pub struct SurfaceTarget {
     pub config: wgpu::SurfaceConfiguration,
     pub surface: wgpu::Surface,
     pub msaa: u32,
-    pub msaa_opt: Option<TextureLot<'a>>,
-    pub depth_opt: Option<TextureLot<'a>>,
+    pub msaa_opt: Option<TextureLot>,
+    pub depth_opt: Option<TextureLot>,
 }
 
-impl RenderTarget for SurfaceTarget<'_> {
+impl RenderTarget for SurfaceTarget {
     fn size(&self) -> (u32, u32) { (self.config.width, self.config.height) }
     fn msaa(&self) -> u32 { self.msaa }
     fn depth_testing(&self) -> bool { self.depth_opt.is_some() }
@@ -182,19 +182,19 @@ impl RenderTarget for SurfaceTarget<'_> {
 }
 
 #[derive(Debug)]
-pub struct SurfaceFrame<'a, 'b> {
+pub struct SurfaceFrame<'a> {
     pub view: wgpu::TextureView,
-    pub target: &'b mut SurfaceTarget<'a>,
+    pub target: &'a mut SurfaceTarget,
 }
 
-impl RenderTarget for SurfaceFrame<'_, '_> {
+impl RenderTarget for SurfaceFrame<'_> {
     fn size(&self) -> (u32, u32) { self.target.size() }
     fn msaa(&self) -> u32 { self.target.msaa() }
     fn depth_testing(&self) -> bool { self.target.depth_testing() }
     fn format(&self) -> wgpu::TextureFormat { self.target.format() }
 }
 
-impl RenderAttachable for SurfaceFrame<'_, '_> {
+impl RenderAttachable for SurfaceFrame<'_> {
     fn color_views(&self) -> (&wgpu::TextureView, Option<&wgpu::TextureView>) {
         (&self.view, self.target.msaa_opt.as_ref().map(|o| &o.view))
     }
@@ -210,10 +210,11 @@ const SURFACE_CONFIGURATION: wgpu::SurfaceConfiguration = wgpu::SurfaceConfigura
     format: TEXTURE, width: 0, height: 0,
     present_mode: Prs::Mailbox,
     alpha_mode: wgpu::CompositeAlphaMode::Auto,
+    view_formats: Vec::new(),
 };
 
 
-impl<'a> SurfaceTarget<'a> {
+impl SurfaceTarget {
 
     pub fn new(gx:&Wgx, surface:wgpu::Surface, size:(u32, u32), msaa:u32, depth_testing:bool) -> Res<Self>
     {
@@ -223,18 +224,16 @@ impl<'a> SurfaceTarget<'a> {
         config.width = size.0;
         config.height = size.1;
 
-        let formats = surface.get_supported_formats(adapter);
+        let SurfaceCapabilities {formats, present_modes, ..} = surface.get_capabilities(adapter);
 
         // let format = *formats.get(0).ok_or("couldn't get default format")?;
         let format = *formats.iter().find(|fmt| fmt.describe().srgb).ok_or("couldn't get srgb format")?;
         config.format = format;
 
-        let modes = surface.get_supported_present_modes(adapter);
-
         config.present_mode =
-            if modes.contains(&Prs::Mailbox) { Prs::Mailbox }
-            else if modes.contains(&Prs::AutoVsync) { Prs::AutoVsync }
-            else { *modes.get(0).ok_or("couldn't get default mode")? }
+            if present_modes.contains(&Prs::Mailbox) { Prs::Mailbox }
+            else if present_modes.contains(&Prs::AutoVsync) { Prs::AutoVsync }
+            else { *present_modes.get(0).ok_or("couldn't get default mode")? }
         ;
 
         surface.configure(gx.device(), &config);
@@ -254,7 +253,7 @@ impl<'a> SurfaceTarget<'a> {
 
         self.surface.configure(gx.device(), &self.config);
 
-        let map_opt = |lot:&TextureLot<'a>| {
+        let map_opt = |lot:&TextureLot| {
             let mut descriptor = lot.descriptor.clone();
             descriptor.set_size_2d(size);
             descriptor.sample_count = self.msaa;
@@ -299,24 +298,24 @@ impl<'a> SurfaceTarget<'a> {
 
 
 #[derive(Debug)]
-pub struct TextureTarget<'a> {
+pub struct TextureTarget {
     pub texture: wgpu::Texture,
-    pub descriptor: TexDsc<'a>,
+    pub descriptor: TexDsc,
     pub view: wgpu::TextureView,
 
     pub msaa: u32,
-    pub msaa_opt: Option<TextureLot<'a>>,
-    pub depth_opt: Option<TextureLot<'a>>,
+    pub msaa_opt: Option<TextureLot>,
+    pub depth_opt: Option<TextureLot>,
 }
 
-impl RenderTarget for TextureTarget<'_> {
+impl RenderTarget for TextureTarget {
     fn size(&self) -> (u32, u32) { self.descriptor.size_2d() }
     fn msaa(&self) -> u32 { self.msaa }
     fn depth_testing(&self) -> bool { self.depth_opt.is_some() }
     fn format(&self) -> wgpu::TextureFormat { self.descriptor.format }
 }
 
-impl RenderAttachable for TextureTarget<'_> {
+impl RenderAttachable for TextureTarget {
     fn color_views(&self) -> (&wgpu::TextureView, Option<&wgpu::TextureView>) {
         (&self.view, self.msaa_opt.as_ref().map(|o| &o.view))
     }
@@ -325,7 +324,7 @@ impl RenderAttachable for TextureTarget<'_> {
     }
 }
 
-impl<'a> TextureTarget<'a> {
+impl TextureTarget {
 
     pub fn new(
         gx:&impl WgxDevice, size:(u32, u32), msaa:u32, depth_testing: bool, format:wgpu::TextureFormat, usage:wgpu::TextureUsages,
@@ -342,7 +341,7 @@ impl<'a> TextureTarget<'a> {
 
     pub fn update(&mut self, gx:&impl WgxDevice, size:(u32, u32)) {
 
-        let map_opt = |descriptor: &TexDsc<'a>| {
+        let map_opt = |descriptor: &TexDsc| {
             let mut descriptor = descriptor.clone();
             descriptor.set_size_2d(size);
             descriptor.sample_count = self.msaa;

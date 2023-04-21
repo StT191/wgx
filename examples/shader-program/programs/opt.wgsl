@@ -3,8 +3,8 @@
 // &import * from "../imports/sdf.wgsl"
 
 // ray marching
-let MAX_DEPTH = 3000.0;
-let MAX_ITER = 48;
+const MAX_DEPTH = 3000.0;
+const MAX_ITER = 48;
 
 
 // sdf map
@@ -31,25 +31,25 @@ fn sdMap(P: vec3<f32>) -> f32 {
 
 
 // camera
-let cDim = 500.0; // half camera-y dimension
-let cDist = 3000.0; // camera field of view distance
-let Cp = vec3<f32>(0.0, 0.0, 0.0);
-let Cd = vec3<f32>(0.0, -0.5, 2.5);
+const cDim = 500.0; // half camera-y dimension
+const cDist = 3000.0; // camera field of view distance
+const Cp = vec3<f32>(0.0, 0.0, 0.0);
+const Cd = vec3<f32>(0.0, -0.5, 2.5);
 
 
 // lighting
-let Ld = vec3<f32>(-0.3, -1.0, -1.5); // light direction
-let LL = vec2<f32>(0.02, 0.10); // light levels (min, min lit)
+const Ld = vec3<f32>(-0.3, -1.0, -1.5); // light direction
+const LL = vec2<f32>(0.02, 0.10); // light levels (min, min lit)
 
-let shDist = 0.0; // max shadow distance
+const shDist = 0.0; // max shadow distance
 
-let hL = 0.15; // highlight
-let hlPow = 50.0; // highlight power
+const hL = 0.15; // highlight
+const hlPow = 50.0; // highlight power
 
 
 // coloring
-let Color = vec3<f32>(1.0, 0.0, 0.0);
-let bgColor = vec4<f32>(0.01, 0.5, 0.8, 1.0);
+const Color = vec3<f32>(1.0, 0.0, 0.0);
+const bgColor = vec4<f32>(0.01, 0.5, 0.8, 1.0);
 
 
 // import ray marcher

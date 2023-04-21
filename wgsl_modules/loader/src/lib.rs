@@ -14,7 +14,7 @@ pub type Res<T> = Result<T, Error>;
 
 
 #[derive(Debug)]
-pub enum Type { Function, Struct, Global, Value }
+pub enum Type { Function, Struct, Global, Const }
 
 #[derive(Debug)]
 pub struct Artifact { pub ty: Type, pub name: String, pub name_range: Range<usize>, pub source: String, pub source_range: Range<usize> }
@@ -191,7 +191,7 @@ lazy_static! {
     static ref FN_REGEX: Regex = Regex::new(r"fn\s+(\w+)").unwrap();
     static ref STRUCT_REGEX: Regex = Regex::new(r"struct\s+(\w+)").unwrap();
     static ref GLOBAL_REGEX: Regex = Regex::new(r"(\w+)\s*:").unwrap();
-    static ref VALUE_REGEX: Regex = Regex::new(r"let\s+(\w+)").unwrap();
+    static ref CONST_REGEX: Regex = Regex::new(r"const\s+(\w+)").unwrap();
 }
 
 impl Module {
@@ -240,10 +240,10 @@ impl Module {
 
                 "//" => { // mark line-comment start
                     line_comment = true;
-                    (Type::Value, None)
+                    (Type::Const, None)
                 },
 
-                _ => (Type::Value, VALUE_REGEX.captures(source)) // test arbitrary as value
+                _ => (Type::Const, CONST_REGEX.captures(source)) // test arbitrary as value
             } {
                 let found = captures.get(1).unwrap();
                 let name = found.as_str();
@@ -366,7 +366,7 @@ impl Module {
                     import.artifacts.iter().map(|import_artifact| {
                         import_artifact.quote() + match import_artifact.artifact.ty {
                             Type::Function | Type::Struct => "\n",
-                            Type::Global | Type::Value => ";\n",
+                            Type::Global | Type::Const => ";\n",
                         }
                     })
                 }).collect::<String>()

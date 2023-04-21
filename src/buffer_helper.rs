@@ -145,17 +145,28 @@ impl<Vertex: Copy + ReadBytes, InstanceData: Copy + ReadBytes> MultiDrawIndirect
 }
 
 
-pub trait DrawIndirectFromRanges: Sized {
-  fn from_ranges(vertex_range: Range<usize>, instance_range: Range<usize>) -> Res<Self>;
+pub trait DrawIndirectRanges: Sized {
+  fn try_from_ranges(vertex_range: Range<usize>, instance_range: Range<usize>) -> Res<Self>;
+  fn vertex_range(&self) -> Res<Range<u32>>;
+  fn instance_range(&self) -> Res<Range<u32>>;
 }
 
-impl DrawIndirectFromRanges for DrawIndirect {
-  fn from_ranges(vertex_range: Range<usize>, instance_range: Range<usize>) -> Res<Self> {
+impl DrawIndirectRanges for DrawIndirect {
+
+  fn try_from_ranges(vertex_range: Range<usize>, instance_range: Range<usize>) -> Res<Self> {
     Ok(Self {
       base_vertex: u32::try_from(vertex_range.start).map_err(|_| "DrawIndirect base_vertex overflow")?,
       vertex_count: u32::try_from(vertex_range.len()).map_err(|_| "DrawIndirect vertex_count overflow")?,
       base_instance: u32::try_from(instance_range.start).map_err(|_| "DrawIndirect base_instance overflow")?,
       instance_count: u32::try_from(instance_range.len()).map_err(|_| "DrawIndirect instance_count overflow")?,
     })
+  }
+
+  fn vertex_range(&self) -> Res<Range<u32>> {
+    Ok(self.base_vertex..self.base_vertex.checked_add(self.vertex_count).ok_or("DrawIndirect vertex range overflow")?)
+  }
+
+  fn instance_range(&self) -> Res<Range<u32>> {
+    Ok(self.base_instance..self.base_instance.checked_add(self.instance_count).ok_or("DrawIndirect instance range overflow")?)
   }
 }

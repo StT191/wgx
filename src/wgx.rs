@@ -17,14 +17,17 @@ pub struct Wgx {
 
 impl Wgx {
     pub fn instance() -> wgpu::Instance {
-        wgpu::Instance::new(wgpu::Backends::all())
+        wgpu::Instance::new(Default::default())
     }
 
     pub async unsafe fn request_adapter<W: HasRawWindowHandle + HasRawDisplayHandle>(instance: &wgpu::Instance, window: Option<&W>)
         -> Res<(wgpu::Adapter, Option<wgpu::Surface>)>
     {
-        // SAFETY: caller must keep window around
-        let surface = window.map(|win| instance.create_surface(win));
+        let surface = if let Some(win) = window {
+            // SAFETY: caller must keep window around
+            Some(instance.create_surface(win).or(Err("couldn't create surface"))?)
+        }
+        else { None };
 
         let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions {
             power_preference: wgpu::PowerPreference::HighPerformance,
@@ -65,7 +68,7 @@ pub trait WgxDevice {
     // texture
 
     fn texture(&self, descriptor:&TexDsc) -> wgpu::Texture {
-        self.device().create_texture(descriptor)
+        self.device().create_texture(&descriptor.into())
     }
 
     fn texture_2d(&self, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse)
@@ -100,7 +103,7 @@ pub trait WgxDevice {
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
             mipmap_filter: wgpu::FilterMode::Linear,
-            lod_min_clamp: -100.0,
+            lod_min_clamp: 0.0,
             lod_max_clamp: 100.0,
             compare: None, // Some(wgpu::CompareFunction::LessEqual),
             anisotropy_clamp: None, // NonZeroU8::new(16),
@@ -286,7 +289,7 @@ pub trait WgxDeviceQueue: WgxDevice + WgxQueue {
 
     fn texture_with_data<T: ReadBytes>(&self, descriptor: &TexDsc, data: T) -> wgpu::Texture {
         // SAFETY: copy immediately
-        self.device().create_texture_with_data(self.queue(), descriptor, data.read_bytes())
+        self.device().create_texture_with_data(self.queue(), &descriptor.into(), data.read_bytes())
     }
 
     fn texture_2d_with_data<T: ReadBytes>(

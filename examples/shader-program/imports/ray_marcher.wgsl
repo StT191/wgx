@@ -34,12 +34,12 @@ fn vs_main(@location(0) p: vec2<f32>) -> VertexData {
 
 
 // normal
-let dN = 0.01;
+const dN = 0.01;
 
-let dN1 = vec3<f32>( 1.0, -1.0, -1.0);
-let dN2 = vec3<f32>(-1.0, -1.0,  1.0);
-let dN3 = vec3<f32>(-1.0,  1.0, -1.0);
-let dN4 = vec3<f32>( 1.0,  1.0,  1.0);
+const dN1 = vec3<f32>( 1.0, -1.0, -1.0);
+const dN2 = vec3<f32>(-1.0, -1.0,  1.0);
+const dN3 = vec3<f32>(-1.0,  1.0, -1.0);
+const dN4 = vec3<f32>( 1.0,  1.0,  1.0);
 
 fn getNormal(P: vec3<f32>) -> vec3<f32> {
     return normalize(
@@ -52,10 +52,10 @@ fn getNormal(P: vec3<f32>) -> vec3<f32> {
 
 
 // ray marching
-let START_DIST = 1e-2; // start with a reasonable offset from surface dist
-let SURFACE_DIST = 1e-4;
-// let MAX_DEPTH = 3000.0; // declared externally
-// let MAX_ITER = 64; // declared externally
+const START_DIST = 1e-2; // start with a reasonable offset from surface dist
+const SURFACE_DIST = 1e-4;
+// const MAX_DEPTH = 3000.0; // declared externally
+// const MAX_ITER = 64; // declared externally
 
 struct RayHit { P: vec3<f32>, dist: f32 };
 

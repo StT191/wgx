@@ -1,6 +1,6 @@
 [package]
 name = "wgx"
-version = "0.14.6"
+version = "0.15.0"
 authors = ["Stefan Tammer <st.tammer@gmail.com>"]
 edition = "2021"
 license = "MIT"
@@ -9,8 +9,21 @@ license = "MIT"
 name = "wgx"
 doctest = false
 
+
+# wgsl modules
 [workspace]
 members = ["wgsl_modules", "wgsl_modules/loader", "wgsl_modules/macro"]
+
+[workspace.package]
+version = "0.15.0"
+authors = ["Stefan Tammer <st.tammer@gmail.com>"]
+edition = "2021"
+license = "MIT"
+
+[workspace.dependencies]
+wgsl_modules_macro = { version = "0.15.0", path = "wgsl_modules/macro" }
+wgsl_modules_loader = { version = "0.15.0", path = "wgsl_modules/loader" }
+
 
 [features]
 projection = ["dep:cgmath"]
@@ -23,15 +36,16 @@ wgsl_modules_loader = ["wgsl_modules", "wgsl_modules/loader"]
 
 
 [dependencies]
-wgpu = "0.14"
+wgpu = "0.15"
+wgpu-types = "*"
 raw-window-handle = "0.5"
 arrayvec = "0.7"
 
 # optional
 cgmath = { version = "0", optional = true }
-instant = { version = "0.1", features = ["now", "wasm-bindgen"], optional = true }
-wgpu_glyph = { version = "0.18", optional = true }
-wgsl_modules = { path = "wgsl_modules", optional = true }
+instant = { version = "0.1", features = ["wasm-bindgen"], optional = true }
+wgpu_glyph = { version = "0.19", optional = true }
+wgsl_modules = { version = "0.15.0", path = "wgsl_modules", optional = true }
 
 
 [dev-dependencies]

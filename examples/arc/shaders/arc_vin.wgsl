@@ -9,7 +9,7 @@ struct VertexData {
 
 /* &import from_vecs from "util.wgsl" */
 
-let Z0 = vec3<f32>(0.0, 0.0, 0.0);
+const Z0 = vec3<f32>(0.0, 0.0, 0.0);
 
 
 @vertex

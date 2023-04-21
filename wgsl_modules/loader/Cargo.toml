@@ -1,14 +1,15 @@
 [package]
 name = "wgsl_modules_loader"
-version = "0.1.0"
-authors = ["Stefan Tammer <st.tammer@gmail.com>"]
-edition = "2021"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
 
 [lib]
 name = "wgsl_modules_loader"
 
 [dependencies]
-tree-sitter = { version = "0" }
-tree-sitter-wgsl = { version = "0" }
-lazy_static = { version = "1" }
+tree-sitter = "0"
+tree-sitter-wgsl = "0"
+lazy_static = "1"
 regex = { version = "1", features = ["unicode-perl"] }

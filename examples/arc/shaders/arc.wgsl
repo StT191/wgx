@@ -20,7 +20,7 @@ struct VertexData {
 /* &import from_vecs, translation, from_scale, normal_2d, homogen_2d, homogen_3d from "util.wgsl" */
 
 
-let Z0 = vec3<f32>(0.0, 0.0, 0.0);
+const Z0 = vec3<f32>(0.0, 0.0, 0.0);
 
 @vertex
 fn vs_main(
@@ -83,7 +83,7 @@ fn vs_main(
 }
 
 
-let g:f32 = 1.0; // edge-blur
+const g:f32 = 1.0; // edge-blur
 
 
 @fragment
