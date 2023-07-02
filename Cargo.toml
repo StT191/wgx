@@ -37,7 +37,7 @@ wgsl_modules_loader = ["wgsl_modules", "wgsl_modules/loader"]
 
 [dependencies]
 wgpu = "0.15"
-wgpu-types = "*"
+wgpu-types = "0.15"
 raw-window-handle = "0.5"
 arrayvec = "0.7"
 
@@ -49,6 +49,6 @@ wgsl_modules = { version = "0.15.0", path = "wgsl_modules", optional = true }
 
 
 [dev-dependencies]
-winit = "*"
-pollster = "*"
-png = "*"
+winit = "0.28"
+pollster = "0.2"
+png = "0.17"
