@@ -17,7 +17,7 @@ pub type Res<T> = Result<T, Error>;
 pub enum Type { Function, Struct, Global, Const }
 
 #[derive(Debug)]
-pub struct Artifact { pub ty: Type, pub name: String, pub name_range: Range<usize>, pub source: String, pub source_range: Range<usize> }
+pub struct Artifact { pub ty: Type, pub name: Rc<str>, pub name_range: Range<usize>, pub source: Box<str>, pub source_range: Range<usize> }
 
 impl Artifact {
     pub fn quote(&self, alias: Option<&str>) -> Cow<str> {
@@ -26,24 +26,24 @@ impl Artifact {
             + alias
             + &self.source[self.name_range.end..]
         ) }
-        else { Cow::from(&self.source) }
+        else { Cow::from(&*self.source) }
     }
 }
 
 
 #[derive(Debug, Clone)]
-pub struct ImportRef { pub path: PathBuf, pub name: String, pub alias: Option<String> }
+pub struct ImportRef { pub path: Rc<Path>, pub name: Rc<str>, pub alias: Option<Rc<str>> }
 
 impl ImportRef {
     pub fn is_wildcard(&self) -> bool {
-        self.name == "*"
+        self.name.as_ref() == "*"
     }
     pub fn name_alias(&self) -> Option<Cow<str>> {
         if self.is_wildcard() { None }
         else {
             self.alias.as_deref().map(|a|
                 if a.contains('*') { a.replace('*', &self.name).into() } else { a.into() }
-            ).or_else(|| Some((&self.name).into()))
+            ).or_else(|| Some((&*self.name).into()))
         }
     }
     fn not_found(&self) -> String {
@@ -53,11 +53,11 @@ impl ImportRef {
 
 
 #[derive(Debug, Clone)]
-pub struct ImportArtifact { pub trace: Vec<ImportRef>, pub artifact: Rc<Artifact> }
+pub struct ImportArtifact { pub trace: Vec<Rc<ImportRef>>, pub artifact: Rc<Artifact> }
 
 impl ImportArtifact {
     pub fn name_alias(&self) -> Cow<str> {
-        let mut alias = Cow::from(&self.artifact.name);
+        let mut alias = Cow::from(&*self.artifact.name);
         for import_ref in self.trace.iter().rev() {
             if let Some(name_alias) =
                 import_ref.name_alias() // direct import
@@ -73,7 +73,7 @@ impl ImportArtifact {
     }
     fn reimport(&self, import_ref: &ImportRef) -> Self {
         let mut reimported = self.clone();
-        reimported.trace.insert(0, import_ref.clone());
+        reimported.trace.insert(0, import_ref.clone().into());
         reimported
     }
 }
@@ -83,7 +83,7 @@ impl ImportArtifact {
 pub struct Import { pub r#ref: ImportRef, pub artifacts: Vec<Rc<ImportArtifact>> }
 
 #[derive(Debug)]
-pub struct ImportLine { pub path: PathBuf, pub imports: Vec<Import>, pub source_range: Range<usize> }
+pub struct ImportLine { pub path: Rc<Path>, pub imports: Vec<Import>, pub source_range: Range<usize> }
 
 
 #[derive(Debug, Clone)]
@@ -92,12 +92,12 @@ pub enum Node { Artifact(Rc<Artifact>), Import(Rc<ImportArtifact>) }
 impl Node {
     fn prefix_name(&self, prefix: Option<&str>) -> Cow<str> {
         let name = match &self {
-            Node::Artifact(artifact) => (&artifact.name).into(),
+            Node::Artifact(artifact) => Cow::from(&*artifact.name),
             Node::Import(import_artifact) => import_artifact.name_alias(),
         };
         prefix.map(|pf| (pf.to_string()+&name).into()).unwrap_or(name)
     }
-    pub fn artifact(&self) -> &Artifact {
+    pub fn artifact(&self) -> &Rc<Artifact> {
         match &self {
             Node::Artifact(artifact) => artifact,
             Node::Import(import_artifact) => &import_artifact.artifact,
@@ -109,17 +109,17 @@ impl Node {
 // module
 #[derive(Debug)]
 pub struct Module {
-    pub path: PathBuf,
+    pub path: Rc<Path>,
     pub nodes: LinkedList<Node>,
-    pub node_map: HashMap<String, Node>,
+    pub node_map: HashMap<Rc<str>, Node>,
     pub import_lines: Vec<ImportLine>,
-    pub dependent_files: HashSet<PathBuf>,
-    pub source: String,
-    pub code: String,
+    pub dependent_files: HashSet<Rc<Path>>,
+    pub source: Box<str>,
+    pub code: Box<str>,
 }
 
-fn register_node(node_map: &mut HashMap<String, Node>, alias: &str, node: Node, path: &Path) -> Res<()> {
-    if node_map.insert(alias.to_string(), node).is_some() {
+fn register_node(node_map: &mut HashMap<Rc<str>, Node>, alias: Rc<str>, node: Node, path: &Path) -> Res<()> {
+    if node_map.insert(alias.clone(), node).is_some() {
         Err(format!("duplicate identifier '{alias}' in {}", path.display()))
     } else {
         Ok(())
@@ -152,9 +152,9 @@ fn find_and_register_import_lines(
         let mut path = PathBuf::from(dir_path);
         path.push(&captures[2]);
 
-        let path = path.canonicalize().map_err(|err|
+        let path: Rc<Path> = path.canonicalize().map_err(|err|
             format!("{err} '{}' from '{}'", path.display(), source_path.display())
-        )?;
+        )?.into();
 
         let mut imports = Vec::new();
 
@@ -162,13 +162,13 @@ fn find_and_register_import_lines(
             let part = part.trim();
             imports.push(Import {
                 r#ref: if IMPORT_REGEX1.is_match(part) {
-                    Ok(ImportRef { path: path.clone(), name: part.to_string(), alias: None })
+                    Ok(ImportRef { path: path.clone(), name: part.into(), alias: None })
                 }
                 else if let Some(captures) = IMPORT_REGEX3.captures(part) {
                     if &captures[1] == "*" && !captures[2].contains('*') {
                         return Err(format!("bad import '{part}'"))
                     }
-                    Ok(ImportRef { path: path.clone(), name: captures[1].to_string(), alias: Some(captures[2].to_string()) })
+                    Ok(ImportRef { path: path.clone(), name: captures[1].into(), alias: Some(captures[2].into()) })
                 }
                 else { Err(format!("bad import '{part}'")) }
                 ?,
@@ -195,7 +195,7 @@ lazy_static! {
 }
 
 impl Module {
-    fn load_from_source(path: &Path) -> Res<Self> {
+    fn load_from_source(path: &Rc<Path>) -> Res<Self> {
 
         // normalize path
         let dir_path = path.parent().ok_or(format!("path '{}' has no parent", path.display()))?;
@@ -212,8 +212,8 @@ impl Module {
 
         // module
         let mut module = Self {
-            path: path.to_owned(), nodes: LinkedList::new(), node_map: HashMap::new(), import_lines: Vec::new(),
-            dependent_files: HashSet::new(), source, code: "".to_string(),
+            path: path.clone(), nodes: LinkedList::new(), node_map: HashMap::new(), import_lines: Vec::new(),
+            dependent_files: HashSet::new(), source: source.into(), code: "".into(),
         };
 
         let mut line_comment = false;
@@ -228,7 +228,7 @@ impl Module {
             last_end = child.byte_range().end;
             line_comment = false;
 
-            find_and_register_import_lines(&mut module.import_lines, path, dir_path, &module.source, range)?;
+            find_and_register_import_lines(&mut module.import_lines, &path, dir_path, &module.source, range)?;
 
             // find nodes
             let source = &module.source[child.byte_range()];
@@ -246,21 +246,21 @@ impl Module {
                 _ => (Type::Const, CONST_REGEX.captures(source)) // test arbitrary as value
             } {
                 let found = captures.get(1).unwrap();
-                let name = found.as_str();
+                let name: Rc<str> = found.as_str().into();
 
                 let node = Node::Artifact(Artifact {
-                    ty, name: name.to_string(), name_range: found.range(), source: source.to_string(), source_range: child.byte_range(),
+                    ty, name: name.clone(), name_range: found.range(), source: source.into(), source_range: child.byte_range(),
                 }.into());
 
                 module.nodes.push_back(node.clone());
-                register_node(&mut module.node_map, name, node, path)?;
+                register_node(&mut module.node_map, name, node, &path)?;
             }
         }
 
         // find import after last node
         let range = (last_end - if line_comment {2} else {0}) .. module.source.len();
 
-        find_and_register_import_lines(&mut module.import_lines, path, dir_path, &module.source, range)?;
+        find_and_register_import_lines(&mut module.import_lines, &path, dir_path, &module.source, range)?;
 
 
         Ok(module)
@@ -269,14 +269,14 @@ impl Module {
 
 
 // modules
-pub type ModuleCache = HashMap<PathBuf, Module>;
+pub type ModuleCache = HashMap<Rc<Path>, Module>;
 
-fn resolve_module<'a>(modules: &'a mut ModuleCache, module_trace: &mut Vec<PathBuf>, path: &PathBuf) -> Res<&'a mut Module> {
+fn resolve_module<'a>(modules: &'a mut ModuleCache, module_trace: &mut Vec<Rc<Path>>, path: &Rc<Path>) -> Res<&'a mut Module> {
 
     if module_trace.contains(path) { return Err(format!(
         "circular dependency {} from {}",
-        &path.display(),
-        &module_trace.last().unwrap().display(),
+        path.display(),
+        module_trace.last().unwrap().display(),
     )) }
 
     if !modules.contains_key(path) {
@@ -294,7 +294,7 @@ fn resolve_module<'a>(modules: &'a mut ModuleCache, module_trace: &mut Vec<PathB
 
 
 impl Module {
-    fn resolve_imports(&mut self, modules: &mut ModuleCache, module_trace: &mut Vec<PathBuf>) -> Res<()> {
+    fn resolve_imports(&mut self, modules: &mut ModuleCache, module_trace: &mut Vec<Rc<Path>>) -> Res<()> {
 
         let mut cursor = self.nodes.cursor_front_mut();
         cursor.move_next(); // advance to first node
@@ -327,7 +327,7 @@ impl Module {
                         }).collect()
                     }
                     else {
-                        if let Some(node) = module.node_map.get(&import.r#ref.name) {
+                        if let Some(node) = module.node_map.get(&*import.r#ref.name) {
                             Ok(vec![(import.r#ref.name_alias().unwrap(), node.clone())])
                         }
                         else { Err(import.r#ref.not_found()) }?
@@ -335,11 +335,11 @@ impl Module {
                 {
                     let import_artifact: Rc<ImportArtifact> = match node {
                         Node::Import(import_artifact) => import_artifact.reimport(&import.r#ref),
-                        Node::Artifact(artifact) => ImportArtifact { trace: vec![import.r#ref.clone()], artifact },
+                        Node::Artifact(artifact) => ImportArtifact { trace: vec![import.r#ref.clone().into()], artifact },
                     }.into();
 
                     for import_ref in &import_artifact.trace {
-                        if !self.dependent_files.contains(&import_ref.path) {
+                        if !self.dependent_files.contains(import_ref.path.as_ref()) {
                             self.dependent_files.insert(import_ref.path.clone());
                         }
                     }
@@ -347,7 +347,7 @@ impl Module {
                     import.artifacts.push(import_artifact.clone());
                     let node = Node::Import(import_artifact);
 
-                    register_node(&mut self.node_map, &name, node.clone(), &self.path)?;
+                    register_node(&mut self.node_map, name.into(), node.clone(), &self.path)?;
                     cursor.insert_before(node);
                 }
             }
@@ -357,10 +357,10 @@ impl Module {
     }
 
     fn generate_code(&mut self) {
-        self.code = self.source.clone();
+        let mut code = self.source.to_string();
 
         for line in self.import_lines.iter().rev() {
-            self.code.replace_range(
+            code.replace_range(
                 line.source_range.clone(),
                 &line.imports.iter().flat_map(|import| {
                     import.artifacts.iter().map(|import_artifact| {
@@ -372,6 +372,8 @@ impl Module {
                 }).collect::<String>()
             );
         }
+
+        self.code = code.into();
     }
 }
 
@@ -386,7 +388,7 @@ fn canonicalize(path: impl AsRef<Path>) -> Res<PathBuf> {
 
 pub fn load(path: impl AsRef<Path>) -> Res<Module> {
 
-    let mut module = Module::load_from_source(&canonicalize(path)?)?;
+    let mut module = Module::load_from_source(&canonicalize(path)?.into())?;
 
     module.resolve_imports(&mut ModuleCache::new(), &mut Vec::new())?;
     module.generate_code();
@@ -396,7 +398,7 @@ pub fn load(path: impl AsRef<Path>) -> Res<Module> {
 
 pub fn load_with_cache(cache: &mut ModuleCache, path: impl AsRef<Path>) -> Res<&mut Module> {
 
-    let module = resolve_module(cache, &mut Vec::new(), &canonicalize(path)?)?;
+    let module = resolve_module(cache, &mut Vec::new(), &canonicalize(path)?.into())?;
 
     module.generate_code();
 

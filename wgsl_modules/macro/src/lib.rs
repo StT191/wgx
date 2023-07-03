@@ -25,7 +25,7 @@ pub fn include(input: TokenStream) -> TokenStream {
         match load_with_cache(cache, &path) {
             Ok(module) => {
                 // track source code files
-                tracked_path::path(path.to_str().unwrap());
+                tracked_path::path(module.path.to_str().unwrap());
 
                 for file_path in &module.dependent_files {
                     tracked_path::path(file_path.to_str().unwrap());
