@@ -1,4 +1,4 @@
-#![feature(proc_macro_span, track_path, local_key_cell_methods)]
+#![feature(proc_macro_span, track_path)]
 
 use std::cell::RefCell;
 use wgsl_modules_loader::{ModuleCache, load_with_cache};

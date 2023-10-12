@@ -73,9 +73,9 @@ fn vs_main(
     // get unit circle to screen pixel matrix
     let unit_to_pix = from_scale(viewport.x/2.0, viewport.y/2.0, 1.0) * clip * from_vecs(O, X, Y, Z0);
 
-    let O = homogen_2d(unit_to_pix * vec4<f32>(0.0, 0.0, 0.0, 1.0)); // origin
+    let Or = homogen_2d(unit_to_pix * vec4<f32>(0.0, 0.0, 0.0, 1.0)); // origin
 
-    let prj = translation(-O.x, -O.y, 0.0) * unit_to_pix;
+    let prj = translation(-Or.x, -Or.y, 0.0) * unit_to_pix;
 
     out.p0 = prj[0]; out.p1 = prj[1]; out.p2 = prj[2]; out.p3 = prj[3];
 

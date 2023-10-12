@@ -43,7 +43,7 @@ impl TexDsc {
             mip_level_count: 1, sample_count, dimension: wgpu::TextureDimension::D2, format, usage,
         }
     }
-    pub fn srgb(&self) -> bool { self.format.describe().srgb }
+    pub fn srgb(&self) -> bool { self.format.is_srgb() }
     pub fn size_2d(&self) -> (u32, u32) { (self.size.width, self.size.height) }
     pub fn set_size_2d(&mut self, (width, height): (u32, u32)) {
         self.size.width = width;

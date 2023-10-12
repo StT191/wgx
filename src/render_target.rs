@@ -67,7 +67,7 @@ pub trait RenderTarget {
 
     // provided
 
-    fn srgb(&self) -> bool { self.format().describe().srgb }
+    fn srgb(&self) -> bool { self.format().is_srgb() }
 
     fn render_bundle_encoder<'a>(&self, gx: &'a Wgx) -> wgpu::RenderBundleEncoder<'a> {
         gx.render_bundle_encoder(&[Some(self.format())], self.depth_testing(), self.msaa())
@@ -227,7 +227,7 @@ impl SurfaceTarget {
         let SurfaceCapabilities {formats, present_modes, ..} = surface.get_capabilities(adapter);
 
         // let format = *formats.get(0).ok_or("couldn't get default format")?;
-        let format = *formats.iter().find(|fmt| fmt.describe().srgb).ok_or("couldn't get srgb format")?;
+        let format = *formats.iter().find(|fmt| fmt.is_srgb()).ok_or("couldn't get srgb format")?;
         config.format = format;
 
         config.present_mode =

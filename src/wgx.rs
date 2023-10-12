@@ -1,5 +1,4 @@
 
-use std::num::NonZeroU32;
 use arrayvec::ArrayVec;
 use wgpu::util::DeviceExt;
 use raw_window_handle::{HasRawWindowHandle, HasRawDisplayHandle};
@@ -71,21 +70,15 @@ pub trait WgxDevice {
         self.device().create_texture(&descriptor.into())
     }
 
-    fn texture_2d(&self, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse)
-        -> wgpu::Texture
-    {
+    fn texture_2d(&self, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse) -> wgpu::Texture {
         self.texture(&TexDsc::new_2d(size, sample_count, format, usage))
     }
 
-    fn texture_2d_bound(&self, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse)
-        -> wgpu::Texture
-    {
+    fn texture_2d_bound(&self, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse) -> wgpu::Texture {
         self.texture_2d(size, sample_count, format, TexUse::TEXTURE_BINDING | usage)
     }
 
-    fn texture_2d_attached(&self, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse)
-        -> wgpu::Texture
-    {
+    fn texture_2d_attached(&self, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse) -> wgpu::Texture {
         self.texture_2d(size, sample_count, format, TexUse::RENDER_ATTACHMENT | usage)
     }
 
@@ -106,7 +99,7 @@ pub trait WgxDevice {
             lod_min_clamp: 0.0,
             lod_max_clamp: 100.0,
             compare: None, // Some(wgpu::CompareFunction::LessEqual),
-            anisotropy_clamp: None, // NonZeroU8::new(16),
+            anisotropy_clamp: 1,
         })
     }
 
@@ -121,7 +114,6 @@ pub trait WgxDevice {
         self.device().create_buffer_init(&wgpu::util::BufferInitDescriptor {
             usage, contents: data.read_bytes(), label: None
         })
-
     }
 
 
@@ -273,7 +265,7 @@ pub trait WgxQueue {
                 aspect: wgpu::TextureAspect::All
             },
             data.read_bytes(),
-            wgpu::ImageDataLayout { offset: 0, bytes_per_row: NonZeroU32::new(4 * w), rows_per_image: NonZeroU32::new(h) },
+            wgpu::ImageDataLayout { offset: 0, bytes_per_row: None, rows_per_image: Some(h) },
             wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
         )
     }
@@ -313,7 +305,7 @@ pub trait WgxDeviceQueue: WgxDevice + WgxQueue {
 
 // impl
 
-impl<DevQue: WgxDevice + WgxQueue> WgxDeviceQueue for DevQue {}
+impl<T: WgxDevice + WgxQueue> WgxDeviceQueue for T {}
 
 impl WgxDevice for Wgx { fn device(&self) -> &wgpu::Device { &self.device } }
 impl WgxQueue for Wgx { fn queue(&self) -> &wgpu::Queue { &self.queue } }

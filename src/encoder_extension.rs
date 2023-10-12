@@ -1,6 +1,4 @@
 
-// use core::ops::Range;
-use std::{num::NonZeroU32};
 use crate::RenderAttachments;
 
 
@@ -64,8 +62,8 @@ impl EncoderExtension for wgpu::CommandEncoder {
                 buffer,
                 layout: wgpu::ImageDataLayout {
                     offset,
-                    bytes_per_row: NonZeroU32::new(4 * buffer_width),
-                    rows_per_image: NonZeroU32::new(buffer_height),
+                    bytes_per_row: Some(4 * buffer_width),
+                    rows_per_image: Some(buffer_height),
                 }
             },
             wgpu::ImageCopyTexture { texture, mip_level: 0, origin: wgpu::Origin3d { x, y, z, }, aspect: wgpu::TextureAspect::All },
@@ -85,8 +83,8 @@ impl EncoderExtension for wgpu::CommandEncoder {
                 buffer,
                 layout: wgpu::ImageDataLayout {
                     offset,
-                    bytes_per_row: NonZeroU32::new(4 * buffer_width),
-                    rows_per_image: NonZeroU32::new(buffer_height),
+                    bytes_per_row: Some(4 * buffer_width),
+                    rows_per_image: Some(buffer_height),
                 }
             },
             wgpu::Extent3d {width, height, depth_or_array_layers: layers},
@@ -99,7 +97,7 @@ impl EncoderExtension for wgpu::CommandEncoder {
     }
 
 
-    fn with_compute_pass<'a, T>(&'a mut self, handler: impl FnOnce(wgpu::ComputePass<'a>) -> T) -> T{
+    fn with_compute_pass<'a, T>(&'a mut self, handler: impl FnOnce(wgpu::ComputePass<'a>) -> T) -> T {
         handler(self.compute_pass())
     }
 

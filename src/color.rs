@@ -67,11 +67,6 @@ impl From<Color> for wgpu::Color {
 }
 
 
-#[cfg(feature = "iced")]
-impl From<Color> for iced_wgpu::Color {
-    fn from(cl: Color) -> Self { Self {r: cl.r, g: cl.g, b: cl.b, a: cl.a} }
-}
-
 
 // default
 impl Default for Color {
@@ -115,17 +110,17 @@ impl Color {
     pub fn u8(self) -> [u8; 4] { self.into() }
     pub fn u8_rgb(self) -> [u8; 3] { self.into() }
 
-    pub fn hex(self) -> ArrayString<9> {
+    pub fn hex(self) -> ArrayString<8> {
         let mut hex = ArrayString::new();
         let cl = self.u8();
-        hex.write_fmt(format_args!("#{:02x}{:02x}{:02x}{:02x}", cl[0], cl[1], cl[2], cl[3])).unwrap();
+        hex.write_fmt(format_args!("{:02x}{:02x}{:02x}{:02x}", cl[0], cl[1], cl[2], cl[3])).unwrap();
         hex
     }
 
-    pub fn hex_rgb(self) -> ArrayString<7> {
+    pub fn hex_rgb(self) -> ArrayString<6> {
         let mut hex = ArrayString::new();
         let cl = self.u8_rgb();
-        hex.write_fmt(format_args!("#{:02x}{:02x}{:02x}", cl[0], cl[1], cl[2])).unwrap();
+        hex.write_fmt(format_args!("{:02x}{:02x}{:02x}", cl[0], cl[1], cl[2])).unwrap();
         hex
     }
 
