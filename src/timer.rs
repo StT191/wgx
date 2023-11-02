@@ -28,10 +28,14 @@ impl NormInterval {
     }
 
     pub fn advance_by(&mut self, times: f64) {
-        if times.is_sign_positive() {
-            self.instant += self.duration.mul_f64(times);
-        } else {
-            self.instant -= self.duration.mul_f64(-times);
+        if let Some(instant) = {
+            if times.is_sign_positive() {
+                self.instant.checked_add(self.duration.mul_f64(times))
+            } else {
+                self.instant.checked_sub(self.duration.mul_f64(-times))
+            }
+        } {
+            self.instant = instant
         }
     }
 
