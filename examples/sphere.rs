@@ -59,64 +59,88 @@ fn main() {
 
 
   // vertexes
+  use std::f32::consts::FRAC_PI_2;
   let steps = 24usize;
   let smooth = false;
 
+  let mut mesh:Vec<[[f32;3];3]> = Vec::with_capacity(3 * steps * steps);
 
-  let step_a = steps as f32 / std::f32::consts::FRAC_PI_2; // step angle
+  let t_c = [1.0, 1.0, 0.0]; // texture coordinate
 
-  let mut mesh:Vec<[[f32;3];3]> = Vec::with_capacity(2 * 2 * 3 * steps * steps);
-
-  let t_c = [1.0, 1.0, 0.0];
-
+  let f_steps = steps as f32;
+  let a_s = FRAC_PI_2 / f_steps;
 
   for k in 0..steps {
 
-    let fi_a0 = k as f32 / step_a;
-    let fi_a1 = (k as f32 + 1.0) / step_a;
+    let v0 = k as f32;
+    let v1 = v0 + 1.0;
 
-    let cos_a0 = f32::cos(fi_a0);
-    let cos_a1 = f32::cos(fi_a1);
+    let fi_v0 = v0 * a_s;
+    let fi_v1 = v1 * a_s;
 
-    let sin_a0 = f32::sin(fi_a0);
-    let sin_a1 = f32::sin(fi_a1);
+    let cos_v0 = f32::cos(fi_v0);
+    let cos_v1 = f32::cos(fi_v1);
 
-    for j in 0..steps {
+    let sin_v0 = f32::sin(fi_v0);
+    let sin_v1 = f32::sin(fi_v1);
 
-      let fi_b0 = j as f32 / step_a;
-      let fi_b1 = (j as f32 + 1.0) / step_a;
+    let a_s0 = if v0 == 0.0 { 0.0 } else { FRAC_PI_2 / v0 };
+    let a_s1 = FRAC_PI_2 / v1;
 
-      let cos_b0 = f32::cos(fi_b0);
-      let cos_b1 = f32::cos(fi_b1);
+    for j in 0..(k + 1) {
 
-      let sin_b0 = f32::sin(fi_b0);
-      let sin_b1 = f32::sin(fi_b1);
+      let h0 = j as f32;
+      let h1 = h0 + 1.0;
 
-      let a = [cos_a0*sin_b0, sin_a0, cos_a0*cos_b0];
-      let b = [cos_a1*sin_b0, sin_a1, cos_a1*cos_b0];
+      // v1 x s1
+      let fi_s1h0 = h0 * a_s1;
+      let fi_s1h1 = h1 * a_s1;
 
-      let c = [cos_a1*sin_b1, sin_a1, cos_a1*cos_b1];
-      let d = [cos_a0*sin_b1, sin_a0, cos_a0*cos_b1];
+      let cos_s1h0 = f32::cos(fi_s1h0);
+      let cos_s1h1 = f32::cos(fi_s1h1);
+
+      let sin_s1h0 = f32::sin(fi_s1h0);
+      let sin_s1h1 = f32::sin(fi_s1h1);
+
+      let a = [sin_v1*cos_s1h0, sin_v1*sin_s1h0, cos_v1];
+      let b = [sin_v1*cos_s1h1, sin_v1*sin_s1h1, cos_v1];
+
+      // v0 x s0
+      let fi_s0h0 = h0 * a_s0;
+      let fi_s0h1 = h1 * a_s0;
+
+      let cos_s0h0 = f32::cos(fi_s0h0);
+      let cos_s0h1 = f32::cos(fi_s0h1);
+
+      let sin_s0h0 = f32::sin(fi_s0h0);
+      let sin_s0h1 = f32::sin(fi_s0h1);
+
+      let c = [sin_v0*cos_s0h0, sin_v0*sin_s0h0, cos_v0];
+      let d = [sin_v0*cos_s0h1, sin_v0*sin_s0h1, cos_v0];
 
       if smooth {
         mesh.push([a, t_c, a]);
-        mesh.push([d, t_c, d]);
+        mesh.push([b, t_c, b]);
         mesh.push([c, t_c, c]);
 
-        mesh.push([a, t_c, a]);
-        mesh.push([c, t_c, c]);
-        mesh.push([b, t_c, b]);
+        if j < k {
+          mesh.push([b, t_c, b]);
+          mesh.push([d, t_c, d]);
+          mesh.push([c, t_c, c]);
+        }
       }
       else {
-        let n = normal_from_triangle(a, d, c).into();
-
+        let n = normal_from_triangle(a, b, c).into();
         mesh.push([a, t_c, n]);
-        mesh.push([d, t_c, n]);
-        mesh.push([c, t_c, n]);
-
-        mesh.push([a, t_c, n]);
-        mesh.push([c, t_c, n]);
         mesh.push([b, t_c, n]);
+        mesh.push([c, t_c, n]);
+
+        if j < k {
+          let n = normal_from_triangle(b, d, c).into();
+          mesh.push([b, t_c, n]);
+          mesh.push([d, t_c, n]);
+          mesh.push([c, t_c, n]);
+        }
       }
     }
   }
