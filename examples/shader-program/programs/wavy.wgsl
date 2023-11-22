@@ -2,10 +2,12 @@
 // &import * from "../imports/uniform_const.wgsl"
 // &import * from "../imports/vertex_flat.wgsl"
 
+
+
 @fragment
 fn fs_main(in: VertexData) -> @location(0) vec4<f32> {
 
-    let P = in.P * vec2<f32>(1.0 * viewport.z, 1.0);
+    let P = in.P * vec2<f32>(1.0 * view.z, 1.0);
 
     let r = length(P);
     let rl = r / sqrt2;

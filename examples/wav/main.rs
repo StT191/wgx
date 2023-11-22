@@ -4,16 +4,23 @@ use pollster::FutureExt;
 use winit::{
   dpi::PhysicalSize,
   event_loop::{ControlFlow, EventLoop},
-  window::Window, event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCode},
+  window::Window, event::{Event, WindowEvent, KeyboardInput, ElementState},
 };
 use wgx::{*, cgmath::*};
+
+// common
+#[path="../common/world_view.rs"] #[allow(dead_code)]
+mod world_view;
+use world_view::{WorldView, InputKey};
+
+mod wav_obj;
 
 
 fn main() {
 
   const DEPTH_TESTING:bool = true;
   const MSAA:u32 = 4;
-  const ALPHA_BLENDING:Option<BlendState> = None;
+  const BLENDING:Option<Blend> = None;
 
 
   let (width, height) = (1000, 1000);
@@ -28,14 +35,14 @@ fn main() {
 
 
   // pipeline
-  let shader = gx.load_wgsl(include_wgsl_module!("../shaders/v3d_text_diff.wgsl"));
+  let shader = gx.load_wgsl(include_wgsl_module!("../common/shaders/shader_3d_text_diff.wgsl"));
 
 
   // triangle pipeline
   let pipeline = target.render_pipeline(&gx,
     None, &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x3, 2 => Float32x3)],
-    (&shader, "vs_main", Primitive::TriangleList),
-    (&shader, "fs_main", ALPHA_BLENDING),
+    (&shader, "vs_main", Primitive::default()),
+    (&shader, "fs_main", BLENDING),
   );
 
 
@@ -46,12 +53,12 @@ fn main() {
 
 
   // buffers and binding
-  let clip_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 64, false);
-  let light_buffer = gx.buffer(BufUse::UNIFORM | BufUse::COPY_DST, 64, false);
+  let (width, height) = (width as f32, height as f32);
+  let mut world = WorldView::new(&gx, 10.0, 5.0, 0.1, FovProjection::window(45.0, width, height));
 
   let binding = gx.bind(&pipeline.get_bind_group_layout(0), &[
-    bind!(0, Buffer, &clip_buffer),
-    bind!(1, Buffer, &light_buffer),
+    bind!(0, Buffer, world.clip_buffer),
+    bind!(1, Buffer, world.light_buffer),
     bind!(2, TextureView, &color_texture.view),
     bind!(3, Sampler, &sampler),
   ]);
@@ -71,44 +78,17 @@ fn main() {
   })];
 
 
-
-  // matrix
-  const DA:f32 = 5.0;
-  const DS:f32 = 50.0;
-
-  let fov_deg = 45.0;
-
-  let (width, height) = (width as f32, height as f32);
-
-  // let mut scale = 1.0;
-  // let (mut w, mut h) = (0.4, 0.4);
-
-  let fov = FovProjection::window(fov_deg, width, height);
-  let mut projection = fov.projection * fov.translation;
-
-  // let camera_correction = fov.translation;
-
-  let obj_mat =
-    // Matrix4::identity()
+  // world
+  world.objects = // Matrix4::identity()
+    Matrix4::from_angle_y(Deg(100.0)) *
     Matrix4::from_scale(0.55) *
     Matrix4::from_translation((0.0, -0.7 * height, 0.0).into())
   ;
 
-  let light_matrix = Matrix4::<f32>::from_angle_x(Deg(-45.0)) * Matrix4::from_angle_y(Deg(45.0));
+  world.calc_clip_matrix();
 
-  // let clip_matrix = projection * rot_matrix * Matrix4::from_nonuniform_scale(w*width, h*height, 1.0);
-
-  let mut rot_matrix_x = Matrix4::identity();
-  let mut rot_matrix_y = Matrix4::identity();
-  let mut rot_matrix_z = Matrix4::identity();
-  let mut world_matrix = Matrix4::identity();
-
-  let clip_matrix = projection * obj_mat;
-
-  // gx.write_buffer(&world_buffer, 0, AsRef::<[f32; 16]>::as_ref(&world_matrix));
-  gx.write_buffer(&clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&clip_matrix));
-  gx.write_buffer(&light_buffer, 0, AsRef::<[f32; 16]>::as_ref(&(light_matrix)));
-  // gx.write_buffer(&viewport_buffer, 0, &[width, height]);
+  world.write_light_buffer(&gx);
+  world.write_clip_buffer(&gx);
 
 
   // event loop
@@ -123,72 +103,24 @@ fn main() {
 
       Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
         target.update(&gx, (size.width, size.height));
-
-        let width = size.width as f32;
-        let height = size.height as f32;
-
-        let fov = FovProjection::window(fov_deg, width, height);
-        projection = fov.projection * fov.translation;
-
-        // projection
-        let clip_matrix = projection * rot_matrix_x * rot_matrix_y * rot_matrix_z * world_matrix * obj_mat;
-
-        gx.write_buffer(&clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&clip_matrix));
-        // gx.write_buffer(&viewport_buffer, 0, &[width, height]);
+        world.fov.resize_window(size.width as f32, size.height as f32, true);
+        world.calc_clip_matrix();
+        world.write_clip_buffer(&gx);
       },
 
       Event::WindowEvent { event:WindowEvent::KeyboardInput { input: KeyboardInput {
         virtual_keycode: Some(keycode), state: ElementState::Pressed, ..
       }, ..}, ..} => {
-        let mut redraw = true;
-        match keycode {
+        if let Some(key) = InputKey::match_keycode(keycode) {
+          world.input(key);
 
-          // VirtualKeyCode::I => { apply!(world_matrix, within(&camera_correction, &Matrix4::from_angle_x(Deg(-DA))).expect("no inversion")); },
-          // VirtualKeyCode::K => { apply!(world_matrix, within(&camera_correction, &Matrix4::from_angle_x(Deg( DA))).expect("no inversion")); },
-          // VirtualKeyCode::J => { apply!(world_matrix, within(&camera_correction, &Matrix4::from_angle_y(Deg( DA))).expect("no inversion")); },
-          // VirtualKeyCode::L => { apply!(world_matrix, within(&camera_correction, &Matrix4::from_angle_y(Deg(-DA))).expect("no inversion")); },
-          // VirtualKeyCode::U => { apply!(world_matrix, within(&camera_correction, &Matrix4::from_angle_z(Deg( DA))).expect("no inversion")); },
-          // VirtualKeyCode::O => { apply!(world_matrix, within(&camera_correction, &Matrix4::from_angle_z(Deg(-DA))).expect("no inversion")); },
+          world.calc_clip_matrix();
+          // world.light_matrix = world.rotation;
 
-          VirtualKeyCode::I => { apply!(rot_matrix_x, Matrix4::from_angle_x(Deg( DA))); },
-          VirtualKeyCode::K => { apply!(rot_matrix_x, Matrix4::from_angle_x(Deg(-DA))); },
-          VirtualKeyCode::J => { apply!(rot_matrix_y, Matrix4::from_angle_y(Deg( DA))); },
-          VirtualKeyCode::L => { apply!(rot_matrix_y, Matrix4::from_angle_y(Deg(-DA))); },
-          VirtualKeyCode::U => { apply!(rot_matrix_z, Matrix4::from_angle_z(Deg( DA))); },
-          VirtualKeyCode::O => { apply!(rot_matrix_z, Matrix4::from_angle_z(Deg(-DA))); },
+          world.write_light_buffer(&gx);
+          world.write_clip_buffer(&gx);
 
-          VirtualKeyCode::A => { apply!(world_matrix, Matrix4::from_translation((-DS, 0.0, 0.0).into())); },
-          VirtualKeyCode::D => { apply!(world_matrix, Matrix4::from_translation(( DS, 0.0, 0.0).into())); },
-          VirtualKeyCode::W => { apply!(world_matrix, Matrix4::from_translation((0.0, 0.0,  DS).into())); },
-          VirtualKeyCode::S => { apply!(world_matrix, Matrix4::from_translation((0.0, 0.0, -DS).into())); },
-          VirtualKeyCode::Q => { apply!(world_matrix, Matrix4::from_translation((0.0, -DS, 0.0).into())); },
-          VirtualKeyCode::E => { apply!(world_matrix, Matrix4::from_translation((0.0,  DS, 0.0).into())); },
-
-          VirtualKeyCode::Y => { apply!(world_matrix, Matrix4::from_scale(0.9)); },
-          VirtualKeyCode::X => { apply!(world_matrix, Matrix4::from_scale(1.1)); },
-
-          VirtualKeyCode::R => {
-            rot_matrix_x = Matrix4::identity();
-            rot_matrix_y = Matrix4::identity();
-            rot_matrix_z = Matrix4::identity();
-            world_matrix = Matrix4::identity();
-            // scale = 1.0;
-            // w = 0.4;
-            // h = 0.4;
-          },
-
-          _ => { redraw = false; }
-        } {
-          if redraw {
-
-            let clip_matrix = projection * rot_matrix_x * rot_matrix_y * rot_matrix_z * world_matrix * obj_mat;
-            let light_matrix = rot_matrix_x * rot_matrix_y * rot_matrix_z * light_matrix;
-
-            gx.write_buffer(&clip_buffer, 0, AsRef::<[f32; 16]>::as_ref(&clip_matrix));
-            gx.write_buffer(&light_buffer, 0, AsRef::<[f32; 16]>::as_ref(&light_matrix));
-
-            window.request_redraw();
-          }
+          window.request_redraw();
         }
       },
 

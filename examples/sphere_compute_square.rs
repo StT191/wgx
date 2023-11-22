@@ -1,5 +1,5 @@
 
-use std::{time::{Instant}, ops::Neg};
+use std::{time::{Instant}, mem::size_of};
 use pollster::FutureExt;
 use winit::{
   dpi::PhysicalSize,
@@ -28,7 +28,7 @@ fn main() {
   window.set_inner_size(PhysicalSize::<u32>::from((width, height)));
   window.set_title("WgFx");
 
-  let features = Features::POLYGON_MODE_LINE /*| Features::MULTI_DRAW_INDIRECT*/;
+  let features = Features::MAPPABLE_PRIMARY_BUFFERS | Features::POLYGON_MODE_LINE /*| Features::MULTI_DRAW_INDIRECT*/;
 
   let (gx, surface) = unsafe {Wgx::new(Some(&window), features, limits!{})}.block_on().unwrap();
   let mut target = SurfaceTarget::new(&gx, surface.unwrap(), (width, height), MSAA, DEPTH_TESTING).unwrap();
@@ -43,8 +43,8 @@ fn main() {
       vertex_desc!(Instance, 3 => Float32x4, 4 => Float32x4, 5 => Float32x4, 6 => Float32x4)
     ],
     (&shader, "vs_main", Primitive {
-      cull_mode: None, // Some(Face::Back),
-      polygon_mode: Polygon::Line,
+      cull_mode: Some(Face::Back),
+      polygon_mode: Polygon::Fill,
       ..Primitive::default()
     }),
     (&shader, "fs_main", BLENDING),
@@ -54,97 +54,56 @@ fn main() {
   let color_texture = TextureLot::new_2d_with_data(&gx, (1, 1), 1, TEXTURE, TexUse::TEXTURE_BINDING, [255u8, 0, 0, 255]);
   let sampler = gx.default_sampler();
 
+  println!("{:?}", gx.adapter.get_info());
 
-  // vertices
+  // compute vertices
+  type Vertex = [[f32;3];3];
 
-  use std::f32::consts::FRAC_PI_2;
+  let steps = 64u32;
 
-  let steps = 12usize;
-  let smooth = false;
+  let wg_size = Vector3::new(8, 8, 3); // workgroup size
 
-  let mut mesh:Vec<[[f32;3];3]> = Vec::with_capacity(3 * steps * steps);
+  let vertex_size = size_of::<Vertex>() as u64;
 
-  let t_c = [1.0, 1.0, 0.0]; // texture coordinates
+  let mesh_len = 3 * (2 * 3) * (steps * steps);
+  let mesh_size = vertex_size * mesh_len as u64;
 
-  let a_s = FRAC_PI_2 / steps as f32;
+  println!("mesh_len: {mesh_len:#}");
 
-  // directions: v from +y down, h from -z to +x
-  for k in 0..steps {
+  let vertex_buffer = gx.buffer(BufUse::STORAGE | BufUse::VERTEX | BufUse::MAP_READ, mesh_size, false);
 
-    let v0 = k as f32;
-    let v1 = v0 + 1.0;
+  let layout = gx.layout(&[binding!(0, Stage::COMPUTE, StorageBuffer, mesh_size, false)]);
 
-    let fi_v0 = v0 * a_s;
-    let fi_v1 = v1 * a_s;
+  let cp_shader = gx.load_wgsl(include_wgsl_module!("common/shaders/compute_sphere_square.wgsl"));
 
-    let cos_v0 = f32::cos(fi_v0);
-    let cos_v1 = f32::cos(fi_v1);
+  let cp_pipeline = gx.compute_pipeline(Some((&[], &[&layout])), (&cp_shader, "cp_main"));
 
-    let sin_v0 = f32::sin(fi_v0);
-    let sin_v1 = f32::sin(fi_v1);
+  let binding_cp = gx.bind(&layout, &[bind!(0, Buffer, &vertex_buffer)]);
 
-    let a_s0 = if v0 == 0.0 { 0.0 } else { FRAC_PI_2 / v0 };
-    let a_s1 = FRAC_PI_2 / v1;
+  gx.with_encoder(|encoder| {
+    encoder.with_compute_pass(|mut cpass| {
+      cpass.set_pipeline(&cp_pipeline);
+      cpass.set_bind_group(0, &binding_cp, &[]);
+      cpass.dispatch_workgroups(steps/wg_size.x, steps/wg_size.y, 3/wg_size.z);
+    });
+  });
 
-    for j in 0..(k + 1) {
 
-      let h0 = j as f32;
-      let h1 = h0 + 1.0;
+  // read out the first triangles
+  /*vertex_buffer.with_map_sync(&gx, 0..(3*vertex_size), MapMode::Read, |buffer_slice| {
 
-      // v1 x s1
-      let fi_s1h0 = h0 * a_s1;
-      let fi_s1h1 = h1 * a_s1;
+    let mapped = buffer_slice.get_mapped_range();
+    let vertices: &[Vertex] = unsafe { mapped.align_to().1 };
+    // let vertices: Vec<_> = vertices.iter().map(|v| v[0]).collect();
+    // let vertices: &[Vertex] = unsafe { vertices.align_to().1 };
+    let vertices: Vec<_> = vertices.iter().map(|v| format!("{:?}", v)).collect();
 
-      let cos_s1h0 = f32::cos(fi_s1h0);
-      let cos_s1h1 = f32::cos(fi_s1h1);
+    eprintln!("{:#?}", vertices);
 
-      let sin_s1h0 = f32::sin(fi_s1h0);
-      let sin_s1h1 = f32::sin(fi_s1h1);
+  }).unwrap();*/
 
-      let a = [sin_v1*sin_s1h0, cos_v1, -sin_v1*cos_s1h0];
-      let b = [sin_v1*sin_s1h1, cos_v1, -sin_v1*cos_s1h1];
 
-      // v0 x s0
-      let fi_s0h0 = h0 * a_s0;
-      let fi_s0h1 = h1 * a_s0;
-
-      let cos_s0h0 = f32::cos(fi_s0h0);
-      let cos_s0h1 = f32::cos(fi_s0h1);
-
-      let sin_s0h0 = f32::sin(fi_s0h0);
-      let sin_s0h1 = f32::sin(fi_s0h1);
-
-      let c = [sin_v0*sin_s0h0, cos_v0, -sin_v0*cos_s0h0];
-      let d = [sin_v0*sin_s0h1, cos_v0, -sin_v0*cos_s0h1];
-
-      if smooth {
-        mesh.push([a, t_c, a]);
-        mesh.push([b, t_c, b]);
-        mesh.push([c, t_c, c]);
-
-        if j < k {
-          mesh.push([b, t_c, b]);
-          mesh.push([d, t_c, d]);
-          mesh.push([c, t_c, c]);
-        }
-      }
-      else {
-        let n = normal_from_triangle(a, b, c).neg().into();
-        mesh.push([a, t_c, n]);
-        mesh.push([b, t_c, n]);
-        mesh.push([c, t_c, n]);
-
-        if j < k {
-          let n = normal_from_triangle(b, d, c).neg().into();
-          mesh.push([b, t_c, n]);
-          mesh.push([d, t_c, n]);
-          mesh.push([c, t_c, n]);
-        }
-      }
-    }
-  }
-
-  // println!("{:#?}", mesh);
+  // instance data
 
   let instance_data = [
     Matrix4::<f32>::from_angle_y(Deg(000.0)),
@@ -157,13 +116,11 @@ fn main() {
     Matrix4::<f32>::from_angle_y(Deg(270.0))*Matrix4::<f32>::from_angle_z(Deg(180.0)),
   ];
 
-
   // buffers
   let indirect_buffer = gx.buffer_from_data(BufUse::INDIRECT, [
-    DrawIndirect::try_from_ranges(0..mesh.len() as usize, 0..instance_data.len() as usize).unwrap(),
+    DrawIndirect::try_from_ranges(0..mesh_len as usize, 0..instance_data.len() as usize).unwrap(),
   ]);
 
-  let vertex_buffer = gx.buffer_from_data(BufUse::VERTEX, mesh);
   let instance_buffer = gx.buffer_from_data(BufUse::VERTEX, instance_data);
 
 

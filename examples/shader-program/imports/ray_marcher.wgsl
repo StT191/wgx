@@ -20,7 +20,7 @@ fn vs_main(@location(0) p: vec2<f32>) -> VertexData {
     let sinY = -Cn.x / cosX;
     let cosY = 1.0 - sinY;
 
-    let r = p * vec2<f32>(viewport.z * cDim, cDim);
+    let r = p * vec2<f32>(view.z * cDim, cDim);
 
     let Ro = vec3<f32>(
         r.x*cosY + r.y*sinX*sinY,
@@ -31,6 +31,9 @@ fn vs_main(@location(0) p: vec2<f32>) -> VertexData {
     return VertexData(vec4<f32>(p, 0.0, 1.0), Co, Ro, Ln);
 }
 
+
+// rays
+struct RayField { dist: f32, color: vec4<f32> };
 
 
 // normal
@@ -43,40 +46,39 @@ const dN4 = vec3<f32>( 1.0,  1.0,  1.0);
 
 fn getNormal(P: vec3<f32>) -> vec3<f32> {
     return normalize(
-        dN1 * sdMap(P + dN*dN1) +
-        dN2 * sdMap(P + dN*dN2) +
-        dN3 * sdMap(P + dN*dN3) +
-        dN4 * sdMap(P + dN*dN4)
+        dN1 * sdMap(P + dN*dN1, false).dist +
+        dN2 * sdMap(P + dN*dN2, false).dist +
+        dN3 * sdMap(P + dN*dN3, false).dist +
+        dN4 * sdMap(P + dN*dN4, false).dist
     );
 }
 
 
 // ray marching
-const START_DIST = 1e-2; // start with a reasonable offset from surface dist
-const SURFACE_DIST = 1e-4;
+// const START_DIST = 1e-2; // start with a reasonable offset from surface dist // declared externally
+// const SURFACE_DIST = 1e-4; // declared externally
 // const MAX_DEPTH = 3000.0; // declared externally
 // const MAX_ITER = 64; // declared externally
 
-struct RayHit { P: vec3<f32>, dist: f32 };
+struct RayHit { P: vec3<f32>, dist: f32, color: vec4<f32> };
 
-fn ray_march(Ro: vec3<f32>, Rd: vec3<f32>) -> RayHit {
+fn ray_march(Ro: vec3<f32>, Rd: vec3<f32>, map_color: bool) -> RayHit {
 
-    var dist = START_DIST;
-    var P = vec3<f32>(0.0, 0.0, 0.0);
+    var abs_dist = START_DIST;
     var i = 0;
 
     loop {
-        P = Ro + dist * Rd;
-        let d = sdMap(P);
-        dist += d;
+        let P = Ro + abs_dist * Rd;
+        let field = sdMap(P, map_color);
+        abs_dist += field.dist;
         i += 1;
-        if (dist > MAX_DEPTH) { break; }
-        else if (abs(d) < SURFACE_DIST || i == MAX_ITER) {
-            return RayHit(P, dist);
+        if (abs_dist > MAX_DEPTH) { break; }
+        else if (abs(field.dist) < SURFACE_DIST || i == MAX_ITER) {
+            return RayHit(P, abs_dist, field.color);
         }
     }
 
-    return RayHit(vec3<f32>(0.0, 0.0, 0.0), -1.0);
+    return RayHit(vec3<f32>(0.0, 0.0, 0.0), -1.0, vec4<f32>(0.0, 0.0, 0.0, 0.0));
 }
 
 
@@ -94,7 +96,7 @@ fn fs_main(in: VertexData) -> @location(0) vec4<f32> {
 
     // ray marching
     let Rd = normalize(in.Ro - in.Co); // ray direction
-    let H = ray_march(in.Ro, Rd);
+    let H = ray_march(in.Ro, Rd, true);
 
     if (H.dist == -1.0) { // didn't hit anywhere
         return bgColor;
@@ -110,7 +112,7 @@ fn fs_main(in: VertexData) -> @location(0) vec4<f32> {
         lf = mix(LL.y, 1.0, lf);
 
         if shDist > 0.0 {
-            let S = ray_march(H.P, -in.Ln); // shadow dist
+            let S = ray_march(H.P, -in.Ln, false); // shadow dist
 
             if (S.dist != -1.0) {
                 lf = mix(LL.y, lf, min(S.dist/shDist, 1.0)); // in shadow
@@ -128,7 +130,7 @@ fn fs_main(in: VertexData) -> @location(0) vec4<f32> {
     }
 
     // color
-    let color = lf * Color + vec3<f32>(hl);
+    let color = lf * H.color.rgb + vec3<f32>(hl);
 
-    return vec4<f32>(color, 1.0);
+    return vec4<f32>(color, H.color.a);
 }

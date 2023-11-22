@@ -1,4 +1,3 @@
-#![allow(unused)]
 
 use std::{time::{Instant/*, Duration*/}};
 use pollster::FutureExt;
@@ -7,14 +6,14 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::Window, event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCode},
 };
-use wgx::{*, cgmath::*};
+use wgx::*;
 
 
 fn main() {
 
     const DEPTH_TESTING:bool = false;
     const MSAA:u32 = 1;
-    const ALPHA_BLENDING:Option<BlendState> = None;
+    const BLENDING:Option<Blend> = None;
 
 
     let (width, height) = (1280, 900);
@@ -29,9 +28,9 @@ fn main() {
 
 
     let shader_src = match &*std::env::args().nth(1).expect("Specify a program!") {
-        "balls" => include_wgsl_module!("./programs/balls.wgsl"),
-        "opt" => include_wgsl_module!("./programs/opt.wgsl"),
-        "wavy" => include_wgsl_module!("./programs/wavy.wgsl"),
+        "balls" => include_wgsl_module!("programs/balls.wgsl"),
+        "opt" => include_wgsl_module!("programs/opt.wgsl"),
+        "wavy" => include_wgsl_module!("programs/wavy.wgsl"),
         unkown => panic!("program '{unkown}' doesn't exist"),
     };
 
@@ -39,15 +38,14 @@ fn main() {
     let shader = gx.load_wgsl(shader_src);
 
     let layout = gx.layout(&[
-        binding!(0, Shader::VERTEX_FRAGMENT, UniformBuffer, 12),
-        binding!(1, Shader::FRAGMENT, UniformBuffer, 4),
+        binding!(0, Stage::VERTEX_FRAGMENT, UniformBuffer, 16),
     ]);
 
     let pipeline = target.render_pipeline(&gx,
-        Some((push_constants![0..4 => Shader::FRAGMENT], &[&layout])),
+        Some((push_constants![0..4 => Stage::FRAGMENT], &[&layout])),
         &[vertex_desc!(Vertex, 0 => Float32x2)],
-        (&shader, "vs_main", Primitive::TriangleList),
-        (&shader, "fs_main", ALPHA_BLENDING),
+        (&shader, "vs_main", Primitive::default()),
+        (&shader, "fs_main", BLENDING),
     );
 
     // vertices
@@ -59,32 +57,21 @@ fn main() {
 
 
     // data
-    // const DA:f32 = 3.0;
-    const DT:f32 = 0.01;
+    const DF:f32 = 0.01;
 
     let (mut width, mut height) = (width as f32, height as f32);
-    let (mut w, mut h) = (1.0, 1.0);
+    let mut scale = 1.0 as f32;
 
     let time = Instant::now();
 
 
     // buffer
-    let mut viewport_buffer = gx.buffer_from_data(BufUse::UNIFORM | BufUse::COPY_DST, [width, height, width/height]);
-    let mut scale_buffer = gx.buffer_from_data(BufUse::UNIFORM | BufUse::COPY_DST, [1.0_f32]);
+    let view_buffer = gx.buffer_from_data(BufUse::UNIFORM | BufUse::COPY_DST, [width, height, width/height, scale]);
 
     // binding
     let binding = gx.bind(&layout, &[
-        bind!(0, Buffer, &viewport_buffer),
-        bind!(1, Buffer, &scale_buffer),
+        bind!(0, Buffer, &view_buffer),
     ]);
-
-    // render bundles
-    let bundles = [target.render_bundle(&gx, |rpass| {
-        rpass.set_pipeline(&pipeline);
-        rpass.set_bind_group(0, &binding, &[]);
-        rpass.set_vertex_buffer(0, vertices.slice(..));
-        rpass.draw(0..vertex_data.len() as u32, 0..1);
-    })];
 
 
     // frame rate and counter
@@ -117,7 +104,7 @@ fn main() {
                 height = size.height as f32;
 
                 // write buffer
-                gx.write_buffer(&viewport_buffer, 0, [width, height, width / height]);
+                gx.write_buffer(&view_buffer, 0, [width, height, width/height, scale]);
             },
 
             Event::WindowEvent { event:WindowEvent::KeyboardInput { input: KeyboardInput {
@@ -127,30 +114,14 @@ fn main() {
                 let mut update = true;
 
                 match keycode {
-                    // VirtualKeyCode::I => { rot_matrix = Matrix4::from_angle_x(Deg( DA)) * rot_matrix; },
-                    // VirtualKeyCode::K => { rot_matrix = Matrix4::from_angle_x(Deg(-DA)) * rot_matrix; },
-                    // VirtualKeyCode::J => { rot_matrix = Matrix4::from_angle_y(Deg( DA)) * rot_matrix; },
-                    // VirtualKeyCode::L => { rot_matrix = Matrix4::from_angle_y(Deg(-DA)) * rot_matrix; },
-                    // VirtualKeyCode::U => { rot_matrix = Matrix4::from_angle_z(Deg( DA)) * rot_matrix; },
-                    // VirtualKeyCode::O => { rot_matrix = Matrix4::from_angle_z(Deg(-DA)) * rot_matrix; },
+                    VirtualKeyCode::Y => { scale += DF; },
+                    VirtualKeyCode::X => { scale -= DF; },
 
-                    VirtualKeyCode::W => { h += DT; },
-                    VirtualKeyCode::S => { h -= DT; },
-                    // VirtualKeyCode::A => { w -= DT; },
-                    // VirtualKeyCode::D => { w += DT; },
-
-                    VirtualKeyCode::R => {
-                        // rot_matrix = Matrix4::identity();
-                        w = 0.4;
-                        h = 0.4;
-                    },
+                    VirtualKeyCode::R => { scale = 1.0; },
 
                     _ => { update = false; }
                 } {
-                    if update {
-                        gx.write_buffer(&scale_buffer, 0, [h]);
-                        // window.request_redraw();
-                    }
+                    if update { gx.write_buffer(&view_buffer, 0, [width, height, width/height, scale]); }
                 }
             },
 
@@ -159,12 +130,10 @@ fn main() {
                 // draw
                 target.with_encoder_frame(&gx, |encoder, frame| {
                     encoder.with_render_pass(frame.attachments(Some(Color::BLACK), None), |mut rpass| {
-
-
                         rpass.set_pipeline(&pipeline);
                         rpass.set_bind_group(0, &binding, &[]);
                         rpass.set_vertex_buffer(0, vertices.slice(..));
-                        rpass.set_push_constants(Shader::FRAGMENT, 0, &time.elapsed().as_secs_f32().to_ne_bytes());
+                        rpass.set_push_constants(Stage::FRAGMENT, 0, &time.elapsed().as_secs_f32().to_ne_bytes());
                         rpass.draw(0..vertex_data.len() as u32, 0..1);
                     });
                 }).expect("frame error");

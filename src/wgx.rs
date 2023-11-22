@@ -10,8 +10,8 @@ use crate::{*, error::*};
 pub struct Wgx {
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
-    pub instance: Option<wgpu::Instance>,
-    pub adapter: Option<wgpu::Adapter>,
+    pub instance: wgpu::Instance,
+    pub adapter: wgpu::Adapter,
 }
 
 impl Wgx {
@@ -37,15 +37,11 @@ impl Wgx {
         Ok((adapter, surface))
     }
 
-    pub async fn with_adapter(adapter: &wgpu::Adapter, features:wgpu::Features, limits:wgpu::Limits) -> Res<Self> {
+    pub async fn request_device(adapter: &wgpu::Adapter, features:wgpu::Features, limits:wgpu::Limits) -> Res<(wgpu::Device, wgpu::Queue)> {
 
         #[cfg(target_family = "wasm")] let limits = limits.using_resolution(adapter.limits());
 
-        let (device, queue) = adapter.request_device(
-            &wgpu::DeviceDescriptor {label: None, features, limits}, None,
-        ).await.convert()?;
-
-        Ok(Self { device, queue, instance: None, adapter: None})
+        adapter.request_device(&wgpu::DeviceDescriptor {label: None, features, limits}, None).await.convert()
     }
 
     pub async unsafe fn new<W: HasRawWindowHandle + HasRawDisplayHandle>(window:Option<&W>, features:wgpu::Features, limits:wgpu::Limits)
@@ -53,8 +49,8 @@ impl Wgx {
     {
         let instance = Self::instance();
         let (adapter, surface) = Self::request_adapter(&instance, window).await?;
-        let Self {device, queue, ..} = Self::with_adapter(&adapter, features, limits).await?;
-        Ok((Self {device, queue, instance: Some(instance), adapter: Some(adapter)}, surface))
+        let (device, queue) = Self::request_device(&adapter, features, limits).await?;
+        Ok((Self {device, queue, instance, adapter}, surface))
     }
 }
 
@@ -160,8 +156,9 @@ pub trait WgxDevice {
     // compute pipeline
 
     fn compute_pipeline(
-        &self, (module, entry_point):(&wgpu::ShaderModule, &str),
-        layout:Option<(&[wgpu::PushConstantRange], &[&wgpu::BindGroupLayout])>
+        &self,
+        layout:Option<(&[wgpu::PushConstantRange], &[&wgpu::BindGroupLayout])>,
+        (module, entry_point):(&wgpu::ShaderModule, &str),
     ) -> wgpu::ComputePipeline {
 
         let layout = layout.map(|(push_constant_ranges, bind_group_layouts)|
@@ -185,8 +182,8 @@ pub trait WgxDevice {
         depth_testing: bool, msaa: u32,
         layout: Option<(&[wgpu::PushConstantRange], &[&wgpu::BindGroupLayout])>,
         buffers: &[wgpu::VertexBufferLayout],
-        (module, entry_point, topology): (&wgpu::ShaderModule, &str, wgpu::PrimitiveTopology),
-        fragment: Option<(&wgpu::ShaderModule, &str, &[(wgpu::TextureFormat, Option<BlendState>); S])>,
+        (module, entry_point, primitive): (&wgpu::ShaderModule, &str, wgpu::PrimitiveState),
+        fragment: Option<(&wgpu::ShaderModule, &str, &[(wgpu::TextureFormat, Option<Blend>); S])>,
     ) -> wgpu::RenderPipeline {
 
         // cache temporar values
@@ -210,15 +207,7 @@ pub trait WgxDevice {
 
             vertex: wgpu::VertexState { module, entry_point, buffers },
 
-            primitive: wgpu::PrimitiveState {
-                topology,
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
-                cull_mode: None,
-                unclipped_depth: false,
-                polygon_mode: wgpu::PolygonMode::Fill,
-                conservative: false,
-            },
+            primitive,
 
             fragment: if let Some((module, entry_point, formats)) = fragment {
 

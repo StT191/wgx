@@ -16,6 +16,13 @@ fn from_scale(x:f32, y:f32, z:f32) -> mat4x4<f32> {
     return mat4x4<f32>(vec4<f32>(x, 0.0, 0.0, 0.0), vec4<f32>(0.0, y, 0.0, 0.0), vec4<f32>(0.0, 0.0, z, 0.0), vec4<f32>(0.0, 0.0, 0.0, 1.0));
 }
 
+
+// may need negating in left-handed coordinate system
+fn normal_from_triangle(v0:vec3<f32>, v1:vec3<f32>, v2:vec3<f32>) -> vec3<f32> {
+    return normalize(cross(v1 - v0, v2 - v0));
+}
+
+
 // homogenisation
 fn homogen_2d(v:vec4<f32>) -> vec2<f32> {
     return vec2<f32>(v.x/v.w, v.y/v.w);
@@ -42,48 +49,3 @@ fn y_angle(v:vec2<f32>, len:f32) -> f32 { // angle towards y axis
 fn rotation_2d(angle: f32) -> mat2x2<f32> {
     return mat2x2<f32>(vec2<f32>(cos(angle), sin(angle)), vec2<f32>(-sin(angle), cos(angle)));
 }
-
-
-// find closer point to skewed unit circle
-/*fn find_closer() {
-
-    var ds = dr;
-
-    let dn = sqrt(1.0 - e*e);
-
-    var Eh = Er; // point on unit circle
-    var Rh = Rr; // ... in pixel space
-    var dRh = dR; // delta vec in pixel space
-    var drh = dr; // delta length
-
-    for (var j = 0; j != 3; j = j + 1) {
-
-        if (j != 0) {
-            if (j == 1) { Eh = in.E + dn * En; }
-            else        { Eh = in.E - dn * En; }
-
-            Rh = homogen_2d(in.prj * vec4<f32>(Eh, 0.0, 1.0));
-            dRh = Rh - R;
-            drh = length(dRh);
-        }
-
-        for (var i = 0; i != 2; i = i + 1) {
-
-            let En = normal_2d(Eh);
-
-            let T = homogen_2d(in.prj * vec4<f32>(Eh + En, 0.0, 1.0)) - Rh; // tangent in pixel space
-            let t = length(T);
-
-            // reassign
-            Eh = normalize(Eh - En * (dot(dRh, T) / (t*t))); // dl = cos_t * drh/t
-
-            Rh = homogen_2d(in.prj * vec4<f32>(Eh, 0.0, 1.0));
-            dRh = Rh - R;
-            drh = length(dRh);
-        }
-
-        if (drh < ds) {
-            ds = drh;
-        }
-    }
-}*/

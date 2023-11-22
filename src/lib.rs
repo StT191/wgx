@@ -3,12 +3,15 @@
 // passs wgpu types
 pub use wgpu::{
     self,
+    Features, Limits,
     BufferUsages as BufUse,
     TextureUsages as TexUse,
-    PrimitiveTopology as Primitive,
-    ShaderStages as Shader,
-    Features, Limits,
-    BlendState, BlendComponent, BlendFactor, BlendOperation,
+    ShaderStages as Stage,
+    BlendState as Blend, BlendComponent, BlendFactor, BlendOperation,
+    MapMode, // buffer mapping
+    PrimitiveState as Primitive,
+    PrimitiveTopology as Topology,
+    IndexFormat, Face, FrontFace, PolygonMode as Polygon,
 };
 
 // macros
@@ -28,6 +31,9 @@ pub use wgx::*;
 
 mod encoder_extension;
 pub use encoder_extension::*;
+
+mod buffer_extension;
+pub use buffer_extension::*;
 
 mod texture_extension;
 pub use texture_extension::*;
@@ -49,9 +55,6 @@ mod projection;
 #[cfg(feature = "projection")]
 pub use projection::*;
 
-
-#[cfg(feature = "wav_obj")]
-pub mod wav_obj;
 
 
 #[cfg(feature = "timer")]

@@ -3,12 +3,17 @@
 // &import * from "../imports/sdf.wgsl"
 
 // ray marching
+const START_DIST = 1e-2; // start with a reasonable offset from surface dist // declared externally
+const SURFACE_DIST = 1e-4;
 const MAX_DEPTH = 3000.0;
 const MAX_ITER = 48;
 
+// colors
+const bgColor = vec4<f32>(0.01, 0.5, 0.8, 1.0);
+const Color = vec4<f32>(1.0, 0.0, 0.0, 1.0);
 
 // sdf map
-fn sdMap(P: vec3<f32>) -> f32 {
+fn sdMap(P: vec3<f32>, map_color: bool) -> RayField {
 
     let h =
         P.y +
@@ -26,7 +31,7 @@ fn sdMap(P: vec3<f32>) -> f32 {
         )
     ; // floor
 
-    return h;
+    return RayField(h, Color);
 }
 
 
@@ -45,11 +50,6 @@ const shDist = 0.0; // max shadow distance
 
 const hL = 0.15; // highlight
 const hlPow = 50.0; // highlight power
-
-
-// coloring
-const Color = vec3<f32>(1.0, 0.0, 0.0);
-const bgColor = vec4<f32>(0.01, 0.5, 0.8, 1.0);
 
 
 // import ray marcher

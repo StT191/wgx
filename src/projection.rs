@@ -1,51 +1,78 @@
 
+use std::mem::zeroed;
 use crate::error::*;
 use cgmath::*;
 
+// cast helper
+pub fn cast_unwrap<U: num_traits::NumCast>(n: f64) -> U { num_traits::cast(n).unwrap() }
+use cast_unwrap as c;
+
 
 // projections
-
-pub struct FovProjection {
-    pub fovy: Deg<f32>,
-    pub aspect: f32,
-    pub unit: f32,
-    pub distance: f32,
-    pub projection: Matrix4<f32>,
-    pub translation: Matrix4<f32>,
+#[derive(Debug, Clone)]
+pub struct FovProjection<S> {
+    pub fov: PerspectiveFov<S>,
+    pub projection: Matrix4<S>,
+    pub distance: S,
+    pub translation: Matrix4<S>,
 }
 
 
-impl FovProjection {
+impl<S:BaseFloat> FovProjection<S> {
 
-    pub fn new(fov_deg:f32, aspect:f32, unit:f32, distance:f32) -> Self {
-
-        let fovy = Deg(fov_deg);
-
-        Self {
-            fovy, aspect, unit, distance,
-            projection: Matrix4::from(PerspectiveFov {
-                fovy: fovy.into(),
-                aspect,
-                near: unit/1.0e3,
-                far: 2.0e3*unit,
-            }) * Matrix4::from_nonuniform_scale(1.0, 1.0, -1.0),
-            translation: Matrix4::from_translation((0.0, 0.0, distance).into()),
-        }
+    pub fn update(&mut self) {
+        self.projection = Matrix4::from(self.fov) * Matrix4::from_nonuniform_scale(c(1.0), c(1.0), c(-1.0));
+        self.translation = Matrix4::from_translation((c(0.0), c(0.0), self.distance).into());
     }
 
-    pub fn unit(fov_deg:f32, aspect:f32, unit:f32) -> Self {
-        Self::new(fov_deg, aspect, unit, unit / Deg(fov_deg/2.0).tan())
+    pub fn new(fov_deg:S, aspect:S, near:S, far:S, distance:S) -> Self {
+        let mut this = Self {
+            fov: PerspectiveFov { fovy: Deg(fov_deg).into(), aspect, near, far },
+            distance,
+            // SAFETY: types are valid when zeroed
+            projection: unsafe { zeroed() }, translation: unsafe { zeroed() },
+        };
+        this.update();
+        this
     }
 
-    pub fn window(fov_deg:f32, width:f32, height:f32) -> Self {
-        Self::new(fov_deg, width/height, f32::max(width, height), 0.5 * height / Deg(fov_deg/2.0).tan())
+    pub fn unit(fov_deg:S, aspect:S, unit:S) -> Self {
+        let near = unit / c(1.0e3);
+        let far = unit * c(2.0e3);
+        let distance = unit / Deg(fov_deg/c(2.0)).tan();
+        Self::new(fov_deg, aspect, near, far, distance)
+    }
+
+    pub fn window(fov_deg:S, width:S, height:S) -> Self {
+        let unit = S::max(width, height);
+        let near = unit / c(1.0e3);
+        let far = unit * c(2.0e3);
+        let distance = height * c(0.5) / Deg(fov_deg/c(2.0)).tan();
+        Self::new(fov_deg, width/height, near, far, distance)
+    }
+
+    pub fn resize_window(&mut self, width: S, height: S, update_distances: bool) {
+
+        let fov_deg = Deg::from(self.fov.fovy).0;
+
+        if update_distances {
+            *self = FovProjection::window(fov_deg, width, height);
+        } else {
+            // or aspect only
+            self.fov.aspect = width/height;
+            self.update();
+        };
     }
 }
 
 
-pub fn flat_window_projection(width:f32, height:f32, depth:f32) -> Matrix4<f32> {
-    Matrix4::from_translation((-1.0, 1.0, 0.0).into()) *
-    Matrix4::from_nonuniform_scale(2.0/width, -2.0/height, if depth == 0.0 { 0.0 } else { 1.0/depth})
+pub fn flat_window_projection<S:BaseFloat>(width:S, height:S, depth:S) -> Matrix4<S> {
+    Matrix4::from_translation((c(-1.0), c(1.0), c(0.0)).into()) *
+    Matrix4::from_nonuniform_scale(
+        c::<S>(2.0)/width,
+        c::<S>(-2.0)/height,
+        if depth == c(0.0) { c(0.0) } else { c::<S>(1.0)/depth},
+    )
 }
 
 
@@ -60,13 +87,12 @@ macro_rules! apply {
 }
 
 
-pub fn normal_from_triangle<S:BaseFloat, V: Into<Vector3<S>> + Copy >(o:V, a:V, b:V) -> Vector3<S> {
-    (a.into() - o.into()).cross(b.into() - o.into()).normalize()
+// in left handed coordinate system
+pub fn normal_from_triangle<S:BaseFloat, V: Into<Vector3<S>> + Copy >(v0:V, v1:V, v2:V) -> Vector3<S> {
+    (v1.into() - v0.into()).cross(v2.into() - v0.into()).normalize()
 }
 
 
-
-// cgmath extension
 
 pub trait Vector4Extension {
     fn homogenize(self) -> Self;
@@ -81,13 +107,20 @@ impl<S:BaseFloat> Vector4Extension for Vector4<S> {
 
 
 
-pub trait Matrix4Extension<S:BaseFloat> {
-    fn within(&self, outer:&Matrix4<S>) -> Res<Matrix4<S>>;
+pub trait SquareMatrixExtension: SquareMatrix
+    where <Self as VectorSpace>::Scalar: num_traits::Float
+{
+    fn within(&self, outer:&Self) -> Res<Self>;
 }
 
-impl<S:BaseFloat> Matrix4Extension<S> for Matrix4<S> {
+use std::ops::Mul;
 
-    fn within(&self, outer:&Matrix4<S>) -> Res<Matrix4<S>> {
+impl<T: SquareMatrix> SquareMatrixExtension for T
+    where
+        <Self as cgmath::VectorSpace>::Scalar: num_traits::Float,
+        Self: for<'a> Mul<&'a Self, Output = Self>,
+{
+    fn within(&self, outer:&Self) -> Res<Self> {
         Ok(outer.invert().ok_or("couldn't invert matrix")? * self * outer)
     }
 }

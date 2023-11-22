@@ -18,7 +18,7 @@ use text_input::*;
 fn main() {
 
     const DEPTH_TESTING:bool = false;
-    const ALPHA_BLENDING:Option<BlendState> = None;
+    const BLENDING:Option<Blend> = None;
     const MSAA:u32 = 1;
 
 

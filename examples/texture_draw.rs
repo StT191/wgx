@@ -13,7 +13,7 @@ fn main() {
 
     const DEPTH_TESTING:bool = false;
     const MSAA:u32 = 1;
-    const ALPHA_BLENDING:Option<BlendState> = None;
+    const BLENDING:Option<Blend> = None;
 
 
     let event_loop = EventLoop::new();
@@ -34,14 +34,14 @@ fn main() {
     let mut target = SurfaceTarget::new(&gx, surface.unwrap(), (width, height), MSAA, DEPTH_TESTING).unwrap();
 
 
-    // shaders
-    let shader = gx.load_wgsl(include_wgsl_module!("./shaders/flat_text.wgsl"));
+    // common/shaders
+    let shader = gx.load_wgsl(include_wgsl_module!("common/shaders/shader_flat_text.wgsl"));
 
     // pipeline
     let pipeline = target.render_pipeline(&gx,
         None, &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        (&shader, "vs_main", Primitive::TriangleStrip),
-        (&shader, "fs_main", ALPHA_BLENDING),
+        (&shader, "vs_main", Primitive { topology: Topology::TriangleStrip, ..Primitive::default() }),
+        (&shader, "fs_main", BLENDING),
     );
 
     // sampler
@@ -76,10 +76,10 @@ fn main() {
     let draw_pipeline = gx.render_pipeline(
         false, 1, None,
         &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        (&shader, "vs_main", Primitive::TriangleStrip),
+        (&shader, "vs_main", Primitive { topology: Topology::TriangleStrip, ..Primitive::default() }),
         Some((&shader, "fs_main", &[
-            (draw_target.format(), ALPHA_BLENDING),
-            // (draw_target2.format(), ALPHA_BLENDING),
+            (draw_target.format(), BLENDING),
+            // (draw_target2.format(), BLENDING),
         ])),
     );
 

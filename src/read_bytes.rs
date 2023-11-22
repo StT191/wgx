@@ -16,8 +16,6 @@ unsafe impl<T: ReadBytes> ReadBytes for &T {
     fn read_bytes(&self) -> &[u8] { (*self).read_bytes() }
 }
 
-unsafe impl<T: ReadBytes> ReadBytes for Option<T> {}
-
 
 // slice types
 
@@ -70,12 +68,12 @@ macro_rules! impl_read_bytes {
     }
 }
 
-use wgpu::util::{DrawIndirect, DrawIndexedIndirect};
+use wgpu::util::{DrawIndirect, DrawIndexedIndirect, DispatchIndirect};
 
 impl_read_bytes!{
     (), crate::Color,
     u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, f32, f64,
-    DrawIndirect, DrawIndexedIndirect
+    DrawIndirect, DrawIndexedIndirect, DispatchIndirect
 }
 
 

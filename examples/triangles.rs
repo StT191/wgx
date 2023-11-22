@@ -13,7 +13,7 @@ fn main() {
 
     const DEPTH_TESTING:bool = true;
     const MSAA:u32 = 4;
-    const ALPHA_BLENDING:Option<BlendState> = Some(BlendState::ALPHA_BLENDING);
+    const BLENDING:Option<Blend> = Some(Blend::ALPHA_BLENDING);
 
 
     let event_loop = EventLoop::new();
@@ -28,12 +28,12 @@ fn main() {
 
 
     // global pipeline
-    let shader = gx.load_wgsl(include_wgsl_module!("./shaders/flat_text.wgsl"));
+    let shader = gx.load_wgsl(include_wgsl_module!("common/shaders/shader_flat_text.wgsl"));
 
     let pipeline = target.render_pipeline(&gx,
         None, &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        (&shader, "vs_main", Primitive::TriangleList),
-        (&shader, "fs_main", ALPHA_BLENDING),
+        (&shader, "vs_main", Primitive::default()),
+        (&shader, "fs_main", BLENDING),
     );
 
     // colors

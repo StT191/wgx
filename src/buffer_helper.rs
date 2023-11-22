@@ -1,98 +1,44 @@
 
-use std::{mem::size_of, slice::SliceIndex, ops::{Range, RangeBounds, Bound}, cmp::Ordering};
+use std::{
+  mem::size_of, ptr::copy_nonoverlapping,
+  slice::SliceIndex, ops::{Range, RangeBounds, Bound}, cmp::Ordering, marker::PhantomData,
+};
 use crate::{*, error::*};
-pub use wgpu::{util::DrawIndirect};
+pub use wgpu::util::{DrawIndirect, DrawIndexedIndirect};
 
+
+// data buffer
 
 #[derive(Debug)]
-pub struct VecBuffer<T: Copy + ReadBytes>{
-  pub data: Vec<T>,
+pub struct DataBuffer<T: Copy + ReadBytes, D: AsRef<[T]>> {
+  pub vertex_type: PhantomData<T>,
+  pub data: D,
   pub buffer: wgpu::Buffer,
-  size: usize,
 }
 
+impl<T: Copy + ReadBytes, D: AsRef<[T]>> DataBuffer<T, D> {
 
-fn write_into_vec<T: Copy>(target: &mut Vec<T>, offset: usize, source: &[T]) -> Range<usize> {
+  pub fn size(&self) -> u64 { self.buffer.size() }
+  pub fn len(&self) -> usize { self.data.as_ref().len() }
+  pub fn is_empty(&self) -> bool { self.data.as_ref().is_empty() }
 
-  let target_len = target.len();
-
-  match offset.cmp(&target_len) {
-    Ordering::Less => {
-
-      let end = offset + source.len();
-      let need = isize::try_from(end).unwrap() - isize::try_from(target_len).unwrap() ;
-
-      unsafe {
-        if need > 0 {
-          target.reserve(need as usize);
-
-          // SAFETY: This is only safe because we'll copy over the uninitialized length right away
-          //         and nothing needs to be dropped.
-          target.set_len(end);
-        }
-
-        target[offset..end].copy_from_slice(source);
-      }
-
-      offset..end
-    },
-    Ordering::Equal => {
-      target.extend_from_slice(source);
-      target_len..target.len()
-    },
-    Ordering::Greater => {
-      panic!("offset `{offset}` > traget.len() `{target_len}`")
-    },
-  }
-}
-
-
-impl<T: Copy + ReadBytes> VecBuffer<T> {
-
-  pub fn new(gx: &impl WgxDevice, usage: BufUse, size: usize) -> Self {
+  pub fn new(gx: &impl WgxDevice, usage: BufUse, size: usize, data: D) -> Self {
     Self {
-      data: Vec::with_capacity(size),
+      vertex_type: PhantomData, data,
       buffer: gx.buffer(BufUse::COPY_DST | usage, (size_of::<T>() * size) as u64, false),
-      size,
     }
   }
 
-  pub fn write(&mut self, index: Option<usize>, entry: &T) -> usize {
-    if let Some(index) = index {
-      let len = self.len();
-      match index.cmp(&len) {
-        Ordering::Less => self.data[index] = *entry,
-        Ordering::Equal => self.data.push(*entry),
-        Ordering::Greater => panic!("index `{index}` > traget.len() `{len}`"),
-      }
-      index
-    } else {
-      self.data.push(*entry);
-      self.data.len()
-    }
-  }
-
-  pub fn write_multiple(&mut self, offset: Option<usize>, entries: &[T]) -> Range<usize> {
-    if let Some(offset) = offset {
-      write_into_vec(&mut self.data, offset, entries)
-    } else {
-      let start = self.data.len();
-      self.data.extend_from_slice(entries);
-      start..self.data.len()
-    }
-  }
-
-  pub fn clear(&mut self, retain: Option<usize>) {
-    if let Some(size) = retain {
-      self.data.truncate(size);
-    } else {
-      self.data.clear();
+  pub fn from_data(gx: &impl WgxDevice, usage: BufUse, data: D) -> Self {
+    Self {
+      buffer: gx.buffer_from_data(BufUse::COPY_DST | usage, data.as_ref()),
+      vertex_type: PhantomData, data,
     }
   }
 
   pub fn write_buffer(&self, gx: &impl WgxDeviceQueue, range: impl SliceIndex<[T], Output = [T]> + RangeBounds<usize> + Clone) {
 
-    let data_slice = &self.data[range.clone()];
+    let data_slice = &self.data.as_ref()[range.clone()];
 
     if !data_slice.is_empty() {
 
@@ -106,44 +52,59 @@ impl<T: Copy + ReadBytes> VecBuffer<T> {
       gx.write_buffer(&self.buffer, offset as u64, data_slice);
     }
   }
-
-  pub fn size(&self) -> usize { self.size }
-  pub fn len(&self) -> usize { self.data.len() }
-  pub fn is_empty(&self) -> bool { self.data.is_empty() }
 }
 
 
+// vec helper trait
 
-
-pub struct MultiDrawIndirect<Vertex: Copy + ReadBytes, InstanceData: Copy + ReadBytes> {
-  pub vertices: VecBuffer<Vertex>,
-  pub instances: VecBuffer<InstanceData>,
-  pub indirect: VecBuffer<DrawIndirect>,
+pub trait CopyExtend<T: Copy> {
+  fn copy_extend(&mut self, source: &[T], offset: Option<usize>) -> Range<usize>;
 }
 
-type Desc = (Option<BufUse>, usize); // (Buffer usages, max size)
+impl<T: Copy> CopyExtend<T> for Vec<T> {
 
-impl<Vertex: Copy + ReadBytes, InstanceData: Copy + ReadBytes> MultiDrawIndirect<Vertex, InstanceData> {
+  fn copy_extend(&mut self, source: &[T], offset: Option<usize>) -> Range<usize> {
 
-  pub fn new(gx: &impl WgxDevice, vertex_desc: Desc, instance_desc: Desc, indirect_desc: Desc) -> Self {
-    Self {
-      vertices: VecBuffer::new(gx, vertex_desc.0.unwrap_or(BufUse::empty()) | BufUse::VERTEX, vertex_desc.1),
-      instances: VecBuffer::new(gx, instance_desc.0.unwrap_or(BufUse::empty()) | BufUse::VERTEX, instance_desc.1),
-      indirect: VecBuffer::new(gx, indirect_desc.0.unwrap_or(BufUse::empty()) | BufUse::INDIRECT, indirect_desc.1),
+    let start_len = self.len();
+    let offset = offset.unwrap_or(start_len);
+
+    match offset.cmp(&start_len) {
+      Ordering::Less => {
+
+        let end = offset + source.len();
+        let need = isize::try_from(end).unwrap() - isize::try_from(start_len).unwrap();
+
+        // SAFETY: We copy from a type that implements Copy.
+        //         Pointers my never overlap because of rust aliasing rules for slices.
+        //         We reserve enough space beforehand.
+        //         We only set the new length of the vector after copying.
+        unsafe {
+          if need > 0 { self.reserve(need as usize); }
+
+          copy_nonoverlapping(
+            source.as_ptr(),
+            self[offset..end].as_mut_ptr(),
+            source.len(),
+          );
+
+          if need > 0 { self.set_len(end); }
+        }
+
+        offset..end
+      },
+      Ordering::Equal => {
+        self.extend_from_slice(source);
+        start_len..self.len()
+      },
+      Ordering::Greater => {
+        panic!("offset `{offset}` > self.len() `{start_len}`")
+      },
     }
   }
-
-  pub fn write_buffers(&mut self, gx: &impl WgxDeviceQueue,
-    vertices_range: impl SliceIndex<[Vertex], Output = [Vertex]> + RangeBounds<usize> + Clone,
-    instances_range: impl SliceIndex<[InstanceData], Output = [InstanceData]> + RangeBounds<usize> + Clone,
-    indirect_range: impl SliceIndex<[DrawIndirect], Output = [DrawIndirect]> + RangeBounds<usize> + Clone,
-  ) {
-    self.vertices.write_buffer(gx, vertices_range);
-    self.instances.write_buffer(gx, instances_range);
-    self.indirect.write_buffer(gx, indirect_range);
-  }
 }
 
+
+// wgpu draw indirect helper traits
 
 pub trait DrawIndirectRanges: Sized {
   fn try_from_ranges(vertex_range: Range<usize>, instance_range: Range<usize>) -> Res<Self>;
@@ -168,5 +129,33 @@ impl DrawIndirectRanges for DrawIndirect {
 
   fn instance_range(&self) -> Res<Range<u32>> {
     Ok(self.base_instance..self.base_instance.checked_add(self.instance_count).ok_or("DrawIndirect instance range overflow")?)
+  }
+}
+
+
+pub trait DrawIndexedIndirectRanges: Sized {
+  fn try_from_offset_ranges(vertex_offset: isize, index_range: Range<usize>, instance_range: Range<usize>) -> Res<Self>;
+  fn index_range(&self) -> Res<Range<u32>>;
+  fn instance_range(&self) -> Res<Range<u32>>;
+}
+
+impl DrawIndexedIndirectRanges for DrawIndexedIndirect {
+
+  fn try_from_offset_ranges(vertex_offset: isize, index_range: Range<usize>, instance_range: Range<usize>) -> Res<Self> {
+    Ok(Self {
+      vertex_offset: i32::try_from(vertex_offset).map_err(|_| "DrawIndexedIndirect vertex_offset overflow")?,
+      base_index: u32::try_from(index_range.start).map_err(|_| "DrawIndexedIndirect base_index overflow")?,
+      vertex_count: u32::try_from(index_range.len()).map_err(|_| "DrawIndexedIndirect vertex_count overflow")?,
+      base_instance: u32::try_from(instance_range.start).map_err(|_| "DrawIndexedIndirect base_instance overflow")?,
+      instance_count: u32::try_from(instance_range.len()).map_err(|_| "DrawIndexedIndirect instance_count overflow")?,
+    })
+  }
+
+  fn index_range(&self) -> Res<Range<u32>> {
+    Ok(self.base_index..self.base_index.checked_add(self.vertex_count).ok_or("DrawIndexedIndirect index range overflow")?)
+  }
+
+  fn instance_range(&self) -> Res<Range<u32>> {
+    Ok(self.base_instance..self.base_instance.checked_add(self.instance_count).ok_or("DrawIndexedIndirect instance range overflow")?)
   }
 }

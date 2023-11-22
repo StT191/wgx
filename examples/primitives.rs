@@ -13,7 +13,7 @@ fn main() {
 
     const DEPTH_TESTING:bool = false;
     const MSAA:u32 = 4;
-    const ALPHA_BLENDING:Option<BlendState> = Some(BlendState::ALPHA_BLENDING);
+    const BLENDING:Option<Blend> = Some(Blend::ALPHA_BLENDING);
 
 
     let event_loop = EventLoop::new();
@@ -35,12 +35,12 @@ fn main() {
 
 
     // global pipeline
-    let shader = gx.load_wgsl(include_wgsl_module!("./shaders/flat_text.wgsl"));
+    let shader = gx.load_wgsl(include_wgsl_module!("common/shaders/shader_flat_text.wgsl"));
 
     // layout
     let layout = gx.layout(&[
-        binding!(0, Shader::FRAGMENT, SampledTexture2D),
-        binding!(1, Shader::FRAGMENT, Sampler)
+        binding!(0, Stage::FRAGMENT, SampledTexture2D),
+        binding!(1, Stage::FRAGMENT, Sampler)
     ]);
 
 
@@ -68,8 +68,8 @@ fn main() {
     // triangle pipeline
     let t_pipeline = target.render_pipeline(&gx,
         Some((&[], &[&layout])), &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        (&shader, "vs_main", Primitive::TriangleStrip),
-        (&shader, "fs_main", ALPHA_BLENDING),
+        (&shader, "vs_main", Primitive { topology: Topology::TriangleStrip, ..Primitive::default() }),
+        (&shader, "fs_main", BLENDING),
     );
 
     let t_data = [
@@ -85,8 +85,8 @@ fn main() {
     // lines pipeline
     let l_pipeline = target.render_pipeline(&gx,
         Some((&[], &[&layout])), &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        (&shader, "vs_main", Primitive::LineStrip),
-        (&shader, "fs_main", ALPHA_BLENDING),
+        (&shader, "vs_main", Primitive { topology: Topology::LineStrip, ..Primitive::default() }),
+        (&shader, "fs_main", BLENDING),
     );
 
     let l_data = [
@@ -104,8 +104,8 @@ fn main() {
     // points pipeline
     let p_pipeline = target.render_pipeline(&gx,
         Some((&[], &[&layout])), &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        (&shader, "vs_main", Primitive::PointList),
-        (&shader, "fs_main", ALPHA_BLENDING),
+        (&shader, "vs_main", Primitive { topology: Topology::PointList, ..Primitive::default() }),
+        (&shader, "fs_main", BLENDING),
     );
 
     let p_data = [
@@ -119,7 +119,7 @@ fn main() {
 
 
     // picture pipeline
-    let decoder = png::Decoder::new(&include_bytes!("img/logo_red.png")[..]);
+    let decoder = png::Decoder::new(&include_bytes!("common/img/logo_red.png")[..]);
     let mut reader = decoder.read_info().expect("failed decoding image");
 
     let mut img_data = vec![0; reader.output_buffer_size()];
@@ -127,7 +127,7 @@ fn main() {
 
     let info = reader.next_frame(&mut img_data).expect("failed reading image");
 
-    /*let img = image::load_from_memory(include_bytes!("img/logo_red.png"))
+    /*let img = image::load_from_memory(include_bytes!("common/img/logo_red.png"))
         .expect("failed loading image")
         .into_rgba8();*/
 
@@ -142,8 +142,8 @@ fn main() {
 
     let i_pipeline = target.render_pipeline(&gx,
         Some((&[], &[&layout])), &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        (&shader, "vs_main", Primitive::TriangleStrip),
-        (&shader, "fs_main", ALPHA_BLENDING),
+        (&shader, "vs_main", Primitive { topology: Topology::TriangleStrip, ..Primitive::default() }),
+        (&shader, "fs_main", BLENDING),
     );
 
     let i_data = [

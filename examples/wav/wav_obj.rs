@@ -1,7 +1,7 @@
 
 
-use crate::error::*;
-use crate::normal_from_triangle;
+use wgx::error::*;
+use wgx::normal_from_triangle;
 
 use std::str::{FromStr};
 

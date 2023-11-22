@@ -83,8 +83,8 @@ pub trait RenderTarget {
         &self, gx: &impl WgxDevice,
         layout: Option<(&[wgpu::PushConstantRange], &[&wgpu::BindGroupLayout])>,
         buffers: &[wgpu::VertexBufferLayout],
-        vertex_state: (&wgpu::ShaderModule, &str, wgpu::PrimitiveTopology),
-        (fs_module, fs_entry_point, blend): (&wgpu::ShaderModule, &str, Option<BlendState>),
+        vertex_state: (&wgpu::ShaderModule, &str, Primitive),
+        (fs_module, fs_entry_point, blend): (&wgpu::ShaderModule, &str, Option<Blend>),
     ) -> wgpu::RenderPipeline {
         gx.render_pipeline(
             self.depth_testing(), self.msaa(), layout, buffers, vertex_state,
@@ -218,13 +218,11 @@ impl SurfaceTarget {
 
     pub fn new(gx:&Wgx, surface:wgpu::Surface, size:(u32, u32), msaa:u32, depth_testing:bool) -> Res<Self>
     {
-        let adapter = gx.adapter.as_ref().ok_or("Wgx-Instance doesn't contain an adapter")?;
-
         let mut config = SURFACE_CONFIGURATION.clone();
         config.width = size.0;
         config.height = size.1;
 
-        let SurfaceCapabilities {formats, present_modes, ..} = surface.get_capabilities(adapter);
+        let SurfaceCapabilities {formats, present_modes, ..} = surface.get_capabilities(&gx.adapter);
 
         // let format = *formats.get(0).ok_or("couldn't get default format")?;
         let format = *formats.iter().find(|fmt| fmt.is_srgb()).ok_or("couldn't get srgb format")?;

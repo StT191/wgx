@@ -1,5 +1,5 @@
 
-/* &import * from "default_v3d_text_diff.wgsl" */
+/* &import * from "frag_3d_text_diff.wgsl" */
 
 @vertex
 fn vs_main(
@@ -13,13 +13,13 @@ fn vs_main(
 ) -> VertexData {
     var out: VertexData;
 
-    let inst_matrix = mat4x4<f32>(m0, m1, m2, m3);
+    let instance_matrix = mat4x4<f32>(m0, m1, m2, m3);
 
-    out.position = clip_matrix * inst_matrix * vec4<f32>(position, 1.0);
+    out.position = clip_matrix * instance_matrix * vec4<f32>(position.xyz, 1.0);
     out.tex_coord = tex_coord.xy;
-    out.lf = -(light_matrix * inst_matrix * vec4<f32>(normal, 1.0)).z;
+    out.lf = -normalize(light_matrix * instance_matrix * vec4<f32>(normal.xyz, 1.0)).z;
 
-    // let Ln = (inst_matrix * light_matrix * vec4<f32>(0.0, 0.0, -1.0, 1.0)).xyz;
+    // let Ln = (instance_matrix * light_matrix * vec4<f32>(0.0, 0.0, -1.0, 1.0)).xyz;
 
     // out.lf = diffuse_light(normal, Ln);
     // out.hl = highlight(normalize(out.position.xyz), normal, Ln);

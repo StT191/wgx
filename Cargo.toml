@@ -1,6 +1,6 @@
 [package]
 name = "wgx"
-version = "0.16.1"
+version = "0.16.2"
 authors = ["Stefan Tammer <st.tammer@gmail.com>"]
 edition = "2021"
 license = "MIT"
@@ -15,19 +15,18 @@ doctest = false
 members = ["wgsl_modules", "wgsl_modules/loader", "wgsl_modules/macro"]
 
 [workspace.package]
-version = "0.16.1"
+version = "0.16.0"
 authors = ["Stefan Tammer <st.tammer@gmail.com>"]
 edition = "2021"
 license = "MIT"
 
 [workspace.dependencies]
-wgsl_modules_macro = { version = "0.16.1", path = "wgsl_modules/macro" }
-wgsl_modules_loader = { version = "0.16.1", path = "wgsl_modules/loader" }
+wgsl_modules_macro = { version = "~0.16.0", path = "wgsl_modules/macro" }
+wgsl_modules_loader = { version = "~0.16.0", path = "wgsl_modules/loader" }
 
 
 [features]
 projection = ["dep:cgmath"]
-wav_obj = ["projection"]
 timer = ["dep:instant"]
 glyph = ["dep:wgpu_glyph", "projection"]
 webgl = ["wgpu/webgl"]

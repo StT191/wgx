@@ -1,5 +1,5 @@
 
-/* &import * from "default_flat_text.wgsl" */
+/* &import * from "frag_flat_text.wgsl" */
 
 @vertex
 fn vs_main(
