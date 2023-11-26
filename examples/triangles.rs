@@ -38,7 +38,7 @@ fn main() {
 
     // colors
     let texture = TextureLot::new_2d_with_data(&gx,
-        (2, 1), 1, TEXTURE, /*TexUse::COPY_SRC |*/ TexUse::TEXTURE_BINDING,
+        (2, 1), 1, DEFAULT_SRGB, None, /*TexUse::COPY_SRC |*/ TexUse::TEXTURE_BINDING,
         [[255u8, 0, 0, 255], [0, 0, 255, 50]]
     );
 

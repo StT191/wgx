@@ -1,5 +1,5 @@
 
-use crate::{WgxDevice, DEPTH, RenderAttachable, DepthAttachment, error::*};
+use crate::{WgxDevice, DEFAULT_DEPTH, RenderAttachable, DepthAttachment, error::*};
 use cgmath::Matrix4;
 use wgpu_glyph::{*, ab_glyph::{FontArc, InvalidFont}};
 use wgpu::util::StagingBelt;
@@ -32,7 +32,7 @@ impl<WDev: WgxDevice> WgxGlyphBrushBuilderExtension for WDev {
         Ok(
             GlyphBrushBuilder::using_font(font)
             .depth_stencil_state(wgpu::DepthStencilState {
-                format: DEPTH,
+                format: DEFAULT_DEPTH,
                 depth_write_enabled: true,
                 depth_compare: wgpu::CompareFunction::LessEqual,
                 stencil: wgpu::StencilState::default(),

@@ -4,8 +4,6 @@ use std::{
   slice::SliceIndex, ops::{Range, RangeBounds, Bound}, cmp::Ordering, marker::PhantomData,
 };
 use crate::{*, error::*};
-pub use wgpu::util::{DrawIndirect, DrawIndexedIndirect};
-
 
 // data buffer
 

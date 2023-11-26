@@ -4,7 +4,7 @@ use pollster::FutureExt;
 use winit::{
   dpi::PhysicalSize,
   event_loop::{ControlFlow, EventLoop},
-  window::Window, event::{Event, WindowEvent, KeyboardInput, ElementState},
+  window::WindowBuilder, event::{Event, WindowEvent, KeyboardInput, ElementState},
 };
 use wgx::{*, cgmath::*};
 
@@ -24,7 +24,9 @@ fn main() {
   let (width, height) = (1000, 1000);
 
   let event_loop = EventLoop::new();
-  let window = Window::new(&event_loop).unwrap();
+
+  let window = WindowBuilder::new().with_transparent(true).build(&event_loop).unwrap();
+
   window.set_inner_size(PhysicalSize::<u32>::from((width, height)));
   window.set_title("WgFx");
 
@@ -51,10 +53,10 @@ fn main() {
   );
 
   // colors
-  let color_texture = TextureLot::new_2d_with_data(&gx, (1, 1), 1, TEXTURE, TexUse::TEXTURE_BINDING, [255u8, 0, 0, 255]);
-  let sampler = gx.default_sampler();
+  let bg_color = Color::from([0x00, 0x00, 0x00, 0xCC]);
 
-  println!("{:?}", gx.adapter.get_info());
+  let color_texture = TextureLot::new_2d_with_data(&gx, (1, 1), 1, DEFAULT_SRGB, None, TexUse::TEXTURE_BINDING, [255u8, 0, 0, 255]);
+  let sampler = gx.default_sampler();
 
   // compute vertices
   type Vertex = [[f32;3];3];
@@ -135,8 +137,16 @@ fn main() {
 
   world.light_matrix = light_matrix * world.rotation; // keep light
 
-  world.write_clip_buffer(&gx);
-  world.write_light_buffer(&gx);
+
+  // staging belt
+  let mut staging_belt = StagingBelt::new(4 * world.clip_buffer.size());
+
+  gx.with_encoder(|mut encoder| {
+    staging_belt.write_data(&gx, &mut encoder, &world.clip_buffer, 0, world.clip_matrix);
+    staging_belt.write_data(&gx, &mut encoder, &world.light_buffer, 0, world.light_matrix);
+    staging_belt.finish();
+  });
+  staging_belt.recall();
 
 
   // bind
@@ -172,8 +182,13 @@ fn main() {
         world.fov.resize_window(size.width as f32, size.height as f32, true);
         world.calc_clip_matrix();
         world.light_matrix = light_matrix * world.rotation; // keep light
-        world.write_clip_buffer(&gx);
-        world.write_light_buffer(&gx);
+
+        gx.with_encoder(|mut encoder| {
+          staging_belt.write_data(&gx, &mut encoder, &world.clip_buffer, 0, world.clip_matrix);
+          staging_belt.write_data(&gx, &mut encoder, &world.light_buffer, 0, world.light_matrix);
+          staging_belt.finish();
+        });
+        staging_belt.recall();
       },
 
       Event::WindowEvent { event:WindowEvent::KeyboardInput { input: KeyboardInput {
@@ -183,8 +198,14 @@ fn main() {
           world.input(key);
           world.calc_clip_matrix();
           world.light_matrix = light_matrix * world.rotation; // keep light
-          world.write_clip_buffer(&gx);
-          world.write_light_buffer(&gx);
+
+          gx.with_encoder(|mut encoder| {
+            staging_belt.write_data(&gx, &mut encoder, &world.clip_buffer, 0, world.clip_matrix);
+            staging_belt.write_data(&gx, &mut encoder, &world.light_buffer, 0, world.light_matrix);
+            staging_belt.finish();
+          });
+          staging_belt.recall();
+
           window.request_redraw();
         }
       },
@@ -194,7 +215,7 @@ fn main() {
         let then = Instant::now();
 
         target.with_encoder_frame(&gx, |encoder, frame| {
-          encoder.render_bundles(frame.attachments(Some(Color::BLACK), Some(1.0)), &bundles);
+          encoder.render_bundles(frame.attachments(Some(bg_color), Some(1.0)), &bundles);
         }).expect("frame error");
 
         println!("{:?}", then.elapsed());

@@ -1,7 +1,38 @@
 
 use std::{sync::mpsc::sync_channel, ops::{RangeBounds}};
-use wgpu::{Buffer, BufferSlice, BufferAddress};
+use wgpu::{Buffer, BufferSlice, BufferAddress, BufferSize, BufferViewMut, util::StagingBelt, CommandEncoder};
 use crate::{*, error::*};
+
+
+pub trait StagingBeltExtension {
+  fn map(
+    &mut self, gx: &impl WgxDevice, encoder: &mut CommandEncoder,
+    target: &Buffer, offset: BufferAddress, size: u64,
+  ) -> BufferViewMut;
+
+  fn write_data<T: ReadBytes>(
+    &mut self, gx: &impl WgxDevice, encoder: &mut CommandEncoder,
+    target: &Buffer, offset: BufferAddress, data: T,
+  );
+}
+
+impl StagingBeltExtension for StagingBelt {
+
+  fn map(
+    &mut self, gx: &impl WgxDevice, encoder: &mut CommandEncoder,
+    target: &Buffer, offset: BufferAddress, size: u64,
+  ) -> BufferViewMut {
+    self.write_buffer(encoder, target, offset, BufferSize::new(size).unwrap(), gx.device())
+  }
+
+  fn write_data<T: ReadBytes>(
+    &mut self, gx: &impl WgxDevice, encoder: &mut CommandEncoder,
+    target: &Buffer, offset: BufferAddress, data: T,
+  ) {
+    let bytes = data.read_bytes();
+    self.map(gx, encoder, target, offset, bytes.len() as u64).copy_from_slice(bytes);
+  }
+}
 
 
 pub trait WithMapSync {

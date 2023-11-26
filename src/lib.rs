@@ -1,4 +1,3 @@
-#![feature(div_duration, duration_constants, array_methods)]
 
 // passs wgpu types
 pub use wgpu::{
@@ -12,11 +11,11 @@ pub use wgpu::{
     PrimitiveState as Primitive,
     PrimitiveTopology as Topology,
     IndexFormat, Face, FrontFace, PolygonMode as Polygon,
+    util::{StagingBelt, DrawIndirect, DrawIndexedIndirect, DispatchIndirect},
 };
 
 // macros
 mod macros;
-pub use macros::*;
 
 // common types
 mod read_bytes;
@@ -29,8 +28,8 @@ pub use color::*;
 mod wgx;
 pub use wgx::*;
 
-mod encoder_extension;
-pub use encoder_extension::*;
+mod render_extension;
+pub use render_extension::*;
 
 mod buffer_extension;
 pub use buffer_extension::*;
@@ -55,10 +54,6 @@ mod projection;
 #[cfg(feature = "projection")]
 pub use projection::*;
 
-
-
-#[cfg(feature = "timer")]
-pub mod timer;
 
 
 // glyph

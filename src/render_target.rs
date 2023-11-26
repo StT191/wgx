@@ -1,60 +1,6 @@
 
 use crate::{*, error::*};
-use wgpu::{PresentMode as Prs, SurfaceCapabilities};
-
-
-pub type RenderAttachments<'a, const S: usize> = (
-    [Option<wgpu::RenderPassColorAttachment<'a>>; S],
-    Option<wgpu::RenderPassDepthStencilAttachment<'a>>
-);
-
-
-#[derive(Debug, Clone, Copy)]
-pub struct ColorAttachment<'a> {
-    pub view: &'a wgpu::TextureView,
-    pub msaa: Option<&'a wgpu::TextureView>,
-    pub clear: Option<(Color, bool)>,
-}
-
-impl<'a> From<ColorAttachment<'a>> for wgpu::RenderPassColorAttachment<'a> {
-    fn from(att: ColorAttachment<'a>) -> Self {
-        Self {
-            view: if let Some(msaa_view) = att.msaa { msaa_view } else { att.view },
-            resolve_target: if att.msaa.is_some() { Some(att.view) } else { None },
-            ops: wgpu::Operations {
-                load: if let Some((color, srgb)) = att.clear { wgpu::LoadOp::Clear(
-                    if att.msaa.is_none() || !srgb { color.linear().into() } // convert to linear color space
-                    else { color.into() } // unless using attachment with srgb
-                )}
-                else { wgpu::LoadOp::Load },
-                store: true,
-            }
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct DepthAttachment<'a> {
-    pub view: &'a wgpu::TextureView,
-    pub clear: Option<f32>,
-}
-
-impl<'a> From<DepthAttachment<'a>> for wgpu::RenderPassDepthStencilAttachment<'a> {
-    fn from(att: DepthAttachment<'a>) -> Self {
-        Self {
-            view: att.view,
-            depth_ops: Some(wgpu::Operations {
-                load: if let Some(cl) = att.clear { wgpu::LoadOp::Clear(cl) } else { wgpu::LoadOp::Load },
-                store: true,
-            }),
-            stencil_ops: None,
-            /*stencil_ops: Some(wgpu::Operations {
-                load: wgpu::LoadOp::Clear(0),
-                store: true
-            }),*/
-        }
-    }
-}
+use wgpu::{PresentMode as Prs, SurfaceCapabilities, TextureFormat};
 
 
 pub trait RenderTarget {
@@ -63,14 +9,20 @@ pub trait RenderTarget {
     fn size(&self) -> (u32, u32);
     fn msaa(&self) -> u32;
     fn depth_testing(&self) -> bool;
-    fn format(&self) -> wgpu::TextureFormat;
+    fn format(&self) -> TextureFormat;
+    fn view_format(&self) -> TextureFormat;
 
     // provided
-
-    fn srgb(&self) -> bool { self.format().is_srgb() }
+    fn clear_color_transform(&self) -> ColorTransform {
+        if self.format().is_srgb() && self.view_format().is_srgb() && self.msaa() > 1 {
+            ColorTransform::None
+        } else {
+            ColorTransform::Linear
+        }
+    }
 
     fn render_bundle_encoder<'a>(&self, gx: &'a Wgx) -> wgpu::RenderBundleEncoder<'a> {
-        gx.render_bundle_encoder(&[Some(self.format())], self.depth_testing(), self.msaa())
+        gx.render_bundle_encoder(&[Some(self.view_format())], self.depth_testing(), self.msaa())
     }
 
     fn render_bundle<'a>(&self, gx: &'a Wgx, handler: impl FnOnce(&mut wgpu::RenderBundleEncoder<'a>)) -> wgpu::RenderBundle {
@@ -88,7 +40,7 @@ pub trait RenderTarget {
     ) -> wgpu::RenderPipeline {
         gx.render_pipeline(
             self.depth_testing(), self.msaa(), layout, buffers, vertex_state,
-            Some((fs_module, fs_entry_point, &[(self.format(), blend)])),
+            Some((fs_module, fs_entry_point, &[(self.view_format(), blend)])),
         )
     }
 }
@@ -102,7 +54,7 @@ pub trait RenderAttachable: RenderTarget {
     // provided
     fn color_attachment(&self, clear_color: Option<Color>) -> wgpu::RenderPassColorAttachment {
         let (view, msaa) = self.color_views();
-        ColorAttachment { view, msaa, clear: clear_color.map(|cl| (cl, self.srgb())) }.into()
+        ColorAttachment { view, msaa, clear: clear_color.map(|cl| (cl, self.clear_color_transform())) }.into()
     }
 
     fn depth_attachment(&self, clear: Option<f32>) -> Option<wgpu::RenderPassDepthStencilAttachment> {
@@ -126,36 +78,34 @@ pub struct TextureLot {
 impl TextureLot {
     pub fn new(gx:&impl WgxDevice, descriptor: TexDsc) -> Self {
         let texture = gx.texture(&descriptor);
-        let view = texture.create_default_view();
+        let view = texture.create_default_view(Some(descriptor.view_format));
         TextureLot { texture, descriptor, view }
-    }
-    pub fn new_2d(gx:&impl WgxDevice, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse) -> Self {
-        Self::new(gx, TexDsc::new_2d(size, sample_count, format, usage))
-    }
-    pub fn new_2d_bound(gx:&impl WgxDevice, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse) -> Self {
-        Self::new_2d(gx, size, sample_count, format, TexUse::TEXTURE_BINDING | usage)
-    }
-    pub fn new_2d_attached(gx:&impl WgxDevice, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse) -> Self {
-        Self::new_2d(gx, size, sample_count, format, TexUse::RENDER_ATTACHMENT | usage)
     }
     pub fn new_with_data<T: ReadBytes>(gx:&impl WgxDeviceQueue, descriptor: TexDsc, data: T) -> Self {
         let texture = gx.texture_with_data(&descriptor, data);
-        let view = texture.create_default_view();
+        let view = texture.create_default_view(Some(descriptor.view_format));
         TextureLot { texture, descriptor, view }
     }
-    pub fn new_2d_with_data<T: ReadBytes>(
-        gx:&impl WgxDeviceQueue, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse, data: T)
-    -> Self {
-        Self::new_with_data(gx, TexDsc::new_2d(size, sample_count, format, usage), data)
+    pub fn new_2d(
+        gx:&impl WgxDevice, size:(u32, u32), sample_count:u32,
+        format:TextureFormat, view_format:Option<TextureFormat>, usage:TexUse
+    ) -> Self {
+        Self::new(gx, TexDsc::new_2d(size, sample_count, format, view_format, usage))
     }
-    pub fn update(&mut self, gx: &impl WgxDevice) { *self = Self::new(gx, self.descriptor.clone()) }
+    pub fn new_2d_with_data<T: ReadBytes>(
+        gx:&impl WgxDeviceQueue, size:(u32, u32), sample_count:u32,
+        format:TextureFormat, view_format:Option<TextureFormat>, usage:TexUse, data: T,
+    ) -> Self {
+        Self::new_with_data(gx, TexDsc::new_2d(size, sample_count, format, view_format, usage), data)
+    }
 }
 
 impl RenderTarget for TextureLot {
-    fn size(&self) -> (u32, u32) { self.descriptor.size_2d() }
+    fn size(&self) -> (u32, u32) { (self.texture.width(), self.texture.height()) }
     fn msaa(&self) -> u32 { 1 }
     fn depth_testing(&self) -> bool { false }
-    fn format(&self) -> wgpu::TextureFormat { self.descriptor.format }
+    fn format(&self) -> TextureFormat { self.descriptor.format }
+    fn view_format(&self) -> TextureFormat { self.descriptor.view_format }
 }
 
 impl RenderAttachable for TextureLot {
@@ -169,6 +119,7 @@ impl RenderAttachable for TextureLot {
 pub struct SurfaceTarget {
     pub config: wgpu::SurfaceConfiguration,
     pub surface: wgpu::Surface,
+    pub view_format: TextureFormat,
     pub msaa: u32,
     pub msaa_opt: Option<TextureLot>,
     pub depth_opt: Option<TextureLot>,
@@ -178,20 +129,23 @@ impl RenderTarget for SurfaceTarget {
     fn size(&self) -> (u32, u32) { (self.config.width, self.config.height) }
     fn msaa(&self) -> u32 { self.msaa }
     fn depth_testing(&self) -> bool { self.depth_opt.is_some() }
-    fn format(&self) -> wgpu::TextureFormat { self.config.format }
+    fn format(&self) -> TextureFormat { self.config.format }
+    fn view_format(&self) -> TextureFormat { self.view_format }
 }
+
 
 #[derive(Debug)]
 pub struct SurfaceFrame<'a> {
-    pub view: wgpu::TextureView,
     pub target: &'a mut SurfaceTarget,
+    pub view: wgpu::TextureView,
 }
 
 impl RenderTarget for SurfaceFrame<'_> {
     fn size(&self) -> (u32, u32) { self.target.size() }
     fn msaa(&self) -> u32 { self.target.msaa() }
     fn depth_testing(&self) -> bool { self.target.depth_testing() }
-    fn format(&self) -> wgpu::TextureFormat { self.target.format() }
+    fn format(&self) -> TextureFormat { self.target.format() }
+    fn view_format(&self) -> TextureFormat { self.target.view_format() }
 }
 
 impl RenderAttachable for SurfaceFrame<'_> {
@@ -205,9 +159,9 @@ impl RenderAttachable for SurfaceFrame<'_> {
 
 
 // cloneable surface configuration
-const SURFACE_CONFIGURATION: wgpu::SurfaceConfiguration = wgpu::SurfaceConfiguration {
+const DEFAULT_CONFIG: wgpu::SurfaceConfiguration = wgpu::SurfaceConfiguration {
     usage: TexUse::RENDER_ATTACHMENT,
-    format: TEXTURE, width: 0, height: 0,
+    format: DEFAULT_SRGB, width: 0, height: 0,
     present_mode: Prs::Mailbox,
     alpha_mode: wgpu::CompositeAlphaMode::Auto,
     view_formats: Vec::new(),
@@ -218,28 +172,36 @@ impl SurfaceTarget {
 
     pub fn new(gx:&Wgx, surface:wgpu::Surface, size:(u32, u32), msaa:u32, depth_testing:bool) -> Res<Self>
     {
-        let mut config = SURFACE_CONFIGURATION.clone();
+        let mut config = DEFAULT_CONFIG.clone();
         config.width = size.0;
         config.height = size.1;
 
         let SurfaceCapabilities {formats, present_modes, ..} = surface.get_capabilities(&gx.adapter);
 
-        // let format = *formats.get(0).ok_or("couldn't get default format")?;
-        let format = *formats.iter().find(|fmt| fmt.is_srgb()).ok_or("couldn't get srgb format")?;
+        let format =
+            *formats.iter().find(|fmt| fmt.is_srgb()) // find a supported srgb format
+            .unwrap_or(&formats[0]) // or use the default format
+        ;
+
         config.format = format;
+        let view_format = format.add_srgb_suffix();
+
+        if view_format != format {
+            config.view_formats.push(view_format);
+        }
 
         config.present_mode =
             if present_modes.contains(&Prs::Mailbox) { Prs::Mailbox }
             else if present_modes.contains(&Prs::AutoVsync) { Prs::AutoVsync }
-            else { *present_modes.get(0).ok_or("couldn't get default mode")? }
+            else { present_modes[0] }
         ;
 
         surface.configure(gx.device(), &config);
 
         Ok(Self {
-            config, surface, msaa,
-            msaa_opt: if msaa > 1 { Some(TextureLot::new_2d(gx, size, msaa, format, TexUse::RENDER_ATTACHMENT)) } else { None },
-            depth_opt: if depth_testing { Some(TextureLot::new_2d(gx, size, msaa, DEPTH, TexUse::RENDER_ATTACHMENT)) } else { None },
+            config, surface, view_format, msaa,
+            msaa_opt: if msaa > 1 { Some(TextureLot::new_2d(gx, size, msaa, format, Some(view_format), TexUse::RENDER_ATTACHMENT)) } else { None },
+            depth_opt: if depth_testing { Some(TextureLot::new_2d(gx, size, msaa, DEFAULT_DEPTH, None, TexUse::RENDER_ATTACHMENT)) } else { None },
         })
     }
 
@@ -259,7 +221,7 @@ impl SurfaceTarget {
         };
 
         self.msaa_opt = if self.msaa > 1 { self.msaa_opt.as_ref().map(map_opt).or_else(||
-            Some(TextureLot::new_2d(gx, size, self.msaa, self.format(), TexUse::RENDER_ATTACHMENT))
+            Some(TextureLot::new_2d(gx, size, self.msaa, self.format(), Some(self.view_format), TexUse::RENDER_ATTACHMENT))
         )}
         else { None };
 
@@ -278,7 +240,7 @@ impl SurfaceTarget {
 
         gx.with_encoder(|encoder| {
             let controlflow = handler(encoder, &SurfaceFrame {
-                view: frame.texture.create_default_view(),
+                view: frame.texture.create_default_view(Some(self.view_format())),
                 target: self,
             });
             present_frame = controlflow.should_continue();
@@ -310,7 +272,8 @@ impl RenderTarget for TextureTarget {
     fn size(&self) -> (u32, u32) { self.descriptor.size_2d() }
     fn msaa(&self) -> u32 { self.msaa }
     fn depth_testing(&self) -> bool { self.depth_opt.is_some() }
-    fn format(&self) -> wgpu::TextureFormat { self.descriptor.format }
+    fn format(&self) -> TextureFormat { self.descriptor.format }
+    fn view_format(&self) -> TextureFormat { self.descriptor.view_format }
 }
 
 impl RenderAttachable for TextureTarget {
@@ -325,15 +288,16 @@ impl RenderAttachable for TextureTarget {
 impl TextureTarget {
 
     pub fn new(
-        gx:&impl WgxDevice, size:(u32, u32), msaa:u32, depth_testing: bool, format:wgpu::TextureFormat, usage:wgpu::TextureUsages,
+        gx:&impl WgxDevice, size:(u32, u32), msaa:u32, depth_testing: bool,
+        format:TextureFormat, view_format:Option<TextureFormat>, usage:wgpu::TextureUsages,
     ) -> Self
     {
-        let TextureLot { texture, descriptor, view } = TextureLot::new_2d(gx, size, 1, format, usage | TexUse::RENDER_ATTACHMENT);
+        let TextureLot { texture, descriptor, view } = TextureLot::new_2d(gx, size, 1, format, view_format, usage | TexUse::RENDER_ATTACHMENT);
         Self {
             texture, descriptor, view, // output attachment can have only one sample
             msaa,
-            msaa_opt: if msaa > 1 { Some(TextureLot::new_2d(gx, size, msaa, format, TexUse::RENDER_ATTACHMENT)) } else { None },
-            depth_opt: if depth_testing { Some(TextureLot::new_2d(gx, size, msaa, DEPTH, TexUse::RENDER_ATTACHMENT)) } else { None },
+            msaa_opt: if msaa > 1 { Some(TextureLot::new_2d(gx, size, msaa, format, view_format, TexUse::RENDER_ATTACHMENT)) } else { None },
+            depth_opt: if depth_testing { Some(TextureLot::new_2d(gx, size, msaa, DEFAULT_DEPTH, None, TexUse::RENDER_ATTACHMENT)) } else { None },
         }
     }
 
@@ -350,7 +314,7 @@ impl TextureTarget {
         self.texture = texture; self.descriptor = descriptor; self.view = view;
 
         self.msaa_opt = if self.msaa > 1 { self.msaa_opt.as_ref().map(|d| map_opt(&d.descriptor)).or_else(||
-            Some(TextureLot::new_2d(gx, size, self.msaa, self.format(), TexUse::RENDER_ATTACHMENT))
+            Some(TextureLot::new_2d(gx, size, self.msaa, self.format(), Some(self.view_format()), TexUse::RENDER_ATTACHMENT))
         )}
         else { None };
 

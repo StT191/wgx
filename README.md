@@ -1,2 +1,2 @@
 # rust-wgx
-My custom WebGPU library based on rust-wgpu.
+My custom rust wgpu library based on the wgpu crate.

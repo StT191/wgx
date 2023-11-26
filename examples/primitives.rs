@@ -46,7 +46,7 @@ fn main() {
 
     // colors
     let color_texture = TextureLot::new_2d_with_data(&gx,
-        (3, 1), 1, TEXTURE, TexUse::TEXTURE_BINDING,
+        (3, 1), 1, DEFAULT_SRGB, None, TexUse::TEXTURE_BINDING,
         [[255u8, 0, 0, 255], [0, 255, 0, 255], [0, 0, 255, 255]]
     );
 
@@ -131,7 +131,7 @@ fn main() {
         .expect("failed loading image")
         .into_rgba8();*/
 
-    let image_texture = TextureLot::new_2d_with_data(&gx, (info.width, info.height), 1, TEXTURE, TexUse::TEXTURE_BINDING, img_data);
+    let image_texture = TextureLot::new_2d_with_data(&gx, (info.width, info.height), 1, DEFAULT_SRGB, None, TexUse::TEXTURE_BINDING, img_data);
 
     // binding
     let img_binding = gx.bind(&layout, &[

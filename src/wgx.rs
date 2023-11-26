@@ -60,22 +60,10 @@ pub trait WgxDevice {
 
     fn device(&self) -> &wgpu::Device;
 
-    // texture
+    // texture, sampler
 
     fn texture(&self, descriptor:&TexDsc) -> wgpu::Texture {
         self.device().create_texture(&descriptor.into())
-    }
-
-    fn texture_2d(&self, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse) -> wgpu::Texture {
-        self.texture(&TexDsc::new_2d(size, sample_count, format, usage))
-    }
-
-    fn texture_2d_bound(&self, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse) -> wgpu::Texture {
-        self.texture_2d(size, sample_count, format, TexUse::TEXTURE_BINDING | usage)
-    }
-
-    fn texture_2d_attached(&self, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse) -> wgpu::Texture {
-        self.texture_2d(size, sample_count, format, TexUse::RENDER_ATTACHMENT | usage)
     }
 
     fn sampler(&self, descriptor: &wgpu::SamplerDescriptor) -> wgpu::Sampler {
@@ -145,7 +133,7 @@ pub trait WgxDevice {
             label: None,
             color_formats: formats,
             depth_stencil: if depth_testing { Some(wgpu::RenderBundleDepthStencil {
-                format: DEPTH, depth_read_only: false, stencil_read_only: false,
+                format: DEFAULT_DEPTH, depth_read_only: false, stencil_read_only: false,
             })} else { None },
             sample_count: msaa,
             multiview: None,
@@ -222,7 +210,7 @@ pub trait WgxDevice {
             else {None},
 
             depth_stencil: if depth_testing { Some(wgpu::DepthStencilState {
-                format: DEPTH,
+                format: DEFAULT_DEPTH,
                 depth_write_enabled: true,
                 depth_compare: wgpu::CompareFunction::LessEqual,
                 stencil: wgpu::StencilState::default(),
@@ -271,12 +259,6 @@ pub trait WgxDeviceQueue: WgxDevice + WgxQueue {
     fn texture_with_data<T: ReadBytes>(&self, descriptor: &TexDsc, data: T) -> wgpu::Texture {
         // SAFETY: copy immediately
         self.device().create_texture_with_data(self.queue(), &descriptor.into(), data.read_bytes())
-    }
-
-    fn texture_2d_with_data<T: ReadBytes>(
-        &self, size:(u32, u32), sample_count:u32, format:wgpu::TextureFormat, usage:TexUse, data: T
-    ) -> wgpu::Texture {
-        self.texture_with_data(&TexDsc::new_2d(size, sample_count, format, usage), data)
     }
 
     // with CommandEncoder

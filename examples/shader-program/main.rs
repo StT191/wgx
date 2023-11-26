@@ -2,11 +2,15 @@
 use std::{time::{Instant/*, Duration*/}};
 use pollster::FutureExt;
 use winit::{
-    dpi::PhysicalSize,
-    event_loop::{ControlFlow, EventLoop},
-    window::Window, event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCode},
+    dpi::PhysicalSize, event_loop::{EventLoop},
+    window::Window, event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCode, StartCause},
 };
 use wgx::*;
+
+
+// common
+#[path="../common/timer.rs"] #[allow(dead_code)]
+mod timer;
 
 
 fn main() {
@@ -83,18 +87,18 @@ fn main() {
     // event loop
     event_loop.run(move |event, _, control_flow| {
 
-        *control_flow = ControlFlow::WaitUntil(frame_timer.next); // next frame
+        control_flow.set_wait_until(frame_timer.next); // next frame
 
         match event {
 
-            Event::NewEvents(_) => {
-                if frame_timer.advance_if_elapsed() {
-                    window.request_redraw(); // request frame
-                }
-            },
+            Event::NewEvents(StartCause::ResumeTimeReached {..}) => {
+                window.request_redraw(); // request frame
+                frame_timer.step();
+                control_flow.set_wait();
+            }
 
             Event::WindowEvent {event: WindowEvent::CloseRequested, ..} => {
-                *control_flow = ControlFlow::Exit;
+                control_flow.set_exit();
             },
 
             Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
@@ -139,10 +143,8 @@ fn main() {
                 }).expect("frame error");
 
                 // statistics
-                /*frame_counter.add();
-                if let Some(counted) = frame_counter.count() {
-                    println!("{:?}, Duration {:?}", counted, frame_timer.duration);
-                }*/
+                // frame_counter.add();
+                // if let Some(counted) = frame_counter.count() { println!("{:?}", counted) }
             },
 
             _ => {}

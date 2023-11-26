@@ -44,14 +44,14 @@ fn main() {
     ],
     (&shader, "vs_main", Primitive {
       cull_mode: None, // Some(Face::Back),
-      polygon_mode: Polygon::Line,
+      polygon_mode: Polygon::Fill,
       ..Primitive::default()
     }),
     (&shader, "fs_main", BLENDING),
   );
 
   // colors
-  let color_texture = TextureLot::new_2d_with_data(&gx, (1, 1), 1, TEXTURE, TexUse::TEXTURE_BINDING, [255u8, 0, 0, 255]);
+  let color_texture = TextureLot::new_2d_with_data(&gx, (1, 1), 1, DEFAULT_SRGB, None, TexUse::TEXTURE_BINDING, [255u8, 0, 0, 255]);
   let sampler = gx.default_sampler();
 
 
@@ -214,7 +214,7 @@ fn main() {
         target.update(&gx, (size.width, size.height));
         world.fov.resize_window(size.width as f32, size.height as f32, true);
         world.calc_clip_matrix();
-        world.light_matrix = light_matrix * world.rotation; // keep light
+        // world.light_matrix = light_matrix * world.rotation; // keep light
         world.write_clip_buffer(&gx);
         world.write_light_buffer(&gx);
       },
@@ -225,7 +225,7 @@ fn main() {
         if let Some(key) = InputKey::match_keycode(keycode) {
           world.input(key);
           world.calc_clip_matrix();
-          world.light_matrix = light_matrix * world.rotation; // keep light
+          // world.light_matrix = light_matrix * world.rotation; // keep light
           world.write_clip_buffer(&gx);
           world.write_light_buffer(&gx);
           window.request_redraw();

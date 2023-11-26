@@ -12,7 +12,7 @@ use wgx::*;
 fn main() {
 
     const DEPTH_TESTING:bool = false;
-    const MSAA:u32 = 1;
+    const MSAA:u32 = 4;
     const BLENDING:Option<Blend> = None;
 
 
@@ -64,22 +64,28 @@ fn main() {
 
     // colors
     let color_texture = TextureLot::new_2d_with_data(&gx,
-        (1, 1), 1, TEXTURE, TexUse::TEXTURE_BINDING,
-        Color::from([0.5, 0.0, 1.0]).u8(),
+        (1, 1), 1, DEFAULT_SRGB, None, TexUse::TEXTURE_BINDING,
+        // Color::from([0.5, 0.0, 1.0]).u8(),
+        Color::ORANGE.u8(),
     );
+
+    let bg_color_draw_target = Color::ORANGE;
+    let bg_color_target = Color::ORANGE;
 
 
     // draw target
-    let draw_target = TextureTarget::new(&gx, (width, height), 1, false, TEXTURE, TexUse::TEXTURE_BINDING);
-    // let draw_target2 = TextureTarget::new(&gx, (width, height), 1, false, TEXTURE, TexUse::TEXTURE_BINDING);
+    const DRAW_MSAA:u32 = 4;
+
+    let draw_target = TextureTarget::new(&gx, (width, height), DRAW_MSAA, false, DEFAULT_SRGB, None, TexUse::TEXTURE_BINDING);
+    // let draw_target2 = TextureTarget::new(&gx, (width, height), DRAW_MSAA, false, DEFAULT_SRGB, None, TexUse::TEXTURE_BINDING);
 
     let draw_pipeline = gx.render_pipeline(
-        false, 1, None,
+        false, DRAW_MSAA, None,
         &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
         (&shader, "vs_main", Primitive { topology: Topology::TriangleStrip, ..Primitive::default() }),
         Some((&shader, "fs_main", &[
-            (draw_target.format(), BLENDING),
-            // (draw_target2.format(), BLENDING),
+            (draw_target.view_format(), BLENDING),
+            // (draw_target2.view_format(), BLENDING),
         ])),
     );
 
@@ -93,8 +99,8 @@ fn main() {
         encoder.with_render_pass(
             (
                 [
-                    Some(draw_target.color_attachment(Some(Color::ORANGE))),
-                    // Some(draw_target2.color_attachment(Some(Color::ORANGE))),
+                    Some(draw_target.color_attachment(Some(bg_color_draw_target))),
+                    // Some(draw_target2.color_attachment(Some(bg_color_draw_target))),
                 ],
                 None
             ),
@@ -106,7 +112,7 @@ fn main() {
             }
         );
 
-        encoder.render_pass(frame.attachments(Some(Color::GREEN), None));
+        encoder.render_pass(frame.attachments(Some(bg_color_target), None));
 
     }).expect("frame error");
 
@@ -146,7 +152,7 @@ fn main() {
 
                 target.with_encoder_frame(&gx, |encoder, frame| {
                     encoder.with_render_pass(
-                        frame.attachments(Some(Color::GREEN), None),
+                        frame.attachments(Some(bg_color_target), None),
                         |mut rpass| {
                             rpass.set_pipeline(&pipeline);
                             rpass.set_bind_group(0, &binding, &[]);
