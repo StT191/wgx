@@ -1,4 +1,5 @@
 
+use wgpu::StoreOp;
 use crate::Color;
 
 // render attachments
@@ -33,7 +34,7 @@ impl<'a> From<ColorAttachment<'a>> for wgpu::RenderPassColorAttachment<'a> {
                     }
                 ) }
                 else { wgpu::LoadOp::Load },
-                store: true,
+                store: StoreOp::Store,
             }
         }
     }
@@ -51,7 +52,7 @@ impl<'a> From<DepthAttachment<'a>> for wgpu::RenderPassDepthStencilAttachment<'a
             view: att.view,
             depth_ops: Some(wgpu::Operations {
                 load: if let Some(cl) = att.clear { wgpu::LoadOp::Clear(cl) } else { wgpu::LoadOp::Load },
-                store: true,
+                store: StoreOp::Store,
             }),
             stencil_ops: None,
             /*stencil_ops: Some(wgpu::Operations {
@@ -155,7 +156,10 @@ impl EncoderExtension for wgpu::CommandEncoder {
 
 
     fn compute_pass(&mut self) -> wgpu::ComputePass {
-        self.begin_compute_pass(&wgpu::ComputePassDescriptor { label: None })
+        self.begin_compute_pass(&wgpu::ComputePassDescriptor {
+            label: None,
+            timestamp_writes: None,
+        })
     }
 
 
@@ -168,7 +172,11 @@ impl EncoderExtension for wgpu::CommandEncoder {
         -> wgpu::RenderPass<'a>
     {
         self.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: None, color_attachments: &color_attachments, depth_stencil_attachment
+            label: None,
+            color_attachments: &color_attachments,
+            depth_stencil_attachment,
+            timestamp_writes: None,
+            occlusion_query_set: None,
         })
     }
 

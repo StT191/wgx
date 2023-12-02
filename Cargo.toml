@@ -1,6 +1,6 @@
 [package]
 name = "wgx"
-version = "0.16.3"
+version = "0.18.0"
 authors = ["Stefan Tammer <st.tammer@gmail.com>"]
 edition = "2021"
 license = "MIT"
@@ -15,14 +15,14 @@ doctest = false
 members = ["wgsl_modules", "wgsl_modules/loader", "wgsl_modules/macro"]
 
 [workspace.package]
-version = "0.16.0"
+version = "0.18.0"
 authors = ["Stefan Tammer <st.tammer@gmail.com>"]
 edition = "2021"
 license = "MIT"
 
 [workspace.dependencies]
-wgsl_modules_macro = { version = "~0.16.0", path = "wgsl_modules/macro" }
-wgsl_modules_loader = { version = "~0.16.0", path = "wgsl_modules/loader" }
+wgsl_modules_macro = { version = "~0.18.0", path = "wgsl_modules/macro" }
+wgsl_modules_loader = { version = "~0.18.0", path = "wgsl_modules/loader" }
 
 
 [features]
@@ -33,19 +33,20 @@ wgsl_modules_loader = ["wgsl_modules", "wgsl_modules/loader"]
 
 
 [dependencies]
-wgpu = "0.16"
-wgpu-types = "0.16"
+wgpu = "0.18"
+wgpu-types = "0.18"
 raw-window-handle = "0.5"
 arrayvec = "0.7"
 
 # optional
 cgmath = { version = "0", optional = true }
-wgpu_glyph = { version = "0.20", optional = true }
-wgsl_modules = { version = "0.16.0", path = "wgsl_modules", optional = true }
+# wgpu_glyph = { version = "0.20", optional = true }
+wgpu_glyph = { git = "https://github.com/hecrj/wgpu_glyph", rev = "17de687", optional = true }
+wgsl_modules = { version = "0.18.0", path = "wgsl_modules", optional = true }
 
 
 [dev-dependencies]
 winit = "0.28"
-pollster = "0.2"
+pollster = "0.3"
 instant = { version = "0.1", features = ["wasm-bindgen"] }
 png = "0.17"
