@@ -32,9 +32,9 @@ fn main() {
 
 
     let shader_src = match &*std::env::args().nth(1).expect("Specify a program!") {
-        "balls" => include_wgsl_module!("programs/balls.wgsl"),
-        "opt" => include_wgsl_module!("programs/opt.wgsl"),
-        "wavy" => include_wgsl_module!("programs/wavy.wgsl"),
+        "balls" => wgsl_modules::include!("programs/balls.wgsl"),
+        "opt" => wgsl_modules::include!("programs/opt.wgsl"),
+        "wavy" => wgsl_modules::include!("programs/wavy.wgsl"),
         unkown => panic!("program '{unkown}' doesn't exist"),
     };
 

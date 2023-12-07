@@ -35,7 +35,7 @@ fn main() {
 
 
   // pipeline
-  let shader = gx.load_wgsl(include_wgsl_module!("common/shaders/shader_3d_inst_text_diff.wgsl"));
+  let shader = gx.load_wgsl(wgsl_modules::include!("common/shaders/shader_3d_inst_text_diff.wgsl"));
 
   let pipeline = target.render_pipeline(&gx,
     None, &[

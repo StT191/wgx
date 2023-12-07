@@ -28,7 +28,7 @@ fn main() {
 
 
     // global pipeline
-    let shader = gx.load_wgsl(include_wgsl_module!("common/shaders/shader_flat_text.wgsl"));
+    let shader = gx.load_wgsl(wgsl_modules::include!("common/shaders/shader_flat_text.wgsl"));
 
     let pipeline = target.render_pipeline(&gx,
         None, &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],

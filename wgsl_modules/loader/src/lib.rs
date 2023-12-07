@@ -1,11 +1,12 @@
 #![feature(linked_list_cursors)]
 
 use std::{
-    path::{Path, PathBuf}, fs:: read_to_string,
+    path::Path, fs:: read_to_string,
     collections::{HashMap, HashSet, LinkedList}, ops::Range, borrow::Cow, rc::Rc,
 };
 use lazy_static::lazy_static;
 use regex::Regex;
+use normalize_path::NormalizePath;
 
 
 // error and result types
@@ -109,18 +110,17 @@ impl Node {
 // module
 #[derive(Debug)]
 pub struct Module {
-    pub path: Rc<Path>,
     pub nodes: LinkedList<Node>,
     pub node_map: HashMap<Rc<str>, Node>,
     pub import_lines: Vec<ImportLine>,
-    pub dependent_files: HashSet<Rc<Path>>,
+    pub dependencies: HashSet<Rc<Path>>,
     pub source: Box<str>,
     pub code: Box<str>,
 }
 
-fn register_node(node_map: &mut HashMap<Rc<str>, Node>, alias: Rc<str>, node: Node, path: &Path) -> Res<()> {
+fn register_node(node_map: &mut HashMap<Rc<str>, Node>, alias: Rc<str>, node: Node) -> Res<()> {
     if node_map.insert(alias.clone(), node).is_some() {
-        Err(format!("duplicate identifier '{alias}' in {}", path.display()))
+        Err(format!("duplicate identifier '{alias}'"))
     } else {
         Ok(())
     }
@@ -129,32 +129,31 @@ fn register_node(node_map: &mut HashMap<Rc<str>, Node>, alias: Rc<str>, node: No
 
 // import regexes
 lazy_static! {
-    static ref IMPORT_LINE_REGEX: Regex = Regex::new(r#"//\s*?&import\s+([\w,\s\*]*)\s+from\s+(?:"|')(.+?)(?:"|')\s*?\n"#).unwrap();
-    static ref IMPORT_SPAN_REGEX: Regex = Regex::new(r#"/\*\s*?&import\s+([\w,\s\*]*)\s+from\s+(?:"|')(.+?)(?:"|')\s*?\*/\n?"#).unwrap();
+    static ref IMPORT_LINE_REGEX: Regex = Regex::new(r#"//\s*?&\s*?import\s+([\w,\s\*]*)\s+from\s+(?:"|')(.+?)(?:"|')\s*?\n"#).unwrap();
+    static ref IMPORT_SPAN_REGEX: Regex = Regex::new(r#"/\*\s*?&\s*?import\s+([\w,\s\*]*)\s+from\s+(?:"|')(.+?)(?:"|')\s*?\*/\n?"#).unwrap();
+    static ref IMPORT_ERROR_REGEX: Regex = Regex::new(r#"\s*?&\s*?import\s+([\w,\s\*]*)\s+from\s+(?:"|')(.+?)(?:"|')\s*?"#).unwrap();
     static ref IMPORT_REGEX1: Regex = Regex::new(r"^\w+$|^\*$").unwrap();
     static ref IMPORT_REGEX3: Regex = Regex::new(r"^(\w+|\*)\s+as\s+([\w*]+)$").unwrap();
 }
 
 fn find_and_register_import_lines(
-    import_lines: &mut Vec<ImportLine>,
-    source_path: &Path, dir_path: &Path, source_code: &str, mut range: Range<usize>,
+    import_lines: &mut Vec<ImportLine>, source_code: &str, mut range: Range<usize>, error_line: bool
 ) -> Res<()> {
 
     let mut source = &source_code[range.clone()];
 
-    while let Some(captures) = IMPORT_LINE_REGEX.captures(source)
-        .or_else(|| IMPORT_SPAN_REGEX.captures(source))
-    {
+    while let Some(captures) = {
+        if error_line { IMPORT_ERROR_REGEX.captures(source) }
+        else {
+            IMPORT_LINE_REGEX.captures(source)
+            .or_else(|| IMPORT_SPAN_REGEX.captures(source))
+        }
+    } {
 
         let cp_range = captures.get(0).unwrap().range();
         let source_range = range.start + cp_range.start .. range.start + cp_range.end;
 
-        let mut path = PathBuf::from(dir_path);
-        path.push(&captures[2]);
-
-        let path: Rc<Path> = path.canonicalize().map_err(|err|
-            format!("{err} '{}' from '{}'", path.display(), source_path.display())
-        )?.into();
+        let path: Rc<Path> = AsRef::<Path>::as_ref(&captures[2]).into();
 
         let mut imports = Vec::new();
 
@@ -165,7 +164,7 @@ fn find_and_register_import_lines(
                     Ok(ImportRef { path: path.clone(), name: part.into(), alias: None })
                 }
                 else if let Some(captures) = IMPORT_REGEX3.captures(part) {
-                    if &captures[1] == "*" && !captures[2].contains('*') {
+                    if &captures[1] == "*" && !captures[1].contains('*') {
                         return Err(format!("bad import '{part}'"))
                     }
                     Ok(ImportRef { path: path.clone(), name: captures[1].into(), alias: Some(captures[2].into()) })
@@ -195,25 +194,36 @@ lazy_static! {
 }
 
 impl Module {
-    fn load_from_source(path: &Rc<Path>) -> Res<Self> {
 
-        // normalize path
-        let dir_path = path.parent().ok_or(format!("path '{}' has no parent", path.display()))?;
+    fn load_source_from_path(path: impl AsRef<Path>) -> Res<Self> {
+
+        let path = path.as_ref();
 
         // fetch source
         let source = read_to_string(path).map_err(|err| format!("{err} '{}'", path.display()))?;
 
-        // parse wgsl
-        let mut parser = tree_sitter::Parser::new();
-        parser.set_language(tree_sitter_wgsl::language()).expect("Error loading wgsl grammar");
+        Self::load_source(source.into())
+    }
 
-        let tree = parser.parse(&source, None).unwrap();
+
+    fn load_source(source: Cow<str>) -> Res<Self> {
+
+        // parse wgsl
+        let language = tree_sitter_wgsl::language();
+
+        // SAFETY: we rely on the type equivalency between tree-sitter and tree-sitter-c2rust
+        let language = unsafe { std::mem::transmute(language) };
+
+        let mut parser = tree_sitter_c2rust::Parser::new();
+        parser.set_language(language).expect("Error loading wgsl grammar");
+
+        let tree = parser.parse(source.as_ref(), None).unwrap();
         let mut cursor = tree.walk();
 
         // module
         let mut module = Self {
-            path: path.clone(), nodes: LinkedList::new(), node_map: HashMap::new(), import_lines: Vec::new(),
-            dependent_files: HashSet::new(), source: source.into(), code: "".into(),
+            nodes: LinkedList::new(), node_map: HashMap::new(), import_lines: Vec::new(),
+            dependencies: HashSet::new(), source: source.into(), code: "".into(),
         };
 
         let mut line_comment = false;
@@ -228,7 +238,7 @@ impl Module {
             last_end = child.byte_range().end;
             line_comment = false;
 
-            find_and_register_import_lines(&mut module.import_lines, &path, dir_path, &module.source, range)?;
+            find_and_register_import_lines(&mut module.import_lines, &module.source, range, false)?;
 
             // find nodes
             let source = &module.source[child.byte_range()];
@@ -243,7 +253,13 @@ impl Module {
                     (Type::Const, None)
                 },
 
-                _ => (Type::Const, CONST_REGEX.captures(source)) // test arbitrary as value
+                "ERROR" => { // mark line-comment start
+                    find_and_register_import_lines(&mut module.import_lines, &module.source, child.byte_range(), true)?;
+                    (Type::Const, None)
+                },
+
+                _ => (Type::Const, CONST_REGEX.captures(source)), // test arbitrary as const
+
             } {
                 let found = captures.get(1).unwrap();
                 let name: Rc<str> = found.as_str().into();
@@ -253,55 +269,94 @@ impl Module {
                 }.into());
 
                 module.nodes.push_back(node.clone());
-                register_node(&mut module.node_map, name, node, &path)?;
+                register_node(&mut module.node_map, name, node)?;
             }
         }
 
         // find import after last node
         let range = (last_end - if line_comment {2} else {0}) .. module.source.len();
 
-        find_and_register_import_lines(&mut module.import_lines, &path, dir_path, &module.source, range)?;
-
+        find_and_register_import_lines(&mut module.import_lines, &module.source, range, false)?;
 
         Ok(module)
     }
 }
 
 
-// modules
-pub type ModuleCache = HashMap<Rc<Path>, Module>;
+// helper
+fn parent_path(path: &Path) -> Res<&Path> {
+    path.parent().ok_or_else(|| format!("invalid path '{}'", path.display()))
+}
 
-fn resolve_module<'a>(modules: &'a mut ModuleCache, module_trace: &mut Vec<Rc<Path>>, path: &Rc<Path>) -> Res<&'a mut Module> {
-
-    if module_trace.contains(path) { return Err(format!(
-        "circular dependency {} from {}",
-        path.display(),
-        module_trace.last().unwrap().display(),
-    )) }
-
-    if !modules.contains_key(path) {
-        let mut module = Module::load_from_source(path)?;
-
-        module_trace.push(path.clone());
-        module.resolve_imports(modules, module_trace)?;
-        module_trace.pop();
-
-        modules.insert(module.path.clone(), module);
+fn normpath(path: &Path) -> Cow<Path> {
+    if path.is_normalized() {
+        path.into()
     }
+    else {
+        path.try_normalize().map(|p| p.into())
+        .unwrap_or(path.into())
+    }
+}
 
-    Ok(modules.get_mut(path).unwrap())
+
+// modules
+
+pub struct ModuleCache(HashMap<Rc<Path>, Module>);
+
+impl std::ops::Deref for ModuleCache {
+    type Target = HashMap<Rc<Path>, Module>;
+    fn deref(&self) -> &HashMap<Rc<Path>, Module> { &self.0 }
+}
+
+impl std::ops::DerefMut for ModuleCache {
+    fn deref_mut(&mut self) -> &mut HashMap<Rc<Path>, Module> { &mut self.0 }
+}
+
+
+impl ModuleCache {
+
+    fn resolve_module(&mut self, module_trace: &mut Vec<Rc<Path>>, path: &Path) -> Res<&mut Module> {
+
+        let path = normpath(path).as_ref().into();
+
+        if module_trace.contains(&path) { return Err(format!(
+            "circular dependency {} from {}",
+            path.display(),
+            module_trace.last().unwrap().display(),
+        )) }
+
+        if !self.contains_key(&path) {
+            let mut module = Module::load_source_from_path(&path)?;
+
+            let dir_path = parent_path(&path)?;
+
+            module_trace.push(path.clone());
+            module.resolve_imports(self, module_trace, &Rc::from(dir_path))?;
+            module_trace.pop();
+
+            self.insert(path.clone(), module);
+        }
+
+        Ok(self.get_mut(&path).unwrap())
+    }
 }
 
 
 impl Module {
-    fn resolve_imports(&mut self, modules: &mut ModuleCache, module_trace: &mut Vec<Rc<Path>>) -> Res<()> {
+
+    fn resolve_imports(&mut self, cache: &mut ModuleCache, module_trace: &mut Vec<Rc<Path>>, dir_path: &Path) -> Res<()> {
 
         let mut cursor = self.nodes.cursor_front_mut();
         cursor.move_next(); // advance to first node
 
         for line in self.import_lines.iter_mut() {
 
-            let module = resolve_module(modules, module_trace, &line.path)?;
+            let import_path = dir_path.join(&line.path);
+            let import_path = normpath(&import_path);
+
+            let import_dir_path = parent_path(&import_path)?;
+
+            let module = cache.resolve_module(module_trace, &import_path)?;
 
             // sync node curser to line
             let is_before_line = |node: &mut Node| {
@@ -339,15 +394,17 @@ impl Module {
                     }.into();
 
                     for import_ref in &import_artifact.trace {
-                        if !self.dependent_files.contains(import_ref.path.as_ref()) {
-                            self.dependent_files.insert(import_ref.path.clone());
-                        }
+
+                        let import_ref_path = normpath(&import_dir_path.join(&import_ref.path)).into();
+
+                        // even if already in there
+                        self.dependencies.insert(import_ref_path);
                     }
 
                     import.artifacts.push(import_artifact.clone());
                     let node = Node::Import(import_artifact);
 
-                    register_node(&mut self.node_map, name.into(), node.clone(), &self.path)?;
+                    register_node(&mut self.node_map, name.into(), node.clone())?;
                     cursor.insert_before(node);
                 }
             }
@@ -375,32 +432,64 @@ impl Module {
 
         self.code = code.into();
     }
+
+
+    // module loading
+
+    pub fn load<'a>(source_code: impl Into<Cow<'a ,str>>) -> Res<Self> {
+        let mut module = Module::load_source(source_code.into())?;
+        module.resolve_imports(&mut ModuleCache::new(), &mut Vec::new(), "".as_ref())?;
+        module.generate_code();
+        Ok(module)
+    }
+
+
+    pub fn load_from_path(path: impl AsRef<Path>) -> Res<Self> {
+
+        let path = path.as_ref();
+        let dir_path = parent_path(path)?;
+
+        let mut module = Module::load_source_from_path(path)?;
+
+        module.resolve_imports(&mut ModuleCache::new(), &mut Vec::new(), dir_path)?;
+        module.generate_code();
+
+        Ok(module)
+    }
 }
 
 
-// module loading
 
-fn canonicalize(path: impl AsRef<Path>) -> Res<PathBuf> {
-    let path = path.as_ref();
-    path.canonicalize().map_err(|err| format!("{err} '{}'", path.display()))
-}
+impl ModuleCache {
 
+    pub fn new() -> Self { Self(HashMap::new()) }
 
-pub fn load(path: impl AsRef<Path>) -> Res<Module> {
+    pub fn module(&mut self, path: impl AsRef<Path>) -> Option<&mut Module> {
+        self.get_mut(path.as_ref().into())
+    }
 
-    let mut module = Module::load_from_source(&canonicalize(path)?.into())?;
+    pub fn load<'a>(&mut self, path: impl AsRef<Path>, source_code: impl Into<Cow<'a ,str>>) -> Res<&Module> {
+        let path: Rc<Path> = normpath(path.as_ref()).as_ref().into();
+        let dir_path = parent_path(&path)?;
 
-    module.resolve_imports(&mut ModuleCache::new(), &mut Vec::new())?;
-    module.generate_code();
+        let mut module = Module::load_source(source_code.into())?;
 
-    Ok(module)
-}
+        module.resolve_imports(self, &mut Vec::new(), &dir_path)?;
 
-pub fn load_with_cache(cache: &mut ModuleCache, path: impl AsRef<Path>) -> Res<&mut Module> {
+        module.generate_code();
 
-    let module = resolve_module(cache, &mut Vec::new(), &canonicalize(path)?.into())?;
+        self.insert(path.clone(), module);
 
-    module.generate_code();
+        Ok(self.get_mut(&path).unwrap())
+    }
 
-    Ok(module)
+    pub fn load_from_path(&mut self, path: impl AsRef<Path>) -> Res<&mut Module> {
+
+        let module = self.resolve_module(&mut Vec::new(), path.as_ref())?;
+
+        module.generate_code();
+
+        Ok(module)
+    }
+
 }

@@ -37,7 +37,7 @@ fn main() {
 
 
   // pipeline
-  let shader = gx.load_wgsl(include_wgsl_module!("common/shaders/shader_3d_inst_text_diff.wgsl"));
+  let shader = gx.load_wgsl(wgsl_modules::include!("common/shaders/shader_3d_inst_text_diff.wgsl"));
 
   let pipeline = target.render_pipeline(&gx,
     None, &[
@@ -76,7 +76,7 @@ fn main() {
 
   let layout = gx.layout(&[binding!(0, Stage::COMPUTE, StorageBuffer, mesh_size, false)]);
 
-  let cp_shader = gx.load_wgsl(include_wgsl_module!("common/shaders/compute_sphere_square.wgsl"));
+  let cp_shader = gx.load_wgsl(wgsl_modules::include!("common/shaders/compute_sphere_square.wgsl"));
 
   let cp_pipeline = gx.compute_pipeline(Some((&[], &[&layout])), (&cp_shader, "cp_main"));
 

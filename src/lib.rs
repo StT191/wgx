@@ -66,13 +66,9 @@ mod glyph_extension;
 pub use glyph_extension::*;
 
 
-
 // wgsl modules
 #[cfg(feature = "wgsl_modules")]
-pub use wgsl_modules::include as include_wgsl_module;
-
-#[cfg(feature = "wgsl_modules_loader")]
-pub use wgsl_modules::load as load_wgsl_module;
+pub use wgsl_modules;
 
 
 // error handling

@@ -14,3 +14,6 @@ loader = ["dep:wgsl_modules_loader"]
 [dependencies]
 wgsl_modules_macro = { workspace = true }
 wgsl_modules_loader = { workspace = true, optional = true }
+
+[dev-dependencies]
+proc-macro2 = "1"

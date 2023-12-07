@@ -9,7 +9,9 @@ license.workspace = true
 name = "wgsl_modules_loader"
 
 [dependencies]
-tree-sitter = "0"
-tree-sitter-wgsl = "0"
+# tree-sitter = "0"
+tree-sitter-c2rust = "0.20"
+tree-sitter-wgsl = "0.0.6"
 lazy_static = "1"
+normalize-path = "0.2"
 regex = { version = "1", features = ["unicode-perl"] }
