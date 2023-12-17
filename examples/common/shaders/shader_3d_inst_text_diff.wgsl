@@ -1,5 +1,5 @@
 
-/* &import * from "frag_3d_text_diff.wgsl" */
+/* &include "frag_3d_text_diff.wgsl" */
 
 @vertex
 fn vs_main(

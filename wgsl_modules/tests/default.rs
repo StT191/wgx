@@ -1,4 +1,6 @@
+#![feature(assert_matches)]
 
+use std::assert_matches::assert_matches;
 use wgsl_modules::{Module, ModuleCache, register};
 use proc_macro2::TokenStream;
 use std::str::FromStr;
@@ -22,7 +24,7 @@ fn loading_from_path() {
     let composed = Module::load_from_path("shaders/shader_all.wgsl").unwrap();
     let concatenated = include_str!("../shaders/concatenated.wgsl");
 
-    tokens_eq!(composed.code.as_ref(), concatenated);
+    tokens_eq!(composed.code(), concatenated);
 }
 
 
@@ -36,19 +38,29 @@ fn including_from_path() {
 }
 
 
-#[test] #[should_panic]
+#[test]
 fn circular_includes() {
-    Module::load_from_path("shaders/circular.wgsl").unwrap();
+
+    let res = Module::load_from_path("../wgsl_modules/shaders/circular.wgsl");
+
+    assert_matches!(res, Err(err) if err.starts_with("circular dependency"));
 }
 
-#[test] #[should_panic]
+
+#[test]
 fn nonexistent_includes() {
-    Module::load_from_path("shaders/nonexistent.wgsl").unwrap();
+
+    let res = Module::load_from_path("shaders/nonexistent.wgsl");
+
+    assert_matches!(res, Err(err) if err.starts_with("No such file or directory"));
 }
 
-#[test] #[should_panic]
+#[test]
 fn invalid_path() {
-    Module::load_from_path("").unwrap();
+
+    let res = Module::load_from_path("");
+
+    assert_matches!(res, Err(err) if err.starts_with("invalid path"));
 }
 
 
@@ -64,24 +76,24 @@ fn inline_loading_into_cache() {
     }).unwrap();
 
     let module = modules.load("inline::module", stringify!{
-        &import normal_2d from "inline::util"
+        &include "inline::util";
     }).unwrap();
 
-    tokens_eq!(module.code.as_ref().trim(), include_str!("../shaders/util.wgsl"));
+    tokens_eq!(module.code(), include_str!("../shaders/util.wgsl"));
 }
 
 
 #[test]
 fn inline_registering() {
 
-    register!("inline/util" <= {
+    register!("$inline//$util" <= {
         fn normal_2d(v:vec2<f32>) -> vec2<f32> {
             return vec2<f32>(v.y, -v.x);
         }
     });
 
-    let module_src = register!("module/module" <= {
-        &import * from "../inline/util"
+    let module_src = register!("$module/$module" <= {
+        &include "../$inline/$util";
     });
 
     tokens_eq!(module_src, include_str!("../shaders/util.wgsl"));
@@ -89,11 +101,40 @@ fn inline_registering() {
 
 
 #[test]
-fn inline_include() {
+fn inline_including() {
 
-    let module_src = register!("module" <= {
-        &import * from "wgsl_modules/shaders/util.wgsl"
+    let module_src = register!("$module" <= {
+        &include "../shaders/util.wgsl";
     });
 
-    tokens_eq!(module_src, include_str!("../shaders/util.wgsl"));
+    tokens_eq!(module_src, stringify!{
+        fn normal_2d(v:vec2<f32>) -> vec2<f32> { return vec2<f32>(v.y, -v.x); }
+    });
+}
+
+
+mod inner;
+
+#[test]
+fn inline_inner_including() {
+
+    let module_src = register!("$module" <= {
+        &include "./inner/$src";
+    });
+
+    tokens_eq!(module_src, stringify!{
+        fn normal_2d(v:vec2<f32>) -> vec2<f32> { return vec2<f32>(v.y, -v.x); }
+    });
+}
+
+
+
+#[test]
+fn validation_failing() {
+
+    let res = Module::load("$module", stringify!{
+        nonexistent token;
+    });
+
+    assert_matches!(res, Err(err) if err.starts_with("error: expected global item"));
 }

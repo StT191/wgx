@@ -1,6 +1,6 @@
 
-// &import * from "../imports/uniform_const.wgsl"
-// &import * from "../imports/sdf.wgsl"
+// &include "../imports/uniform_const.wgsl"
+// &include "../imports/sdf.wgsl"
 
 // ray marching
 const START_DIST = 1e-2; // start with a reasonable offset from surface dist // declared externally
@@ -58,4 +58,4 @@ const hlPow = 5.0; // highlight power
 
 
 // import ray marcher
-// &import * from "../imports/ray_marcher.wgsl"
+// &include "../imports/ray_marcher.wgsl"

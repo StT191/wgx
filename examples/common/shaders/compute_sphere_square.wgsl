@@ -4,8 +4,8 @@ struct Vertex { x: f32, y: f32, z: f32, tx: f32, ty: f32, tz: f32, nx: f32, ny: 
 @group(0) @binding(0) var<storage, read_write> vertices: array<Vertex>;
 
 
-/* &import normal_from_triangle from "util.wgsl" */
-/* &import * from "cp_height_map.wgsl" */
+/* &include "util.wgsl" */
+/* &include "cp_height_map.wgsl" */
 
 // consts
 const FRAC_PI_4 = 0.7853981633974483;

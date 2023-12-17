@@ -1,6 +1,6 @@
 
-// &import * from "../imports/uniform_const.wgsl"
-// &import * from "../imports/vertex_flat.wgsl"
+// &include "../imports/uniform_const.wgsl"
+// &include "../imports/vertex_flat.wgsl"
 
 
 

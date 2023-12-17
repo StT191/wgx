@@ -1,5 +1,5 @@
 
-/* &import * from "_NONEXISTENT_.wgsl" */
+/* &include "_NONEXISTENT_.wgsl" ; */
 
 @vertex
 fn vs_main(

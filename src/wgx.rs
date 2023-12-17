@@ -6,7 +6,7 @@ use crate::{*, error::*};
 
 
 // wgx
-
+#[derive(Debug)]
 pub struct Wgx {
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
