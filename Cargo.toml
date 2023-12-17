@@ -1,6 +1,6 @@
 [package]
 name = "wgx"
-version = "0.18.1"
+version = "0.18.2"
 authors = ["Stefan Tammer <st.tammer@gmail.com>"]
 edition = "2021"
 license = "MIT"

@@ -1,10 +1,21 @@
 
 #[macro_export]
+macro_rules! features {
+    ($($feature:ident),*) => {
+        $crate::wgpu::Features::empty() $( | $crate::wgpu::Features::$feature )*
+    };
+}
+
+#[macro_export]
 macro_rules! limits {
     ($($key:ident: $value:expr),*) => {
-        wgpu::Limits {
+        $crate::wgpu::Limits {
             $($key: $value, )*
-            ..Default::default()
+            ..{
+                #[cfg(not(target_family = "wasm"))] let limits = $crate::wgpu::Limits::default();
+                #[cfg(target_family = "wasm")] let limits = $crate::wgpu::Limits::downlevel_webgl2_defaults();
+                limits
+            }
         }
     };
 }
@@ -13,11 +24,11 @@ macro_rules! limits {
 #[macro_export]
 macro_rules! binding {
     ($loc:expr, $stage:expr, UniformBuffer, $min_size:expr) => {
-        wgpu::BindGroupLayoutEntry {
+        $crate::wgpu::BindGroupLayoutEntry {
             binding: $loc,
             visibility: $stage,
-            ty: wgpu::BindingType::Buffer {
-                ty: wgpu::BufferBindingType::Uniform,
+            ty: $crate::wgpu::BindingType::Buffer {
+                ty: $crate::wgpu::BufferBindingType::Uniform,
                 has_dynamic_offset: false,
                 min_binding_size: core::num::NonZeroU64::new($min_size),
             },
@@ -25,11 +36,11 @@ macro_rules! binding {
         }
     };
     ($loc:expr, $stage:expr, StorageBuffer, $min_size:expr, $ro:expr) => {
-        wgpu::BindGroupLayoutEntry {
+        $crate::wgpu::BindGroupLayoutEntry {
             binding: $loc,
             visibility: $stage,
-            ty: wgpu::BindingType::Buffer {
-                ty: wgpu::BufferBindingType::Storage { read_only: $ro },
+            ty: $crate::wgpu::BindingType::Buffer {
+                ty: $crate::wgpu::BufferBindingType::Storage { read_only: $ro },
                 has_dynamic_offset: false,
                 min_binding_size: core::num::NonZeroU64::new($min_size),
             },
@@ -37,22 +48,22 @@ macro_rules! binding {
         }
     };
     ($loc:expr, $stage:expr, SampledTexture2D) => {
-        wgpu::BindGroupLayoutEntry {
+        $crate::wgpu::BindGroupLayoutEntry {
             binding: $loc,
             visibility: $stage,
-            ty: wgpu::BindingType::Texture {
-                sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                view_dimension: wgpu::TextureViewDimension::D2,
+            ty: $crate::wgpu::BindingType::Texture {
+                sample_type: $crate::wgpu::TextureSampleType::Float { filterable: true },
+                view_dimension: $crate::wgpu::TextureViewDimension::D2,
                 multisampled: false,
             },
             count: None,
         }
     };
     ($loc:expr, $stage:expr, Sampler) => {
-        wgpu::BindGroupLayoutEntry {
+        $crate::wgpu::BindGroupLayoutEntry {
             binding: $loc,
             visibility: $stage,
-            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+            ty: $crate::wgpu::BindingType::Sampler($crate::wgpu::SamplerBindingType::Filtering),
             count: None,
         }
     };
@@ -62,15 +73,15 @@ macro_rules! binding {
 #[macro_export]
 macro_rules! bind {
     ($loc:expr, Buffer, $buffer:expr) => {
-        wgpu::BindGroupEntry {
+        $crate::wgpu::BindGroupEntry {
             binding: $loc,
             resource: $buffer.as_entire_binding(),
         }
     };
     ($loc:expr, Buffer, $buffer:expr, $offset:expr, $size:expr) => {
-        wgpu::BindGroupEntry {
+        $crate::wgpu::BindGroupEntry {
             binding: $loc,
-            resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+            resource: $crate::wgpu::BindingResource::Buffer($crate::wgpu::BufferBinding {
                 buffer: $buffer,
                 offset: $offset,
                 size: $size,
@@ -78,9 +89,9 @@ macro_rules! bind {
         }
     };
     ($loc:expr, $ty:ident, $value:expr) => {
-        wgpu::BindGroupEntry {
+        $crate::wgpu::BindGroupEntry {
             binding: $loc,
-            resource: wgpu::BindingResource::$ty($value),
+            resource: $crate::wgpu::BindingResource::$ty($value),
         }
     };
 }
@@ -89,10 +100,10 @@ macro_rules! bind {
 #[macro_export]
 macro_rules! vertex_desc {
     ($step:ident, $($loc:expr => $fmt:ident),*) => {
-        wgpu::VertexBufferLayout {
-            array_stride: ($(wgpu::VertexFormat::$fmt.size() + )* 0) as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::$step,
-            attributes: &wgpu::vertex_attr_array!([] ; 0; $($loc => $fmt ,)*),
+        $crate::wgpu::VertexBufferLayout {
+            array_stride: ($($crate::wgpu::VertexFormat::$fmt.size() + )* 0) as $crate::wgpu::BufferAddress,
+            step_mode: $crate::wgpu::VertexStepMode::$step,
+            attributes: &$crate::wgpu::vertex_attr_array!([] ; 0; $($loc => $fmt ,)*),
         }
     };
 }
@@ -101,7 +112,7 @@ macro_rules! vertex_desc {
 #[macro_export]
 macro_rules! push_constants {
     ($($range:expr => $stage:expr),*) => {
-        &[$(wgpu::PushConstantRange {
+        &[$($crate::wgpu::PushConstantRange {
             stages: $stage,
             range: $range,
         },)*]

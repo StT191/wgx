@@ -23,7 +23,7 @@ fn main() {
     window.set_title("WgFx");
 
 
-    let (gx, surface) = unsafe {Wgx::new(Some(&window), Features::empty(), limits!{})}.block_on().unwrap();
+    let (gx, surface) = unsafe {Wgx::new(Some(&window), features!(), limits!{})}.block_on().unwrap();
     let mut target = SurfaceTarget::new(&gx, surface.unwrap(), (600, 600), MSAA, DEPTH_TESTING).unwrap();
 
 

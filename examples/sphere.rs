@@ -28,7 +28,7 @@ fn main() {
   window.set_inner_size(PhysicalSize::<u32>::from((width, height)));
   window.set_title("WgFx");
 
-  let features = Features::POLYGON_MODE_LINE /*| Features::MULTI_DRAW_INDIRECT*/;
+  let features = features!(POLYGON_MODE_LINE/*, Features::MULTI_DRAW_INDIRECT*/);
 
   let (gx, surface) = unsafe {Wgx::new(Some(&window), features, limits!{})}.block_on().unwrap();
   let mut target = SurfaceTarget::new(&gx, surface.unwrap(), (width, height), MSAA, DEPTH_TESTING).unwrap();
