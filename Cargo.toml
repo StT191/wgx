@@ -46,6 +46,6 @@ wgsl_modules = { version = "0.18.3", path = "wgsl_modules", optional = true }
 
 
 [dev-dependencies]
-winit = "0.28"
+winit = { version = "0.29", features = ["rwh_05"] }
 pollster = "0.3"
 png = "0.17"

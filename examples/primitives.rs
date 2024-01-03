@@ -2,9 +2,9 @@
 use std::{time::{Instant}};
 use pollster::FutureExt;
 use winit::{
-    dpi::PhysicalSize,
-    event_loop::{ControlFlow, EventLoop},
-    window::Window, event::{Event, WindowEvent},
+    event_loop::{ControlFlow, EventLoop}, dpi::PhysicalSize,
+    window::Window, event::{Event, WindowEvent, KeyEvent, ElementState},
+    keyboard::{PhysicalKey, KeyCode},
 };
 use wgx::*;
 
@@ -16,7 +16,7 @@ fn main() {
     const BLENDING:Option<Blend> = Some(Blend::ALPHA_BLENDING);
 
 
-    let event_loop = EventLoop::new();
+    let event_loop = EventLoop::new().unwrap();
 
     let window = Window::new(&event_loop).unwrap();
 
@@ -26,7 +26,7 @@ fn main() {
     let width = (sf * 800.0) as u32;
     let heigh = (sf * 600.0) as u32;
 
-    window.set_inner_size(PhysicalSize::<u32>::from((width, heigh)));
+    let _ = window.request_inner_size(PhysicalSize::<u32>::from((width, heigh)));
     window.set_title("WgFx");
 
 
@@ -185,30 +185,26 @@ fn main() {
     })];
 
 
-    event_loop.run(move |event, _, control_flow| {
+    event_loop.run(move |event, event_target| {
 
-        *control_flow = ControlFlow::Wait;
+        event_target.set_control_flow(ControlFlow::Wait);
 
         match event {
             Event::WindowEvent {event: WindowEvent::CloseRequested, ..} => {
-                *control_flow = ControlFlow::Exit;
+                event_target.exit();
             },
 
             Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
                 target.update(&gx, (size.width, size.height));
             },
 
-            Event::WindowEvent {
-                event:WindowEvent::KeyboardInput{
-                    input: winit::event::KeyboardInput {
-                        virtual_keycode:Some(winit::event::VirtualKeyCode::R), ..
-                    }, ..
-                }, ..
-            } => {
+            Event::WindowEvent { event: WindowEvent::KeyboardInput { event: KeyEvent {
+                state: ElementState::Pressed, physical_key: PhysicalKey::Code(KeyCode::KeyR), ..
+            }, ..}, ..} => {
                 window.request_redraw();
             },
 
-            Event::RedrawRequested(_) => {
+            Event::WindowEvent { event: WindowEvent::RedrawRequested, .. } => {
 
                 let then = Instant::now();
 
@@ -221,5 +217,5 @@ fn main() {
 
             _ => {}
         }
-    });
+    }).unwrap();
 }

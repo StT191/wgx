@@ -2,9 +2,9 @@
 use std::{time::{Instant}, ops::Neg};
 use pollster::FutureExt;
 use winit::{
-  dpi::PhysicalSize,
-  event_loop::{ControlFlow, EventLoop},
-  window::Window, event::{Event, WindowEvent, KeyboardInput, ElementState},
+    event_loop::{ControlFlow, EventLoop}, dpi::PhysicalSize,
+    window::Window, event::{Event, WindowEvent, KeyEvent, ElementState},
+    keyboard::{PhysicalKey, /*KeyCode*/},
 };
 use wgx::{*, cgmath::*};
 
@@ -23,9 +23,9 @@ fn main() {
 
   let (width, height) = (1000, 1000);
 
-  let event_loop = EventLoop::new();
+  let event_loop = EventLoop::new().unwrap();
   let window = Window::new(&event_loop).unwrap();
-  window.set_inner_size(PhysicalSize::<u32>::from((width, height)));
+  let _ = window.request_inner_size(PhysicalSize::<u32>::from((width, height)));
   window.set_title("WgFx");
 
   let features = features!(POLYGON_MODE_LINE/*, Features::MULTI_DRAW_INDIRECT*/);
@@ -201,13 +201,14 @@ fn main() {
 
 
   // event loop
-  event_loop.run(move |event, _, control_flow| {
+  event_loop.run(move |event, event_target| {
 
-    *control_flow = ControlFlow::Wait;
+    event_target.set_control_flow(ControlFlow::Wait);
 
     match event {
+
       Event::WindowEvent {event: WindowEvent::CloseRequested, ..} => {
-        *control_flow = ControlFlow::Exit;
+        event_target.exit();
       },
 
       Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
@@ -219,8 +220,8 @@ fn main() {
         world.write_light_buffer(&gx);
       },
 
-      Event::WindowEvent { event:WindowEvent::KeyboardInput { input: KeyboardInput {
-        virtual_keycode: Some(keycode), state: ElementState::Pressed, ..
+      Event::WindowEvent { event: WindowEvent::KeyboardInput { event: KeyEvent {
+        physical_key: PhysicalKey::Code(keycode), state: ElementState::Pressed, ..
       }, ..}, ..} => {
         if let Some(key) = InputKey::match_keycode(keycode) {
           world.input(key);
@@ -232,7 +233,7 @@ fn main() {
         }
       },
 
-      Event::RedrawRequested(_) => {
+      Event::WindowEvent { event: WindowEvent::RedrawRequested, .. } => {
 
         let then = Instant::now();
 
@@ -245,5 +246,5 @@ fn main() {
 
       _ => {}
     }
-  });
+  }).unwrap();
 }

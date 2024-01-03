@@ -2,9 +2,9 @@
 use std::{time::{Instant}};
 use pollster::FutureExt;
 use winit::{
-    dpi::PhysicalSize,
-    event_loop::{ControlFlow, EventLoop},
-    window::Window, event::{Event, WindowEvent},
+    event_loop::{ControlFlow, EventLoop}, dpi::PhysicalSize,
+    window::Window, event::{Event, WindowEvent, KeyEvent, ElementState},
+    keyboard::{PhysicalKey, KeyCode},
 };
 use wgx::*;
 
@@ -16,7 +16,7 @@ fn main() {
     const BLENDING:Option<Blend> = None;
 
 
-    let event_loop = EventLoop::new();
+    let event_loop = EventLoop::new().unwrap();
 
     let window = Window::new(&event_loop).unwrap();
 
@@ -26,7 +26,7 @@ fn main() {
     let width = (sf * 800.0) as u32;
     let height = (sf * 600.0) as u32;
 
-    window.set_inner_size(PhysicalSize::<u32>::from((width, height)));
+    let _ = window.request_inner_size(PhysicalSize::<u32>::from((width, height)));
     window.set_title("WgFx");
 
 
@@ -123,30 +123,30 @@ fn main() {
         bind!(1, Sampler, &sampler),
     ]);
 
-    event_loop.run(move |event, _, control_flow| {
+    // event loop
 
-        *control_flow = ControlFlow::Wait;
+    event_loop.run(move |event, event_target| {
+
+        event_target.set_control_flow(ControlFlow::Wait);
 
         match event {
             Event::WindowEvent {event: WindowEvent::CloseRequested, ..} => {
-                *control_flow = ControlFlow::Exit;
+                event_target.exit();
             },
 
             Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
-                target.update(&gx, (size.width, size.height));
+                let size = (size.width, size.height);
+                target.update(&gx, size);
             },
 
-            Event::WindowEvent {
-                event:WindowEvent::KeyboardInput{
-                    input: winit::event::KeyboardInput {
-                        virtual_keycode:Some(winit::event::VirtualKeyCode::R), ..
-                    }, ..
-                }, ..
-            } => {
+            Event::WindowEvent { event: WindowEvent::KeyboardInput { event: KeyEvent {
+                state: ElementState::Pressed, physical_key: PhysicalKey::Code(KeyCode::KeyR), ..
+            }, ..}, ..} => {
                 window.request_redraw();
             },
 
-            Event::RedrawRequested(_) => {
+            Event::WindowEvent { event: WindowEvent::RedrawRequested, .. } => {
+
 
                 let then = Instant::now();
 
@@ -167,5 +167,5 @@ fn main() {
 
             _ => {}
         }
-    });
+    }).unwrap();
 }

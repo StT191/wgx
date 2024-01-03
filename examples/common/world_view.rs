@@ -1,5 +1,5 @@
 
-use winit::event::VirtualKeyCode;
+use winit::keyboard::KeyCode;
 use wgx::{*, cgmath::*};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -15,19 +15,20 @@ pub enum InputKey {
 }
 
 impl InputKey {
-    pub fn match_keycode(keycode: VirtualKeyCode) -> Option<Self> {
+    pub fn match_keycode(keycode: KeyCode) -> Option<Self> {
         match keycode {
-            VirtualKeyCode::W => Some(InputKey::Up(None)), VirtualKeyCode::S => Some(InputKey::Down(None)),
-            VirtualKeyCode::A => Some(InputKey::Left(None)), VirtualKeyCode::D => Some(InputKey::Right(None)),
-            VirtualKeyCode::Q => Some(InputKey::Backwards(None)), VirtualKeyCode::E => Some(InputKey::Forwards(None)),
+            KeyCode::KeyW => Some(InputKey::Up(None)), KeyCode::KeyS => Some(InputKey::Down(None)),
+            KeyCode::KeyA => Some(InputKey::Left(None)), KeyCode::KeyD => Some(InputKey::Right(None)),
+            KeyCode::KeyQ => Some(InputKey::Backwards(None)), KeyCode::KeyE => Some(InputKey::Forwards(None)),
 
-            VirtualKeyCode::I => Some(InputKey::TiltDown(None)), VirtualKeyCode::K => Some(InputKey::TiltUp(None)),
-            VirtualKeyCode::J => Some(InputKey::PanLeft(None)), VirtualKeyCode::L => Some(InputKey::PanRight(None)),
-            VirtualKeyCode::U => Some(InputKey::RollLeft(None)), VirtualKeyCode::O => Some(InputKey::RollRight(None)),
+            KeyCode::KeyI => Some(InputKey::TiltDown(None)), KeyCode::KeyK => Some(InputKey::TiltUp(None)),
+            KeyCode::KeyJ => Some(InputKey::PanLeft(None)), KeyCode::KeyL => Some(InputKey::PanRight(None)),
+            KeyCode::KeyU => Some(InputKey::RollLeft(None)), KeyCode::KeyO => Some(InputKey::RollRight(None)),
 
-            VirtualKeyCode::Y => Some(InputKey::ZoomIn(None)), VirtualKeyCode::X => Some(InputKey::ZoomOut(None)),
+            // US layout!
+            KeyCode::KeyZ => Some(InputKey::ZoomIn(None)), KeyCode::KeyX => Some(InputKey::ZoomOut(None)),
 
-            VirtualKeyCode::R => Some(InputKey::Reset),
+            KeyCode::KeyR => Some(InputKey::Reset),
 
             _ => None,
         }

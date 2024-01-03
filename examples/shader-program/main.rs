@@ -2,8 +2,9 @@
 use std::{time::{Instant/*, Duration*/}};
 use pollster::FutureExt;
 use winit::{
-    dpi::PhysicalSize, event_loop::{EventLoop},
-    window::Window, event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCode, StartCause},
+    event_loop::{ControlFlow, EventLoop}, dpi::PhysicalSize,
+    window::Window, event::{Event, WindowEvent, KeyEvent, ElementState, StartCause},
+    keyboard::{PhysicalKey, KeyCode},
 };
 use wgx::*;
 
@@ -22,9 +23,9 @@ fn main() {
 
     let (width, height) = (1280, 900);
 
-    let event_loop = EventLoop::new();
+    let event_loop = EventLoop::new().unwrap();
     let window = Window::new(&event_loop).unwrap();
-    window.set_inner_size(PhysicalSize::<u32>::from((width, height)));
+    let _ = window.request_inner_size(PhysicalSize::<u32>::from((width, height)));
     window.set_title("WgFx - Shader Program");
 
     let (gx, surface) = unsafe {Wgx::new(Some(&window), features!(PUSH_CONSTANTS), limits!{max_push_constant_size: 4})}.block_on().unwrap();
@@ -85,20 +86,20 @@ fn main() {
 
 
     // event loop
-    event_loop.run(move |event, _, control_flow| {
+    event_loop.run(move |event, event_target| {
 
-        control_flow.set_wait_until(frame_timer.next); // next frame
+        event_target.set_control_flow(ControlFlow::WaitUntil(frame_timer.next));
 
         match event {
 
             Event::NewEvents(StartCause::ResumeTimeReached {..}) => {
                 window.request_redraw(); // request frame
                 frame_timer.step();
-                control_flow.set_wait();
+                event_target.set_control_flow(ControlFlow::Wait);
             }
 
             Event::WindowEvent {event: WindowEvent::CloseRequested, ..} => {
-                control_flow.set_exit();
+                event_target.exit();
             },
 
             Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
@@ -111,17 +112,17 @@ fn main() {
                 gx.write_buffer(&view_buffer, 0, [width, height, width/height, scale]);
             },
 
-            Event::WindowEvent { event:WindowEvent::KeyboardInput { input: KeyboardInput {
-                virtual_keycode: Some(keycode), state: ElementState::Pressed, ..
+            Event::WindowEvent { event: WindowEvent::KeyboardInput { event: KeyEvent {
+                state: ElementState::Pressed, physical_key: PhysicalKey::Code(keycode), ..
             }, ..}, ..} => {
 
                 let mut update = true;
 
                 match keycode {
-                    VirtualKeyCode::Y => { scale += DF; },
-                    VirtualKeyCode::X => { scale -= DF; },
+                    KeyCode::KeyY => { scale += DF; },
+                    KeyCode::KeyX => { scale -= DF; },
 
-                    VirtualKeyCode::R => { scale = 1.0; },
+                    KeyCode::KeyR => { scale = 1.0; },
 
                     _ => { update = false; }
                 } {
@@ -129,7 +130,7 @@ fn main() {
                 }
             },
 
-            Event::RedrawRequested(_) => {
+            Event::WindowEvent { event: WindowEvent::RedrawRequested, .. } => {
 
                 // draw
                 target.with_frame(None, |frame| gx.with_encoder(|encoder| {
@@ -149,5 +150,5 @@ fn main() {
 
             _ => {}
         }
-    });
+    }).unwrap();
 }

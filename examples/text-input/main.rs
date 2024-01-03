@@ -1,15 +1,16 @@
-#![allow(dead_code)]
 
 // imports
 use std::{time::{Instant}};
 use pollster::FutureExt;
 use winit::{
-    dpi::PhysicalSize,
-    event_loop::{ControlFlow, EventLoop},
-    window::Window, event::*,
+    event_loop::{ControlFlow, EventLoop}, dpi::PhysicalSize,
+    window::Window, event::{Event, WindowEvent, KeyEvent, ElementState},
+    keyboard::{PhysicalKey, KeyCode},
 };
 use wgx::{*, cgmath::*};
 
+
+#[allow(dead_code)]
 mod text_input;
 use text_input::*;
 
@@ -18,7 +19,7 @@ use text_input::*;
 fn main() {
 
     const DEPTH_TESTING:bool = false;
-    const BLENDING:Option<Blend> = None;
+    // const BLENDING:Option<Blend> = None;
     const MSAA:u32 = 1;
 
 
@@ -27,11 +28,10 @@ fn main() {
 
 
     // window setup
-    let event_loop = EventLoop::new();
-
+    let event_loop = EventLoop::new().unwrap();
 
     let window = Window::new(&event_loop).unwrap();
-    window.set_inner_size(PhysicalSize::<u32>::from((1200u32, 1000u32)));
+    let _ = window.request_inner_size(PhysicalSize::<u32>::from((1200u32, 1000u32)));
     window.set_title("WgFx");
 
 
@@ -54,48 +54,52 @@ fn main() {
     let mut staging_belt = wgpu::util::StagingBelt::new(10240);
 
 
-    event_loop.run(move |event, _, control_flow| {
+    event_loop.run(move |event, event_target| {
 
-        *control_flow = ControlFlow::Wait;
+        event_target.set_control_flow(ControlFlow::Wait);
 
         match event {
-            Event::WindowEvent { event: WindowEvent::CloseRequested, ..} => {
-                *control_flow = ControlFlow::Exit;
+            Event::WindowEvent {event: WindowEvent::CloseRequested, ..} => {
+                event_target.exit();
             },
 
             Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
                 target.update(&gx, (size.width, size.height));
             },
 
-            Event::WindowEvent { event: WindowEvent::ReceivedCharacter(letter), .. } => {
-                if text_input.insert(letter) {
-                    window.request_redraw();
-                }
-                else {
-                    println!("{:?}", letter);
-                }
-            },
-
-            Event::WindowEvent { event:WindowEvent::KeyboardInput { input: KeyboardInput {
-                virtual_keycode: Some(keycode), state: ElementState::Pressed, ..
+            Event::WindowEvent { event: WindowEvent::KeyboardInput { event: KeyEvent {
+                physical_key, text, state: ElementState::Pressed, ..
             }, ..}, ..} => {
-                if match keycode {
-                    VirtualKeyCode::Left => text_input.recede(),
-                    VirtualKeyCode::Right => text_input.advance(),
-                    VirtualKeyCode::Up => text_input.recede_line(),
-                    VirtualKeyCode::Down => text_input.advance_line(),
-                    VirtualKeyCode::Back => text_input.remove(),
-                    VirtualKeyCode::Delete => text_input.delete(),
-                    VirtualKeyCode::Home => text_input.set_curser(0),
-                    VirtualKeyCode::End => text_input.set_curser_end(),
-                    VirtualKeyCode::Return => text_input.insert('\n'),
-                    _ => false
-                } {
-                    window.request_redraw();
+
+                let mut redraw = false;
+
+                if let Some(letters) = text {
+                    for character in letters.chars() {
+                        if text_input.insert(character) {
+                            redraw = true;
+                        }
+                    }
                 }
+
+                if let PhysicalKey::Code(keycode) = physical_key {
+                    redraw |= match keycode {
+                        KeyCode::ArrowLeft => text_input.recede(),
+                        KeyCode::ArrowRight => text_input.advance(),
+                        KeyCode::ArrowUp => text_input.recede_line(),
+                        KeyCode::ArrowDown => text_input.advance_line(),
+                        KeyCode::Backspace => text_input.remove(),
+                        KeyCode::Delete => text_input.delete(),
+                        KeyCode::Home => text_input.set_curser(0),
+                        KeyCode::End => text_input.set_curser_end(),
+                        KeyCode::Enter => text_input.insert('\n'),
+                        _ => false
+                    }
+                }
+
+                if redraw { window.request_redraw() }
             },
 
-            Event::RedrawRequested(_) => {
+            Event::WindowEvent { event: WindowEvent::RedrawRequested, .. } => {
 
                 let then = Instant::now();
 
@@ -158,5 +162,5 @@ fn main() {
 
             _ => {}
         }
-    });
+    }).unwrap();
 }
