@@ -2,14 +2,14 @@
 
 // vertex and camera
 struct VertexData {
-    @builtin(position) position: vec4<f32>,
-    @location(0) @interpolate(flat) Co: vec3<f32>,
-    @location(1) @interpolate(perspective) Ro: vec3<f32>,
-    @location(2) @interpolate(flat) Ln: vec3<f32>,
+    @builtin(position) position: vec4f,
+    @location(0) @interpolate(flat) Co: vec3f,
+    @location(1) @interpolate(perspective) Ro: vec3f,
+    @location(2) @interpolate(flat) Ln: vec3f,
 };
 
 @vertex
-fn vs_main(@location(0) p: vec2<f32>) -> VertexData {
+fn vs_main(@location(0) p: vec2f) -> VertexData {
 
     let Cn = normalize(Cd);
     let Co = Cp - cDist * Cn;
@@ -20,31 +20,31 @@ fn vs_main(@location(0) p: vec2<f32>) -> VertexData {
     let sinY = -Cn.x / cosX;
     let cosY = 1.0 - sinY;
 
-    let r = p * vec2<f32>(view.z * cDim, cDim);
+    let r = p * vec2f(view.z * cDim, cDim);
 
-    let Ro = vec3<f32>(
+    let Ro = vec3f(
         r.x*cosY + r.y*sinX*sinY,
         r.y*cosX,
         r.x*sinY - r.y*sinX*cosY,
     ) + Cp;
 
-    return VertexData(vec4<f32>(p, 0.0, 1.0), Co, Ro, Ln);
+    return VertexData(vec4f(p, 0.0, 1.0), Co, Ro, Ln);
 }
 
 
 // rays
-struct RayField { dist: f32, color: vec4<f32> };
+struct RayField { dist: f32, color: vec4f };
 
 
 // normal
 const dN = 0.01;
 
-const dN1 = vec3<f32>( 1.0, -1.0, -1.0);
-const dN2 = vec3<f32>(-1.0, -1.0,  1.0);
-const dN3 = vec3<f32>(-1.0,  1.0, -1.0);
-const dN4 = vec3<f32>( 1.0,  1.0,  1.0);
+const dN1 = vec3f( 1.0, -1.0, -1.0);
+const dN2 = vec3f(-1.0, -1.0,  1.0);
+const dN3 = vec3f(-1.0,  1.0, -1.0);
+const dN4 = vec3f( 1.0,  1.0,  1.0);
 
-fn getNormal(P: vec3<f32>) -> vec3<f32> {
+fn getNormal(P: vec3f) -> vec3f {
     return normalize(
         dN1 * sdMap(P + dN*dN1, false).dist +
         dN2 * sdMap(P + dN*dN2, false).dist +
@@ -60,9 +60,9 @@ fn getNormal(P: vec3<f32>) -> vec3<f32> {
 // const MAX_DEPTH = 3000.0; // declared externally
 // const MAX_ITER = 64; // declared externally
 
-struct RayHit { P: vec3<f32>, dist: f32, color: vec4<f32> };
+struct RayHit { P: vec3f, dist: f32, color: vec4f };
 
-fn ray_march(Ro: vec3<f32>, Rd: vec3<f32>, map_color: bool) -> RayHit {
+fn ray_march(Ro: vec3f, Rd: vec3f, map_color: bool) -> RayHit {
 
     var abs_dist = START_DIST;
     var i = 0;
@@ -78,13 +78,13 @@ fn ray_march(Ro: vec3<f32>, Rd: vec3<f32>, map_color: bool) -> RayHit {
         }
     }
 
-    return RayHit(vec3<f32>(0.0, 0.0, 0.0), -1.0, vec4<f32>(0.0, 0.0, 0.0, 0.0));
+    return RayHit(vec3f(0.0, 0.0, 0.0), -1.0, vec4f(0.0, 0.0, 0.0, 0.0));
 }
 
 
 
 // lighting
-fn highlight(Rd: vec3<f32>, N: vec3<f32>, Ln: vec3<f32>) -> f32 {
+fn highlight(Rd: vec3f, N: vec3f, Ln: vec3f) -> f32 {
     let Lr = Ln - 2.0*dot(Ln, N) * N;
     return pow(max(dot(Rd, -Lr), 0.0), hlPow) * hL;
 }
@@ -92,7 +92,7 @@ fn highlight(Rd: vec3<f32>, N: vec3<f32>, Ln: vec3<f32>) -> f32 {
 
 // main
 @fragment
-fn fs_main(in: VertexData) -> @location(0) vec4<f32> {
+fn fs_main(in: VertexData) -> @location(0) vec4f {
 
     // ray marching
     let Rd = normalize(in.Ro - in.Co); // ray direction
@@ -130,7 +130,7 @@ fn fs_main(in: VertexData) -> @location(0) vec4<f32> {
     }
 
     // color
-    let color = lf * H.color.rgb + vec3<f32>(hl);
+    let color = lf * H.color.rgb + vec3f(hl);
 
-    return vec4<f32>(color, H.color.a);
+    return vec4f(color, H.color.a);
 }

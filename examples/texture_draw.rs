@@ -39,7 +39,7 @@ fn main() {
 
     // pipeline
     let pipeline = target.render_pipeline(&gx,
-        None, &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
+        None, &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
         (&shader, "vs_main", Primitive { topology: Topology::TriangleStrip, ..Primitive::default() }),
         (&shader, "fs_main", BLENDING),
     );
@@ -80,8 +80,8 @@ fn main() {
     // let draw_target2 = TextureTarget::new(&gx, (width, height), DRAW_MSAA, false, DEFAULT_SRGB, None, TexUse::TEXTURE_BINDING);
 
     let draw_pipeline = gx.render_pipeline(
-        false, DRAW_MSAA, None,
-        &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
+        DRAW_MSAA, None, None,
+        &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
         (&shader, "vs_main", Primitive { topology: Topology::TriangleStrip, ..Primitive::default() }),
         Some((&shader, "fs_main", &[
             (draw_target.view_format(), BLENDING),
@@ -94,7 +94,7 @@ fn main() {
         bind!(1, Sampler, &sampler),
     ]);
 
-    target.with_encoder_frame(&gx, |encoder, frame| { // !! ecoder witout draw to attachment produces hang!
+    target.with_frame(None, |frame| gx.with_encoder(|encoder| { // !! ecoder witout draw to attachment produces hang!
 
         encoder.with_render_pass(
             (
@@ -114,7 +114,7 @@ fn main() {
 
         encoder.render_pass(frame.attachments(Some(bg_color_target), None));
 
-    }).expect("frame error");
+    })).expect("frame error");
 
 
     // binding
@@ -150,7 +150,7 @@ fn main() {
 
                 let then = Instant::now();
 
-                target.with_encoder_frame(&gx, |encoder, frame| {
+                target.with_frame(None, |frame| gx.with_encoder(|encoder| {
                     encoder.with_render_pass(
                         frame.attachments(Some(bg_color_target), None),
                         |mut rpass| {
@@ -160,7 +160,7 @@ fn main() {
                             rpass.draw(0..vertex_data.len() as u32, 0..1);
                         }
                     );
-                }).expect("frame error");
+                })).expect("frame error");
 
                 println!("{:?}", then.elapsed());
             },

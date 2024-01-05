@@ -9,11 +9,11 @@ const MAX_DEPTH = 3000.0;
 const MAX_ITER = 48;
 
 // colors
-const bgColor = vec4<f32>(0.01, 0.5, 0.8, 1.0);
-const Color = vec4<f32>(1.0, 0.0, 0.0, 1.0);
+const bgColor = vec4f(0.01, 0.5, 0.8, 1.0);
+const Color = vec4f(1.0, 0.0, 0.0, 1.0);
 
 // sdf map
-fn sdMap(P: vec3<f32>, map_color: bool) -> RayField {
+fn sdMap(P: vec3f, map_color: bool) -> RayField {
 
     let h =
         P.y +
@@ -38,13 +38,13 @@ fn sdMap(P: vec3<f32>, map_color: bool) -> RayField {
 // camera
 const cDim = 500.0; // half camera-y dimension
 const cDist = 3000.0; // camera field of view distance
-const Cp = vec3<f32>(0.0, 0.0, 0.0);
-const Cd = vec3<f32>(0.0, -0.5, 2.5);
+const Cp = vec3f(0.0, 0.0, 0.0);
+const Cd = vec3f(0.0, -0.5, 2.5);
 
 
 // lighting
-const Ld = vec3<f32>(-0.3, -1.0, -1.5); // light direction
-const LL = vec2<f32>(0.02, 0.10); // light levels (min, min lit)
+const Ld = vec3f(-0.3, -1.0, -1.5); // light direction
+const LL = vec2f(0.02, 0.10); // light levels (min, min lit)
 
 const shDist = 0.0; // max shadow distance
 

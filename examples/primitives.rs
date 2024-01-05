@@ -67,7 +67,7 @@ fn main() {
 
     // triangle pipeline
     let t_pipeline = target.render_pipeline(&gx,
-        Some((&[], &[&layout])), &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
+        Some((&[], &[&layout])), &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
         (&shader, "vs_main", Primitive { topology: Topology::TriangleStrip, ..Primitive::default() }),
         (&shader, "fs_main", BLENDING),
     );
@@ -84,7 +84,7 @@ fn main() {
 
     // lines pipeline
     let l_pipeline = target.render_pipeline(&gx,
-        Some((&[], &[&layout])), &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
+        Some((&[], &[&layout])), &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
         (&shader, "vs_main", Primitive { topology: Topology::LineStrip, ..Primitive::default() }),
         (&shader, "fs_main", BLENDING),
     );
@@ -103,7 +103,7 @@ fn main() {
 
     // points pipeline
     let p_pipeline = target.render_pipeline(&gx,
-        Some((&[], &[&layout])), &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
+        Some((&[], &[&layout])), &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
         (&shader, "vs_main", Primitive { topology: Topology::PointList, ..Primitive::default() }),
         (&shader, "fs_main", BLENDING),
     );
@@ -141,7 +141,7 @@ fn main() {
 
 
     let i_pipeline = target.render_pipeline(&gx,
-        Some((&[], &[&layout])), &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
+        Some((&[], &[&layout])), &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
         (&shader, "vs_main", Primitive { topology: Topology::TriangleStrip, ..Primitive::default() }),
         (&shader, "fs_main", BLENDING),
     );
@@ -212,9 +212,9 @@ fn main() {
 
                 let then = Instant::now();
 
-                target.with_encoder_frame(&gx, |encoder, frame| {
-                    encoder.render_bundles(frame.attachments(Some(Color::GREEN), None), &bundles);
-                }).expect("frame error");
+                target.with_frame(None, |frame| gx.with_encoder(|encoder| {
+                    encoder.pass_bundles(frame.attachments(Some(Color::GREEN), None), &bundles);
+                })).expect("frame error");
 
                 println!("{:?}", then.elapsed());
             },

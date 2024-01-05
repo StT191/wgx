@@ -1,7 +1,7 @@
 
 struct VertexData {
-    @builtin(position) position: vec4<f32>,
-    @location(0) tex_coord: vec2<f32>,
+    @builtin(position) position: vec4f,
+    @location(0) tex_coord: vec2f,
 };
 
 
@@ -10,8 +10,8 @@ struct VertexData {
 
 
 struct FragmetOutput {
-    @location(0) first: vec4<f32>,
-    // @location(1) second: vec4<f32>,
+    @location(0) first: vec4f,
+    // @location(1) second: vec4f,
 }
 
 @fragment

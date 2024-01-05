@@ -19,19 +19,19 @@ fn main() {
     let event_loop = EventLoop::new();
 
     let window = Window::new(&event_loop).unwrap();
-    window.set_inner_size(PhysicalSize::<u32>::from((600, 600)));
+    window.set_inner_size(PhysicalSize::<u32>::from((1200, 1200)));
     window.set_title("WgFx");
 
 
     let (gx, surface) = unsafe {Wgx::new(Some(&window), features!(), limits!{})}.block_on().unwrap();
-    let mut target = SurfaceTarget::new(&gx, surface.unwrap(), (600, 600), MSAA, DEPTH_TESTING).unwrap();
+    let mut target = SurfaceTarget::new(&gx, surface.unwrap(), (1200, 1200), MSAA, DEPTH_TESTING).unwrap();
 
 
     // global pipeline
     let shader = gx.load_wgsl(wgsl_modules::include!("common/shaders/shader_flat_text.wgsl"));
 
     let pipeline = target.render_pipeline(&gx,
-        None, &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
+        None, &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
         (&shader, "vs_main", Primitive::default()),
         (&shader, "fs_main", BLENDING),
     );
@@ -111,14 +111,9 @@ fn main() {
 
                 let then = Instant::now();
 
-                target.with_encoder_frame(&gx, |encoder, frame| {
-                    encoder.with_render_pass(
-                        frame.attachments(Some(Color::GREEN), Some(1.0)),
-                        |mut rpass| {
-                            rpass.execute_bundles(&bundles);
-                        }
-                    );
-                }).expect("frame error");
+                target.with_frame(None, |frame| gx.with_encoder(|encoder| {
+                    encoder.pass_bundles(frame.attachments(Some(Color::GREEN), Some(1.0)), &bundles);
+                })).expect("frame error");
 
                 println!("{:?}", then.elapsed());
             },

@@ -41,8 +41,8 @@ fn main() {
 
   let pipeline = target.render_pipeline(&gx,
     None, &[
-      vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x3, 2 => Float32x3),
-      vertex_desc!(Instance, 3 => Float32x4, 4 => Float32x4, 5 => Float32x4, 6 => Float32x4)
+      vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x3, 2 => Float32x3),
+      vertex_dsc!(Instance, 3 => Float32x4, 4 => Float32x4, 5 => Float32x4, 6 => Float32x4)
     ],
     (&shader, "vs_main", Primitive {
       cull_mode: Some(Face::Back),
@@ -214,9 +214,9 @@ fn main() {
 
         let then = Instant::now();
 
-        target.with_encoder_frame(&gx, |encoder, frame| {
-          encoder.render_bundles(frame.attachments(Some(bg_color), Some(1.0)), &bundles);
-        }).expect("frame error");
+        target.with_frame(None, |frame| gx.with_encoder(|encoder| {
+          encoder.pass_bundles(frame.attachments(Some(bg_color), Some(1.0)), &bundles);
+        })).expect("frame error");
 
         println!("{:?}", then.elapsed());
       },

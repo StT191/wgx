@@ -1,6 +1,6 @@
 
 // uniform
-@group(0) @binding(0) var<uniform> view: vec4<f32>;
+@group(0) @binding(0) var<uniform> view: vec4f;
 
 var<push_constant> time: f32; // time in secs
 

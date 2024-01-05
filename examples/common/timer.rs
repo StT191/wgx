@@ -1,5 +1,5 @@
 
-pub use instant::{Instant, Duration};
+pub use std::time::{Instant, Duration};
 
 #[derive(Debug, Clone)]
 pub struct StepInterval {

@@ -5,9 +5,9 @@
 
 
 @fragment
-fn fs_main(in: VertexData) -> @location(0) vec4<f32> {
+fn fs_main(in: VertexData) -> @location(0) vec4f {
 
-    let P = in.P * vec2<f32>(1.0 * view.z, 1.0);
+    let P = in.P * vec2f(1.0 * view.z, 1.0);
 
     let r = length(P);
     let rl = r / sqrt2;
@@ -22,5 +22,5 @@ fn fs_main(in: VertexData) -> @location(0) vec4<f32> {
     // let blue = 0.9 * pow(sin(vr - fi + pi), 8.0);
 
 
-    return vec4<f32>(red, green, 0.0, 1.0);
+    return vec4f(red, green, 0.0, 1.0);
 }

@@ -137,7 +137,7 @@ fn main() {
                     // Matrix4::from_angle_x(Deg(45.0)) *
                 ;
 
-                target.with_encoder_frame(&gx, |encoder, frame| {
+                target.with_frame(None, |frame| gx.with_encoder(|encoder| {
 
                     encoder.render_pass(frame.attachments(Some(Color::WHITE), Some(1.0)));
 
@@ -148,7 +148,7 @@ fn main() {
 
                     staging_belt.finish();
 
-                }).expect("frame error");
+                })).expect("frame error");
 
                 staging_belt.recall();
 

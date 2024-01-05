@@ -124,16 +124,21 @@ pub trait WgxDevice {
     }
 
 
+    fn command_encoder (&self) -> wgpu::CommandEncoder {
+        self.device().create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None })
+    }
+
+
     // render bundle
 
-    fn render_bundle_encoder(&self, formats: &[Option<wgpu::TextureFormat>], depth_testing:bool, msaa:u32)
+    fn render_bundle_encoder(&self, formats: &[Option<wgpu::TextureFormat>], depth_testing:Option<wgpu::TextureFormat>, msaa:u32)
         -> wgpu::RenderBundleEncoder
     {
         self.device().create_render_bundle_encoder(&wgpu::RenderBundleEncoderDescriptor {
             label: None,
             color_formats: formats,
-            depth_stencil: if depth_testing { Some(wgpu::RenderBundleDepthStencil {
-                format: DEFAULT_DEPTH, depth_read_only: false, stencil_read_only: false,
+            depth_stencil: if let Some(format) = depth_testing { Some(wgpu::RenderBundleDepthStencil {
+                format, depth_read_only: false, stencil_read_only: false,
             })} else { None },
             sample_count: msaa,
             multiview: None,
@@ -167,7 +172,7 @@ pub trait WgxDevice {
 
     fn render_pipeline<const S: usize>(
         &self,
-        depth_testing: bool, msaa: u32,
+        msaa: u32, depth_testing: Option<wgpu::TextureFormat>,
         layout: Option<(&[wgpu::PushConstantRange], &[&wgpu::BindGroupLayout])>,
         buffers: &[wgpu::VertexBufferLayout],
         (module, entry_point, primitive): (&wgpu::ShaderModule, &str, wgpu::PrimitiveState),
@@ -209,8 +214,8 @@ pub trait WgxDevice {
             }
             else {None},
 
-            depth_stencil: if depth_testing { Some(wgpu::DepthStencilState {
-                format: DEFAULT_DEPTH,
+            depth_stencil: if let Some(format) = depth_testing { Some(wgpu::DepthStencilState {
+                format,
                 depth_write_enabled: true,
                 depth_compare: wgpu::CompareFunction::LessEqual,
                 stencil: wgpu::StencilState::default(),
@@ -265,7 +270,7 @@ pub trait WgxDeviceQueue: WgxDevice + WgxQueue {
 
     fn with_encoder<C: ImplicitControlflow>(&self, handler: impl FnOnce(&mut wgpu::CommandEncoder) -> C)
     {
-        let mut encoder = self.device().create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+        let mut encoder = self.command_encoder();
         let controlflow = handler(&mut encoder);
         if controlflow.should_continue() {
             self.queue().submit([encoder.finish()]);

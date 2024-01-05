@@ -1,7 +1,7 @@
 #![feature(assert_matches)]
 
 use std::assert_matches::assert_matches;
-use wgsl_modules::{Module, ModuleCache, register};
+use wgsl_modules::{Module, ModuleCache, inline};
 use proc_macro2::TokenStream;
 use std::str::FromStr;
 
@@ -70,8 +70,8 @@ fn inline_loading_into_cache() {
     let mut modules = ModuleCache::new();
 
     modules.load("inline::util", stringify!{
-        fn normal_2d(v:vec2<f32>) -> vec2<f32> {
-            return vec2<f32>(v.y, -v.x);
+        fn normal_2d(v:vec2f) -> vec2f {
+            return vec2f(v.y, -v.x);
         }
     }).unwrap();
 
@@ -86,13 +86,13 @@ fn inline_loading_into_cache() {
 #[test]
 fn inline_registering() {
 
-    register!("$inline//$util" <= {
-        fn normal_2d(v:vec2<f32>) -> vec2<f32> {
-            return vec2<f32>(v.y, -v.x);
+    inline!("$inline//$util" <= {
+        fn normal_2d(v:vec2f) -> vec2f {
+            return vec2f(v.y, -v.x);
         }
     });
 
-    let module_src = register!("$module/$module" <= {
+    let module_src = inline!("$module/$module" <= {
         &include "../$inline/$util";
     });
 
@@ -103,12 +103,12 @@ fn inline_registering() {
 #[test]
 fn inline_including() {
 
-    let module_src = register!("$module" <= {
+    let module_src = inline!("$module" <= {
         &include "../shaders/util.wgsl";
     });
 
     tokens_eq!(module_src, stringify!{
-        fn normal_2d(v:vec2<f32>) -> vec2<f32> { return vec2<f32>(v.y, -v.x); }
+        fn normal_2d(v:vec2f) -> vec2f { return vec2f(v.y, -v.x); }
     });
 }
 
@@ -118,12 +118,12 @@ mod inner;
 #[test]
 fn inline_inner_including() {
 
-    let module_src = register!("$module" <= {
+    let module_src = inline!("$module" <= {
         &include "./inner/$src";
     });
 
     tokens_eq!(module_src, stringify!{
-        fn normal_2d(v:vec2<f32>) -> vec2<f32> { return vec2<f32>(v.y, -v.x); }
+        fn normal_2d(v:vec2f) -> vec2f { return vec2f(v.y, -v.x); }
     });
 }
 

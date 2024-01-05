@@ -98,7 +98,7 @@ macro_rules! bind {
 
 
 #[macro_export]
-macro_rules! vertex_desc {
+macro_rules! vertex_dsc {
     ($step:ident, $($loc:expr => $fmt:ident),*) => {
         $crate::wgpu::VertexBufferLayout {
             array_stride: ($($crate::wgpu::VertexFormat::$fmt.size() + )* 0) as $crate::wgpu::BufferAddress,

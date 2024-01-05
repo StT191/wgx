@@ -69,7 +69,7 @@ macro_rules! next {
 
 
 #[proc_macro]
-pub fn register(input: TokenStream) -> TokenStream {
+pub fn inline(input: TokenStream) -> TokenStream {
 
     let dir_path = Span::call_site().source_file().path().parent().unwrap().to_owned();
 

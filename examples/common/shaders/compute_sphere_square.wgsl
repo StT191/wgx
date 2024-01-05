@@ -10,7 +10,7 @@ struct Vertex { x: f32, y: f32, z: f32, tx: f32, ty: f32, tz: f32, nx: f32, ny: 
 // consts
 const FRAC_PI_4 = 0.7853981633974483;
 
-const t = vec3<f32>(-1.0, -1.0, -1.0); // texture coordinates
+const t = vec3f(-1.0, -1.0, -1.0); // texture coordinates
 
 
 
@@ -32,25 +32,25 @@ fn cp_main(
     let h1 = tan(da * (h + 1.0));
 
 
-    var a: vec3<f32>; var b: vec3<f32>; var c: vec3<f32>; var d: vec3<f32>;
+    var a: vec3f; var b: vec3f; var c: vec3f; var d: vec3f;
 
     if (global_id.z == 0u) {
-        a = vec3<f32>(h0, v0, -1.0);
-        b = vec3<f32>(h1, v0, -1.0);
-        c = vec3<f32>(h1, v1, -1.0);
-        d = vec3<f32>(h0, v1, -1.0);
+        a = vec3f(h0, v0, -1.0);
+        b = vec3f(h1, v0, -1.0);
+        c = vec3f(h1, v1, -1.0);
+        d = vec3f(h0, v1, -1.0);
     }
     else if (global_id.z == 1u) {
-        a = vec3<f32>(1.0, h0, -v0);
-        b = vec3<f32>(1.0, h1, -v0);
-        c = vec3<f32>(1.0, h1, -v1);
-        d = vec3<f32>(1.0, h0, -v1);
+        a = vec3f(1.0, h0, -v0);
+        b = vec3f(1.0, h1, -v0);
+        c = vec3f(1.0, h1, -v1);
+        d = vec3f(1.0, h0, -v1);
     }
     else if (global_id.z == 2u) {
-        a = vec3<f32>(v0, 1.0, -h0);
-        b = vec3<f32>(v0, 1.0, -h1);
-        c = vec3<f32>(v1, 1.0, -h1);
-        d = vec3<f32>(v1, 1.0, -h0);
+        a = vec3f(v0, 1.0, -h0);
+        b = vec3f(v0, 1.0, -h1);
+        c = vec3f(v1, 1.0, -h1);
+        d = vec3f(v1, 1.0, -h0);
     }
 
     a = normalize(a);

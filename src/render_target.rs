@@ -8,7 +8,7 @@ pub trait RenderTarget {
     // to implement
     fn size(&self) -> (u32, u32);
     fn msaa(&self) -> u32;
-    fn depth_testing(&self) -> bool;
+    fn depth_testing(&self) -> Option<TextureFormat>;
     fn format(&self) -> TextureFormat;
     fn view_format(&self) -> TextureFormat;
 
@@ -39,7 +39,7 @@ pub trait RenderTarget {
         (fs_module, fs_entry_point, blend): (&wgpu::ShaderModule, &str, Option<Blend>),
     ) -> wgpu::RenderPipeline {
         gx.render_pipeline(
-            self.depth_testing(), self.msaa(), layout, buffers, vertex_state,
+            self.msaa(), self.depth_testing(), layout, buffers, vertex_state,
             Some((fs_module, fs_entry_point, &[(self.view_format(), blend)])),
         )
     }
@@ -103,7 +103,7 @@ impl TextureLot {
 impl RenderTarget for TextureLot {
     fn size(&self) -> (u32, u32) { (self.texture.width(), self.texture.height()) }
     fn msaa(&self) -> u32 { 1 }
-    fn depth_testing(&self) -> bool { false }
+    fn depth_testing(&self) -> Option<TextureFormat> { None }
     fn format(&self) -> TextureFormat { self.descriptor.format }
     fn view_format(&self) -> TextureFormat { self.descriptor.view_format }
 }
@@ -128,7 +128,7 @@ pub struct SurfaceTarget {
 impl RenderTarget for SurfaceTarget {
     fn size(&self) -> (u32, u32) { (self.config.width, self.config.height) }
     fn msaa(&self) -> u32 { self.msaa }
-    fn depth_testing(&self) -> bool { self.depth_opt.is_some() }
+    fn depth_testing(&self) -> Option<TextureFormat> { self.depth_opt.as_ref().map(|d| d.view_format()) }
     fn format(&self) -> TextureFormat { self.config.format }
     fn view_format(&self) -> TextureFormat { self.view_format }
 }
@@ -143,7 +143,7 @@ pub struct SurfaceFrame<'a> {
 impl RenderTarget for SurfaceFrame<'_> {
     fn size(&self) -> (u32, u32) { self.target.size() }
     fn msaa(&self) -> u32 { self.target.msaa() }
-    fn depth_testing(&self) -> bool { self.target.depth_testing() }
+    fn depth_testing(&self) -> Option<TextureFormat> { self.target.depth_testing() }
     fn format(&self) -> TextureFormat { self.target.format() }
     fn view_format(&self) -> TextureFormat { self.target.view_format() }
 }
@@ -229,25 +229,22 @@ impl SurfaceTarget {
     }
 
 
-    pub fn with_encoder_frame<C: ImplicitControlflow>(
-        &mut self, gx:&impl WgxDeviceQueue,
-        handler: impl FnOnce(&mut wgpu::CommandEncoder, &SurfaceFrame) -> C
+    pub fn with_frame<C: ImplicitControlflow>(
+        &mut self, dsc: Option<&wgpu::TextureViewDescriptor>, handler: impl FnOnce(&SurfaceFrame) -> C
     ) -> Res<()>
     {
         let frame = self.surface.get_current_texture().convert()?;
 
-        let mut present_frame = false;
-
-        gx.with_encoder(|encoder| {
-            let controlflow = handler(encoder, &SurfaceFrame {
-                view: frame.texture.create_default_view(Some(self.view_format())),
-                target: self,
-            });
-            present_frame = controlflow.should_continue();
-            controlflow
+        let controlflow = handler(&SurfaceFrame {
+            view: if let Some(dsc) = dsc {
+                frame.texture.create_view(dsc)
+            } else {
+                frame.texture.create_default_view(Some(self.view_format()))
+            },
+            target: self,
         });
 
-        if present_frame {
+        if controlflow.should_continue() {
             frame.present();
         }
 
@@ -271,7 +268,7 @@ pub struct TextureTarget {
 impl RenderTarget for TextureTarget {
     fn size(&self) -> (u32, u32) { self.descriptor.size_2d() }
     fn msaa(&self) -> u32 { self.msaa }
-    fn depth_testing(&self) -> bool { self.depth_opt.is_some() }
+    fn depth_testing(&self) -> Option<TextureFormat> { self.depth_opt.as_ref().map(|d| d.view_format()) }
     fn format(&self) -> TextureFormat { self.descriptor.format }
     fn view_format(&self) -> TextureFormat { self.descriptor.view_format }
 }

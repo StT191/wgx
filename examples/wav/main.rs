@@ -40,7 +40,7 @@ fn main() {
 
   // triangle pipeline
   let pipeline = target.render_pipeline(&gx,
-    None, &[vertex_desc!(Vertex, 0 => Float32x3, 1 => Float32x3, 2 => Float32x3)],
+    None, &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x3, 2 => Float32x3)],
     (&shader, "vs_main", Primitive::default()),
     (&shader, "fs_main", BLENDING),
   );
@@ -128,9 +128,9 @@ fn main() {
 
         // let then = Instant::now();
 
-        target.with_encoder_frame(&gx, |encoder, frame| {
-          encoder.render_bundles(frame.attachments(Some(Color::BLACK), Some(1.0)), &bundles);
-        }).expect("frame error");
+        target.with_frame(None, |frame| gx.with_encoder(|encoder| {
+          encoder.pass_bundles(frame.attachments(Some(Color::BLACK), Some(1.0)), &bundles);
+        })).expect("frame error");
 
         // println!("{:?}", then.elapsed());
       },

@@ -1,4 +1,4 @@
 
-fn normal_2d(v:vec2<f32>) -> vec2<f32> {
-    return vec2<f32>(v.y, -v.x);
+fn normal_2d(v:vec2f) -> vec2f {
+    return vec2f(v.y, -v.x);
 }

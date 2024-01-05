@@ -2,6 +2,6 @@
 use super::*;
 
 #[allow(unused)]
-static SRC: &str = register!("$src" <= {
+static SRC: &str = inline!("$src" <= {
     &include "../../shaders/util.wgsl";
 });

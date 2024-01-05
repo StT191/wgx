@@ -85,6 +85,6 @@ impl ImplicitControlflow for () {
     fn should_continue(&self) -> bool { true }
 }
 
-impl<A, B> ImplicitControlflow for std::ops::ControlFlow<A, B> {
+impl<B, C> ImplicitControlflow for std::ops::ControlFlow<B, C> {
     fn should_continue(&self) -> bool { self.is_continue() }
 }

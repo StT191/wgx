@@ -1,12 +1,12 @@
 
 // sdf functions
 
-fn sdSphere(P: vec3<f32>, pos: vec3<f32>, r: f32) -> f32 {
+fn sdSphere(P: vec3f, pos: vec3f, r: f32) -> f32 {
   return length(P - pos) - r;
 }
 
-fn sdBox(P: vec3<f32>, pos: vec3<f32>, dim: vec3<f32>) -> f32 {
-  return length(max(abs(P - pos) - dim, vec3<f32>(0.0)));
+fn sdBox(P: vec3f, pos: vec3f, dim: vec3f) -> f32 {
+  return length(max(abs(P - pos) - dim, vec3f(0.0)));
 }
 
 

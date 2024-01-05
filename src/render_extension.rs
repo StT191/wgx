@@ -96,7 +96,7 @@ pub trait EncoderExtension {
         handler: impl FnOnce(wgpu::RenderPass<'a>) -> T
     ) -> T;
 
-    fn render_bundles<'a, const S: usize>(
+    fn pass_bundles<'a, const S: usize>(
         &'a mut self, attachments: RenderAttachments<'a, S>,
         bundles: impl IntoIterator<Item = &'a wgpu::RenderBundle> + 'a
     );
@@ -189,7 +189,7 @@ impl EncoderExtension for wgpu::CommandEncoder {
     }
 
 
-    fn render_bundles<'a, const S: usize>(
+    fn pass_bundles<'a, const S: usize>(
         &'a mut self, attachments: RenderAttachments<'a, S>,
         bundles: impl IntoIterator<Item = &'a wgpu::RenderBundle> + 'a
     ) {

@@ -47,7 +47,7 @@ fn main() {
 
     let pipeline = target.render_pipeline(&gx,
         Some((push_constants![0..4 => Stage::FRAGMENT], &[&layout])),
-        &[vertex_desc!(Vertex, 0 => Float32x2)],
+        &[vertex_dsc!(Vertex, 0 => Float32x2)],
         (&shader, "vs_main", Primitive::default()),
         (&shader, "fs_main", BLENDING),
     );
@@ -132,7 +132,7 @@ fn main() {
             Event::RedrawRequested(_) => {
 
                 // draw
-                target.with_encoder_frame(&gx, |encoder, frame| {
+                target.with_frame(None, |frame| gx.with_encoder(|encoder| {
                     encoder.with_render_pass(frame.attachments(Some(Color::BLACK), None), |mut rpass| {
                         rpass.set_pipeline(&pipeline);
                         rpass.set_bind_group(0, &binding, &[]);
@@ -140,7 +140,7 @@ fn main() {
                         rpass.set_push_constants(Stage::FRAGMENT, 0, &time.elapsed().as_secs_f32().to_ne_bytes());
                         rpass.draw(0..vertex_data.len() as u32, 0..1);
                     });
-                }).expect("frame error");
+                })).expect("frame error");
 
                 // statistics
                 // frame_counter.add();
