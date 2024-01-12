@@ -1,7 +1,7 @@
 
 use std::{
+    collections::{HashMap, HashSet}, ops::Range, borrow::Cow, sync::Arc,
     path::{Path, PathBuf}, fs:: read_to_string,
-    collections::{HashMap, HashSet}, ops::Range, borrow::Cow, rc::Rc,
 };
 use lazy_static::lazy_static;
 use regex_lite::Regex;
@@ -13,14 +13,14 @@ pub type Res<T> = Result<T, Error>;
 
 
 #[derive(Debug)]
-struct Include { path: Rc<Path>, source_range: Range<usize> }
+struct Include { path: Arc<Path>, source_range: Range<usize> }
 
 
 // module
 #[derive(Debug)]
 pub struct Module {
     includes: Vec<Include>,
-    dependencies: HashSet<Rc<Path>>,
+    dependencies: HashSet<Arc<Path>>,
     source: Box<str>,
     code: Box<str>,
 }
@@ -46,7 +46,7 @@ impl Module {
 
             while let Some(captures) = test_regex.captures_at(&source, from) {
 
-                let path: Rc<Path> = AsRef::<Path>::as_ref(&captures[3]).into();
+                let path: Arc<Path> = AsRef::<Path>::as_ref(&captures[3]).into();
 
                 let matched = captures.get(0).unwrap();
 
@@ -93,14 +93,14 @@ fn parent_path(path: &Path) -> Res<&Path> {
 fn normpath(path: &Path) -> PathBuf {
 
     let mut normal = PathBuf::new();
-    let mut level = 0;
+    let mut level: usize = 0;
 
     for part in path.iter() {
         if part == ".." {
-            if level > 0 { normal.pop(); level -= 1 }
+            if level != 0 { normal.pop(); level -= 1 }
             else { normal.push(".."); }
         }
-        else if part != "." && part != "" {
+        else if part != "." {
             normal.push(part);
             level += 1;
         }
@@ -112,11 +112,11 @@ fn normpath(path: &Path) -> PathBuf {
 
 // modules
 
-pub struct ModuleCache { map: HashMap<Rc<Path>, Module> }
+pub struct ModuleCache { map: HashMap<Arc<Path>, Module> }
 
 impl ModuleCache {
 
-    fn resolve_module(&mut self, module_trace: &mut Vec<Rc<Path>>, path: Rc<Path>) -> Res<&mut Module> {
+    fn resolve_module(&mut self, module_trace: &mut Vec<Arc<Path>>, path: Arc<Path>) -> Res<&mut Module> {
 
         if module_trace.contains(&path) { return Err(format!(
             "circular dependency {} from {}",
@@ -130,7 +130,7 @@ impl ModuleCache {
             let dir_path = parent_path(&path)?;
 
             module_trace.push(path.clone());
-            module.resolve_includes(self, module_trace, &Rc::from(dir_path))?;
+            module.resolve_includes(self, module_trace, &Arc::from(dir_path))?;
             module_trace.pop();
 
             self.map.insert(path.clone(), module);
@@ -143,7 +143,7 @@ impl ModuleCache {
 
 impl Module {
 
-    fn resolve_includes(&mut self, cache: &mut ModuleCache, module_trace: &mut Vec<Rc<Path>>, dir_path: &Path) -> Res<()> {
+    fn resolve_includes(&mut self, cache: &mut ModuleCache, module_trace: &mut Vec<Arc<Path>>, dir_path: &Path) -> Res<()> {
 
         let mut code = self.source.to_string();
 
@@ -152,7 +152,7 @@ impl Module {
             let include_path = normpath(&dir_path.join(&include.path));
             let include_dir_path = parent_path(&include_path)?;
 
-            let module = cache.resolve_module(module_trace, Rc::from(include_path.as_ref()))?;
+            let module = cache.resolve_module(module_trace, Arc::from(include_path.as_ref()))?;
 
             for dependency in &module.dependencies {
                 let include_path = normpath(&include_dir_path.join(dependency));
@@ -176,14 +176,14 @@ impl Module {
     // module loading
 
     pub fn load<'a>(path: impl AsRef<Path>, source_code: impl Into<Cow<'a ,str>>) -> Res<Module> {
-        let path = Rc::from(normpath(path.as_ref()));
+        let path = Arc::from(normpath(path.as_ref()));
         let mut cache = ModuleCache::new();
         cache.load(&path, source_code)?;
         Ok(cache.map.remove(&path).unwrap())
     }
 
     pub fn load_from_path(path: impl AsRef<Path>) -> Res<Self> {
-        let path = Rc::from(normpath(path.as_ref()));
+        let path = Arc::from(normpath(path.as_ref()));
         let mut cache = ModuleCache::new();
         cache.load_from_path(&path)?;
         Ok(cache.map.remove(&path).unwrap())
@@ -232,7 +232,7 @@ impl ModuleCache {
 
     fn load_helper(&mut self, path: &Path, source_code: Option<Cow<str>>) -> Res<&Module> {
 
-        let path = Rc::from(normpath(path.as_ref()));
+        let path = Arc::from(normpath(path.as_ref()));
         let dir_path = parent_path(&path)?;
 
         let mut module = if let Some(source_code) = source_code {
@@ -245,9 +245,9 @@ impl ModuleCache {
 
         validate(module.code())?;
 
-        self.map.insert(Rc::from(path.as_ref()), module);
+        self.map.insert(Arc::from(path.as_ref()), module);
 
-        Ok(self.map.get_mut(&path).unwrap())
+        Ok(self.map.get(&path).unwrap())
     }
 
     pub fn load<'a>(&mut self, path: impl AsRef<Path>, source_code: impl Into<Cow<'a ,str>>) -> Res<&Module> {

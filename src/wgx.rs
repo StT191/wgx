@@ -131,10 +131,13 @@ pub trait WgxDevice {
 
     // render bundle
 
-    fn render_bundle_encoder(&self, formats: &[Option<wgpu::TextureFormat>], depth_testing:Option<wgpu::TextureFormat>, msaa:u32)
-        -> wgpu::RenderBundleEncoder
+    fn render_bundle<'a>(&'a self,
+        formats: &[Option<wgpu::TextureFormat>], depth_testing:Option<wgpu::TextureFormat>, msaa:u32,
+        handler: impl FnOnce(&mut wgpu::RenderBundleEncoder<'a>),
+    )
+        -> wgpu::RenderBundle
     {
-        self.device().create_render_bundle_encoder(&wgpu::RenderBundleEncoderDescriptor {
+        let mut encoder = self.device().create_render_bundle_encoder(&wgpu::RenderBundleEncoderDescriptor {
             label: None,
             color_formats: formats,
             depth_stencil: if let Some(format) = depth_testing { Some(wgpu::RenderBundleDepthStencil {
@@ -142,7 +145,11 @@ pub trait WgxDevice {
             })} else { None },
             sample_count: msaa,
             multiview: None,
-        })
+        });
+
+        handler(&mut encoder);
+
+        encoder.finish(&wgpu::RenderBundleDescriptor::default())
     }
 
 

@@ -21,14 +21,8 @@ pub trait RenderTarget {
         }
     }
 
-    fn render_bundle_encoder<'a>(&self, gx: &'a Wgx) -> wgpu::RenderBundleEncoder<'a> {
-        gx.render_bundle_encoder(&[Some(self.view_format())], self.depth_testing(), self.msaa())
-    }
-
     fn render_bundle<'a>(&self, gx: &'a Wgx, handler: impl FnOnce(&mut wgpu::RenderBundleEncoder<'a>)) -> wgpu::RenderBundle {
-        let mut encoder = self.render_bundle_encoder(gx);
-        handler(&mut encoder);
-        encoder.finish(&wgpu::RenderBundleDescriptor::default())
+        gx.render_bundle(&[Some(self.view_format())], self.depth_testing(), self.msaa(), handler)
     }
 
     fn render_pipeline(

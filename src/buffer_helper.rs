@@ -73,7 +73,7 @@ impl<T: Copy> CopyExtend<T> for Vec<T> {
         let need = isize::try_from(end).unwrap() - isize::try_from(start_len).unwrap();
 
         // SAFETY: We copy from a type that implements Copy.
-        //         Pointers my never overlap because of rust aliasing rules for slices.
+        //         Pointers may never overlap because of rust aliasing rules for slices.
         //         We reserve enough space beforehand.
         //         We only set the new length of the vector after copying.
         unsafe {

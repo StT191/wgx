@@ -87,7 +87,7 @@ macro_rules! apply {
 }
 
 
-// in left handed coordinate system
+// in right handed coordinate system
 pub fn normal_from_triangle<S:BaseFloat, V: Into<Vector3<S>> + Copy >(v0:V, v1:V, v2:V) -> Vector3<S> {
     (v1.into() - v0.into()).cross(v2.into() - v0.into()).normalize()
 }
