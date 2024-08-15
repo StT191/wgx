@@ -178,6 +178,7 @@ pub trait WgxDevice {
             label: None,
             layout: layout.as_ref(),
             module, entry_point,
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
         })
     }
 
@@ -212,7 +213,10 @@ pub trait WgxDevice {
             }
             else { None },
 
-            vertex: wgpu::VertexState { module, entry_point, buffers },
+            vertex: wgpu::VertexState {
+                module, entry_point, buffers,
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+            },
 
             primitive,
 
@@ -224,7 +228,10 @@ pub trait WgxDevice {
                     write_mask: wgpu::ColorWrites::ALL,
                 })).collect();
 
-                Some(wgpu::FragmentState { module, entry_point, targets: &targets })
+                Some(wgpu::FragmentState {
+                    module, entry_point, targets: &targets,
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                })
             }
             else {None},
 

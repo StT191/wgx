@@ -71,7 +71,6 @@ use wgpu::Label;
 type TextureDescriptor<'a> = wgpu_types::TextureDescriptor<Label<'static>, &'a [TextureFormat]>;
 
 
-
 impl<'a> From<&'a TexDsc> for TextureDescriptor<'a> {
     fn from(dsc: &'a TexDsc) -> TextureDescriptor<'a> {
         TextureDescriptor {
