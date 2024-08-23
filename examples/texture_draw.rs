@@ -32,7 +32,7 @@ fn main() {
 
 
     let (gx, surface) = Wgx::new(Some(window.clone()), features!(), limits!{}).block_on().unwrap();
-    let mut target = SurfaceTarget::new(&gx, surface.unwrap(), (width, height), MSAA, DEPTH_TESTING).unwrap();
+    let mut target = SurfaceTarget::new(&gx, surface.unwrap(), [width, height], MSAA, DEPTH_TESTING).unwrap();
 
 
     // common/shaders
@@ -65,7 +65,7 @@ fn main() {
 
     // colors
     let color_texture = TextureLot::new_2d_with_data(&gx,
-        (1, 1), 1, DEFAULT_SRGB, None, TexUse::TEXTURE_BINDING,
+        [1, 1, 1], 1, DEFAULT_SRGB, None, TexUse::TEXTURE_BINDING,
         // Color::from([0.5, 0.0, 1.0]).u8(),
         Color::ORANGE.u8(),
     );
@@ -77,7 +77,7 @@ fn main() {
     // draw target
     const DRAW_MSAA:u32 = 4;
 
-    let draw_target = TextureTarget::new(&gx, (width, height), DRAW_MSAA, false, DEFAULT_SRGB, None, TexUse::TEXTURE_BINDING);
+    let draw_target = TextureTarget::new(&gx, [width, height], DRAW_MSAA, false, DEFAULT_SRGB, None, TexUse::TEXTURE_BINDING);
     // let draw_target2 = TextureTarget::new(&gx, (width, height), DRAW_MSAA, false, DEFAULT_SRGB, None, TexUse::TEXTURE_BINDING);
 
     let draw_pipeline = gx.render_pipeline(
@@ -136,8 +136,7 @@ fn main() {
             },
 
             Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
-                let size = (size.width, size.height);
-                target.update(&gx, size);
+                target.update(&gx, [size.width, size.height]);
             },
 
             Event::WindowEvent { event: WindowEvent::KeyboardInput { event: KeyEvent {

@@ -30,7 +30,7 @@ fn main() {
     window.set_title("WgFx - Shader Program");
 
     let (gx, surface) = Wgx::new(Some(window.clone()), features!(PUSH_CONSTANTS), limits!{max_push_constant_size: 4}).block_on().unwrap();
-    let mut target = SurfaceTarget::new(&gx, surface.unwrap(), (width, height), MSAA, DEPTH_TESTING).unwrap();
+    let mut target = SurfaceTarget::new(&gx, surface.unwrap(), [width, height], MSAA, DEPTH_TESTING).unwrap();
 
 
     let shader_src = match &*std::env::args().nth(1).expect("Specify a program!") {
@@ -104,7 +104,7 @@ fn main() {
             },
 
             Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
-                target.update(&gx, (size.width, size.height));
+                target.update(&gx, [size.width, size.height]);
 
                 width = size.width as f32;
                 height = size.height as f32;

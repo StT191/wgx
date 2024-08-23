@@ -148,7 +148,7 @@ pub trait WgxDevice {
             label: None,
             color_formats: formats,
             depth_stencil: if let Some(format) = depth_testing { Some(wgpu::RenderBundleDepthStencil {
-                format, depth_read_only: false, stencil_read_only: false,
+                format, depth_read_only: false, stencil_read_only: true,
             })} else { None },
             sample_count: msaa,
             multiview: None,
@@ -260,16 +260,12 @@ pub trait WgxQueue {
 
     fn queue(&self) -> &wgpu::Queue;
 
-    fn write_texture<T: ReadBytes>(&self, texture:&wgpu::Texture, (x, y, w, h):(u32, u32, u32, u32), data:T) {
-        self.queue().write_texture(
-            wgpu::ImageCopyTexture {
-                texture, mip_level: 0, origin: wgpu::Origin3d { x, y, z: 0 },
-                aspect: wgpu::TextureAspect::All
-            },
-            data.read_bytes(),
-            wgpu::ImageDataLayout { offset: 0, bytes_per_row: None, rows_per_image: Some(h) },
-            wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
-        )
+    fn write_texture<'a, T: ReadBytes>(&self,
+        copy_texture: impl ToImageCopyTexture<'a>,
+        (data, data_layout):(T, impl ToImageDataLayout),
+        extent: impl ToExtent3d,
+    ) {
+        self.queue().write_texture(copy_texture.to(), data.read_bytes(), data_layout.to(), extent.to())
     }
 
     fn write_buffer<T: ReadBytes>(&self, buffer:&wgpu::Buffer, offset:u64, data:T) {

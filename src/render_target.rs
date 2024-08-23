@@ -6,7 +6,7 @@ use wgpu::{PresentMode as Prs, SurfaceCapabilities, TextureFormat};
 pub trait RenderTarget {
 
     // to implement
-    fn size(&self) -> (u32, u32);
+    fn size(&self) -> [u32; 2];
     fn msaa(&self) -> u32;
     fn depth_testing(&self) -> Option<TextureFormat>;
     fn format(&self) -> TextureFormat;
@@ -72,30 +72,33 @@ pub struct TextureLot {
 impl TextureLot {
     pub fn new(gx:&impl WgxDevice, descriptor: TexDsc) -> Self {
         let texture = gx.texture(&descriptor);
-        let view = texture.create_default_view(Some(descriptor.view_format));
+        let view = texture.create_view(&descriptor.default_view());
         TextureLot { texture, descriptor, view }
     }
     pub fn new_with_data<T: ReadBytes>(gx:&impl WgxDeviceQueue, descriptor: TexDsc, data: T) -> Self {
         let texture = gx.texture_with_data(&descriptor, data);
-        let view = texture.create_default_view(Some(descriptor.view_format));
+        let view = texture.create_view(&descriptor.default_view());
         TextureLot { texture, descriptor, view }
     }
     pub fn new_2d(
-        gx:&impl WgxDevice, size:(u32, u32), sample_count:u32,
+        gx:&impl WgxDevice, size:[u32; 3], sample_count:u32,
         format:TextureFormat, view_format:Option<TextureFormat>, usage:TexUse
     ) -> Self {
         Self::new(gx, TexDsc::new_2d(size, sample_count, format, view_format, usage))
     }
     pub fn new_2d_with_data<T: ReadBytes>(
-        gx:&impl WgxDeviceQueue, size:(u32, u32), sample_count:u32,
+        gx:&impl WgxDeviceQueue, size:[u32; 3], sample_count:u32,
         format:TextureFormat, view_format:Option<TextureFormat>, usage:TexUse, data: T,
     ) -> Self {
         Self::new_with_data(gx, TexDsc::new_2d(size, sample_count, format, view_format, usage), data)
     }
+    pub fn update_view(&mut self) {
+        self.view = self.texture.create_view(&self.descriptor.default_view());
+    }
 }
 
 impl RenderTarget for TextureLot {
-    fn size(&self) -> (u32, u32) { (self.texture.width(), self.texture.height()) }
+    fn size(&self) -> [u32; 2] { [self.texture.width(), self.texture.height()] }
     fn msaa(&self) -> u32 { 1 }
     fn depth_testing(&self) -> Option<TextureFormat> { None }
     fn format(&self) -> TextureFormat { self.descriptor.format }
@@ -120,7 +123,7 @@ pub struct SurfaceTarget {
 }
 
 impl RenderTarget for SurfaceTarget {
-    fn size(&self) -> (u32, u32) { (self.config.width, self.config.height) }
+    fn size(&self) -> [u32; 2] { [self.config.width, self.config.height] }
     fn msaa(&self) -> u32 { self.msaa }
     fn depth_testing(&self) -> Option<TextureFormat> { self.depth_opt.as_ref().map(|d| d.view_format()) }
     fn format(&self) -> TextureFormat { self.config.format }
@@ -135,7 +138,7 @@ pub struct SurfaceFrame<'a> {
 }
 
 impl RenderTarget for SurfaceFrame<'_> {
-    fn size(&self) -> (u32, u32) { self.target.size() }
+    fn size(&self) -> [u32; 2] { self.target.size() }
     fn msaa(&self) -> u32 { self.target.msaa() }
     fn depth_testing(&self) -> Option<TextureFormat> { self.target.depth_testing() }
     fn format(&self) -> TextureFormat { self.target.format() }
@@ -165,11 +168,11 @@ const DEFAULT_CONFIG: wgpu::SurfaceConfiguration = wgpu::SurfaceConfiguration {
 
 impl SurfaceTarget {
 
-    pub fn new(gx:&Wgx, surface:wgpu::Surface<'static>, size:(u32, u32), msaa:u32, depth_testing:bool) -> Res<Self>
+    pub fn new(gx:&Wgx, surface:wgpu::Surface<'static>, [width, height]:[u32; 2], msaa:u32, depth_testing:bool) -> Res<Self>
     {
         let mut config = DEFAULT_CONFIG.clone();
-        config.width = size.0;
-        config.height = size.1;
+        config.width = width;
+        config.height = height;
 
         let SurfaceCapabilities {formats, present_modes, ..} = surface.get_capabilities(&gx.adapter);
 
@@ -195,28 +198,28 @@ impl SurfaceTarget {
 
         Ok(Self {
             config, surface, view_format, msaa,
-            msaa_opt: if msaa > 1 { Some(TextureLot::new_2d(gx, size, msaa, format, Some(view_format), TexUse::RENDER_ATTACHMENT)) } else { None },
-            depth_opt: if depth_testing { Some(TextureLot::new_2d(gx, size, msaa, DEFAULT_DEPTH, None, TexUse::RENDER_ATTACHMENT)) } else { None },
+            msaa_opt: if msaa > 1 { Some(TextureLot::new_2d(gx, [width, height, 1], msaa, format, Some(view_format), TexUse::RENDER_ATTACHMENT)) } else { None },
+            depth_opt: if depth_testing { Some(TextureLot::new_2d(gx, [width, height, 1], msaa, DEFAULT_DEPTH, None, TexUse::RENDER_ATTACHMENT)) } else { None },
         })
     }
 
 
-    pub fn update(&mut self, gx:&impl WgxDevice, size:(u32, u32)) {
+    pub fn update(&mut self, gx:&impl WgxDevice, [width, height]: [u32; 2]) {
 
-        self.config.width = size.0;
-        self.config.height = size.1;
+        self.config.width = width;
+        self.config.height = height;
 
         self.surface.configure(gx.device(), &self.config);
 
         let map_opt = |lot:&TextureLot| {
             let mut descriptor = lot.descriptor.clone();
-            descriptor.set_size_2d(size);
+            descriptor.set_size_2d([width, height]);
             descriptor.sample_count = self.msaa;
             TextureLot::new(gx, descriptor)
         };
 
         self.msaa_opt = if self.msaa > 1 { self.msaa_opt.as_ref().map(map_opt).or_else(||
-            Some(TextureLot::new_2d(gx, size, self.msaa, self.format(), Some(self.view_format), TexUse::RENDER_ATTACHMENT))
+            Some(TextureLot::new_2d(gx, [width, height, 1], self.msaa, self.format(), Some(self.view_format), TexUse::RENDER_ATTACHMENT))
         )}
         else { None };
 
@@ -261,7 +264,7 @@ pub struct TextureTarget {
 }
 
 impl RenderTarget for TextureTarget {
-    fn size(&self) -> (u32, u32) { self.descriptor.size_2d() }
+    fn size(&self) -> [u32; 2] { self.descriptor.size_2d() }
     fn msaa(&self) -> u32 { self.msaa }
     fn depth_testing(&self) -> Option<TextureFormat> { self.depth_opt.as_ref().map(|d| d.view_format()) }
     fn format(&self) -> TextureFormat { self.descriptor.format }
@@ -280,24 +283,24 @@ impl RenderAttachable for TextureTarget {
 impl TextureTarget {
 
     pub fn new(
-        gx:&impl WgxDevice, size:(u32, u32), msaa:u32, depth_testing: bool,
+        gx:&impl WgxDevice, [w, h]:[u32; 2], msaa:u32, depth_testing: bool,
         format:TextureFormat, view_format:Option<TextureFormat>, usage:wgpu::TextureUsages,
     ) -> Self
     {
-        let TextureLot { texture, descriptor, view } = TextureLot::new_2d(gx, size, 1, format, view_format, usage | TexUse::RENDER_ATTACHMENT);
+        let TextureLot { texture, descriptor, view } = TextureLot::new_2d(gx, [w, h, 1], 1, format, view_format, usage | TexUse::RENDER_ATTACHMENT);
         Self {
             texture, descriptor, view, // output attachment can have only one sample
             msaa,
-            msaa_opt: if msaa > 1 { Some(TextureLot::new_2d(gx, size, msaa, format, view_format, TexUse::RENDER_ATTACHMENT)) } else { None },
-            depth_opt: if depth_testing { Some(TextureLot::new_2d(gx, size, msaa, DEFAULT_DEPTH, None, TexUse::RENDER_ATTACHMENT)) } else { None },
+            msaa_opt: if msaa > 1 { Some(TextureLot::new_2d(gx, [w, h, 1], msaa, format, view_format, TexUse::RENDER_ATTACHMENT)) } else { None },
+            depth_opt: if depth_testing { Some(TextureLot::new_2d(gx, [w, h, 1], msaa, DEFAULT_DEPTH, None, TexUse::RENDER_ATTACHMENT)) } else { None },
         }
     }
 
-    pub fn update(&mut self, gx:&impl WgxDevice, size:(u32, u32)) {
+    pub fn update(&mut self, gx:&impl WgxDevice, [w, h]:[u32; 2]) {
 
         let map_opt = |descriptor: &TexDsc| {
             let mut descriptor = descriptor.clone();
-            descriptor.set_size_2d(size);
+            descriptor.set_size_2d([w, h]);
             descriptor.sample_count = self.msaa;
             TextureLot::new(gx, descriptor)
         };
@@ -306,7 +309,7 @@ impl TextureTarget {
         self.texture = texture; self.descriptor = descriptor; self.view = view;
 
         self.msaa_opt = if self.msaa > 1 { self.msaa_opt.as_ref().map(|d| map_opt(&d.descriptor)).or_else(||
-            Some(TextureLot::new_2d(gx, size, self.msaa, self.format(), Some(self.view_format()), TexUse::RENDER_ATTACHMENT))
+            Some(TextureLot::new_2d(gx, [w, h, 1], self.msaa, self.format(), Some(self.view_format()), TexUse::RENDER_ATTACHMENT))
         )}
         else { None };
 

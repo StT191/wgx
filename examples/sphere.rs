@@ -32,7 +32,7 @@ fn main() {
   let features = features!(POLYGON_MODE_LINE/*, Features::MULTI_DRAW_INDIRECT*/);
 
   let (gx, surface) = Wgx::new(Some(window.clone()), features, limits!{}).block_on().unwrap();
-  let mut target = SurfaceTarget::new(&gx, surface.unwrap(), (width, height), MSAA, DEPTH_TESTING).unwrap();
+  let mut target = SurfaceTarget::new(&gx, surface.unwrap(), [width, height], MSAA, DEPTH_TESTING).unwrap();
 
 
   // pipeline
@@ -52,7 +52,7 @@ fn main() {
   );
 
   // colors
-  let color_texture = TextureLot::new_2d_with_data(&gx, (1, 1), 1, DEFAULT_SRGB, None, TexUse::TEXTURE_BINDING, [255u8, 0, 0, 255]);
+  let color_texture = TextureLot::new_2d_with_data(&gx, [1, 1, 1], 1, DEFAULT_SRGB, None, TexUse::TEXTURE_BINDING, [255u8, 0, 0, 255]);
   let sampler = gx.default_sampler();
 
 
@@ -213,7 +213,7 @@ fn main() {
       },
 
       Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
-        target.update(&gx, (size.width, size.height));
+        target.update(&gx, [size.width, size.height]);
         world.fov.resize_window(size.width as f32, size.height as f32, true);
         world.calc_clip_matrix();
         // world.light_matrix = light_matrix * world.rotation; // keep light

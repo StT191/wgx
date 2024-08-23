@@ -25,7 +25,7 @@ fn main() {
 
 
     let (gx, surface) = Wgx::new(Some(window.clone()), features!(), limits!{}).block_on().unwrap();
-    let mut target = SurfaceTarget::new(&gx, surface.unwrap(), (1200, 1200), MSAA, DEPTH_TESTING).unwrap();
+    let mut target = SurfaceTarget::new(&gx, surface.unwrap(), [1200, 1200], MSAA, DEPTH_TESTING).unwrap();
 
 
     // global pipeline
@@ -39,7 +39,7 @@ fn main() {
 
     // colors
     let texture = TextureLot::new_2d_with_data(&gx,
-        (2, 1), 1, DEFAULT_SRGB, None, /*TexUse::COPY_SRC |*/ TexUse::TEXTURE_BINDING,
+        [2, 1, 1], 1, DEFAULT_SRGB, None, /*TexUse::COPY_SRC |*/ TexUse::TEXTURE_BINDING,
         [[255u8, 0, 0, 255], [0, 0, 255, 50]]
     );
 
@@ -94,7 +94,7 @@ fn main() {
             },
 
             Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
-                target.update(&gx, (size.width, size.height));
+                target.update(&gx, [size.width, size.height]);
             },
 
             Event::WindowEvent { event: WindowEvent::KeyboardInput { event: KeyEvent {

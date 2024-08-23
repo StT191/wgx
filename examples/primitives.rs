@@ -32,7 +32,7 @@ fn main() {
 
 
     let (gx, surface) = Wgx::new(Some(window.clone()), features!(), limits!{}).block_on().unwrap();
-    let mut target = SurfaceTarget::new(&gx, surface.unwrap(), (width, height), MSAA, DEPTH_TESTING).unwrap();
+    let mut target = SurfaceTarget::new(&gx, surface.unwrap(), [width, height], MSAA, DEPTH_TESTING).unwrap();
 
 
     // global pipeline
@@ -40,14 +40,14 @@ fn main() {
 
     // layout
     let layout = gx.layout(&[
-        binding!(0, Stage::FRAGMENT, SampledTexture2D),
+        binding!(0, Stage::FRAGMENT, Texture, D2),
         binding!(1, Stage::FRAGMENT, Sampler)
     ]);
 
 
     // colors
     let color_texture = TextureLot::new_2d_with_data(&gx,
-        (3, 1), 1, DEFAULT_SRGB, None, TexUse::TEXTURE_BINDING,
+        [3, 1, 1], 1, DEFAULT_SRGB, None, TexUse::TEXTURE_BINDING,
         [[255u8, 0, 0, 255], [0, 255, 0, 255], [0, 0, 255, 255]]
     );
 
@@ -120,19 +120,13 @@ fn main() {
 
 
     // picture pipeline
-    let decoder = png::Decoder::new(&include_bytes!("common/img/logo_red.png")[..]);
-    let mut reader = decoder.read_info().expect("failed decoding image");
-
-    let mut img_data = vec![0; reader.output_buffer_size()];
-
-
-    let info = reader.next_frame(&mut img_data).expect("failed reading image");
-
-    /*let img = image::load_from_memory(include_bytes!("common/img/logo_red.png"))
+    let img = image::load_from_memory(include_bytes!("common/img/logo_red.png"))
         .expect("failed loading image")
-        .into_rgba8();*/
+        .into_rgba8()
+    ;
 
-    let image_texture = TextureLot::new_2d_with_data(&gx, (info.width, info.height), 1, DEFAULT_SRGB, None, TexUse::TEXTURE_BINDING, &*img_data);
+    let (w, h) = (img.width(), img.height());
+    let image_texture = TextureLot::new_2d_with_data(&gx, [w, h, 1], 1, DEFAULT_SRGB, None, TexUse::TEXTURE_BINDING, &img.as_raw()[..]);
 
     // binding
     let img_binding = gx.bind(&layout, &[
@@ -196,7 +190,7 @@ fn main() {
             },
 
             Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
-                target.update(&gx, (size.width, size.height));
+                target.update(&gx, [size.width, size.height]);
             },
 
             Event::WindowEvent { event: WindowEvent::KeyboardInput { event: KeyEvent {

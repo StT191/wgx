@@ -2,77 +2,13 @@
 // wgpu::Color drop in
 
 #[derive(Debug, PartialEq, Clone, Copy)]
+#[repr(C)]
 pub struct Color { pub r: f32, pub g: f32, pub b: f32, pub a: f32 }
-
-// From
-
-impl From<[f32; 4]> for Color {
-    fn from(val: [f32; 4]) -> Self { Self::from_f32(val) }
-}
-impl From<[f32; 3]> for Color {
-    fn from(val: [f32; 3]) -> Self { Self::from_f32_rgb(val) }
-}
-
-impl From<[f64; 4]> for Color {
-    fn from([r, g, b, a]:[f64; 4]) -> Self { Self::new(r as f32, g as f32, b as f32, a as f32) }
-}
-impl From<[f64; 3]> for Color {
-    fn from([r, g, b]:[f64; 3]) -> Self { Self::from([r, g, b, 1.0]) }
-}
-
-
-
-const F:f32 = 255.0;
-
-impl From<[u8; 4]> for Color {
-    fn from([r, g, b, a]:[u8; 4]) -> Self { Self::new((r as f32)/F, (g as f32)/F, (b as f32)/F, (a as f32)/F) }
-}
-impl From<[u8; 3]> for Color {
-    fn from([r, g, b]:[u8; 3]) -> Self { Self::from([r, g, b, 255]) }
-}
-
-
-impl From<wgpu::Color> for Color {
-    fn from(wgpu::Color {r, g, b, a}:wgpu::Color) -> Self { Self::from([r, g, b, a]) }
-}
-
-
-// Into other types
-
-impl From<Color> for [f32; 4] {
-    fn from(cl: Color) -> Self { cl.f32() }
-}
-impl From<Color> for [f32; 3] {
-    fn from(cl: Color) -> Self { cl.f32_rgb() }
-}
-
-impl From<Color> for [f64; 4] {
-    fn from(cl: Color) -> Self { [cl.r as f64, cl.g as f64, cl.b as f64, cl.a as f64] }
-}
-impl From<Color> for [f64; 3] {
-    fn from(cl: Color) -> Self { [cl.r as f64, cl.g as f64, cl.b as f64] }
-}
-
-
-impl From<Color> for [u8; 4] {
-    fn from(cl: Color) ->Self { [(F*cl.r) as u8, (F*cl.g) as u8, (F*cl.b) as u8, (F*cl.a) as u8] }
-}
-impl From<Color> for [u8; 3] {
-    fn from(cl: Color) ->Self { [(F*cl.r) as u8, (F*cl.g) as u8, (F*cl.b) as u8] }
-}
-
-
-impl From<Color> for wgpu::Color {
-    fn from(cl: Color) -> Self { Self {r: cl.r as f64, g: cl.g as f64, b: cl.b as f64, a: cl.a as f64} }
-}
-
-
 
 // default
 impl Default for Color {
     fn default() -> Self { Self::TRANSPARENT }
 }
-
 
 // color channel srgb to linear
 fn linear_component(u: f32) -> f32 {
@@ -95,21 +31,38 @@ fn srgb_component(u: f32) -> f32 {
 use arrayvec::ArrayString;
 use std::fmt::Write;
 
+const F: f32 = 255.0;
+
 impl Color {
     pub const fn new(r:f32, g:f32, b:f32, a:f32) -> Self { Self {r, g, b, a} }
+    pub const fn new_rgb(r:f32, g:f32, b:f32) -> Self { Self {r, g, b, a: 1.0} }
 
-    pub const fn from_f32([r, g, b, a]:[f32; 4]) -> Self { Self {r, g, b, a} }
-    pub const fn from_f32_rgb([r, g, b]:[f32; 3]) -> Self { Self {r, g, b, a: 1.0} }
-
+    // into
     pub const fn f32(self) -> [f32; 4] { [self.r, self.g, self.b, self.a] }
     pub const fn f32_rgb(self) -> [f32; 3] { [self.r, self.g, self.b] }
 
-    pub fn f64(self) -> [f64; 4] { self.into() }
-    pub fn f64_rgb(self) -> [f64; 3] { self.into() }
+    pub const fn f64(self) -> [f64; 4] { [self.r as f64, self.g as f64, self.b as f64, self.a as f64] }
+    pub const fn f64_rgb(self) -> [f64; 3] { [self.r as f64, self.g as f64, self.b as f64] }
 
-    pub fn u8(self) -> [u8; 4] { self.into() }
-    pub fn u8_rgb(self) -> [u8; 3] { self.into() }
+    pub fn u8(self) -> [u8; 4] { [(self.r*F) as u8, (self.g*F) as u8, (self.b*F) as u8, (self.a*F) as u8] }
+    pub fn u8_rgb(self) -> [u8; 3] { [(self.r*F) as u8, (self.g*F) as u8, (self.b*F) as u8] }
 
+    pub fn wgpu(self) -> wgpu::Color { wgpu::Color {r: self.r as f64, g: self.g as f64, b: self.b as f64, a: self.a as f64} }
+
+    // from
+    pub const fn from_f32([r, g, b, a]:[f32; 4]) -> Self { Self::new(r, g, b, a) }
+    pub const fn from_f32_rgb([r, g, b]:[f32; 3]) -> Self { Self::new_rgb(r, g, b) }
+
+    pub const fn from_f64([r, g, b, a]:[f64; 4]) -> Self { Self::new(r as f32, g as f32, b as f32, a as f32) }
+    pub const fn from_f64_rgb([r, g, b]:[f64; 3]) -> Self { Self::new_rgb(r as f32, g as f32, b as f32) }
+
+    pub fn from_u8([r, g, b, a]:[u8; 4]) -> Self { Self::new((r as f32)/F, (g as f32)/F, (b as f32)/F, (a as f32)/F) }
+    pub fn from_u8_rgb([r, g, b]:[u8; 3]) -> Self { Self::new_rgb((r as f32)/F, (g as f32)/F, (b as f32)/F) }
+
+    pub const fn from_wgpu(wgpu::Color {r, g, b, a}:wgpu::Color) -> Self { Self::from_f64([r, g, b, a]) }
+
+
+    // format string
     pub fn hex(self) -> ArrayString<8> {
         let mut hex = ArrayString::new();
         let cl = self.u8();
@@ -124,6 +77,7 @@ impl Color {
         hex
     }
 
+    // utils
     pub fn linear(self) -> Self {
         Self {
             r: linear_component(self.r),
@@ -151,20 +105,71 @@ impl Color {
         }
     }
 
-    pub fn wgpu(self) -> wgpu::Color { self.into() }
-
-
+    // palette
     pub const TRANSPARENT:Self = Color::new(0.0, 0.0, 0.0, 0.0);
-    pub const BLACK:Self = Color::new(0.0, 0.0, 0.0, 1.0);
-    pub const WHITE:Self = Color::new(1.0, 1.0, 1.0, 1.0);
-    pub const RED:Self = Color::new(1.0, 0.0, 0.0, 1.0);
-    pub const GREEN:Self = Color::new(0.0, 1.0, 0.0, 1.0);
-    pub const BLUE:Self = Color::new(0.0, 0.0, 1.0, 1.0);
-    pub const YELLOW:Self = Color::new(1.0, 1.0, 0.0, 1.0);
-    pub const ORANGE:Self = Color::new(1.0, 0.5, 0.0, 1.0);
-    pub const TURKIS:Self = Color::new(0.0, 1.0, 1.0, 1.0);
-    pub const PURPLE:Self = Color::new(1.0, 0.0, 1.0, 1.0);
-    pub const GREY:Self = Color::new(0.5, 0.5, 0.5, 1.0);
-    pub const DARK_GREY:Self = Color::new(0.25, 0.25, 0.25, 1.0);
-    pub const LIGHT_GREY:Self = Color::new(0.75, 0.75, 0.75, 1.0);
+    pub const BLACK:Self = Color::new_rgb(0.0, 0.0, 0.0);
+    pub const WHITE:Self = Color::new_rgb(1.0, 1.0, 1.0);
+    pub const RED:Self = Color::new_rgb(1.0, 0.0, 0.0);
+    pub const GREEN:Self = Color::new_rgb(0.0, 1.0, 0.0);
+    pub const BLUE:Self = Color::new_rgb(0.0, 0.0, 1.0);
+    pub const YELLOW:Self = Color::new_rgb(1.0, 1.0, 0.0);
+    pub const ORANGE:Self = Color::new_rgb(1.0, 0.5, 0.0);
+    pub const TURKIS:Self = Color::new_rgb(0.0, 1.0, 1.0);
+    pub const PURPLE:Self = Color::new_rgb(1.0, 0.0, 1.0);
+    pub const GREY:Self = Color::new_rgb(0.5, 0.5, 0.5);
+    pub const DARK_GREY:Self = Color::new_rgb(0.25, 0.25, 0.25);
+    pub const LIGHT_GREY:Self = Color::new_rgb(0.75, 0.75, 0.75);
+}
+
+
+// to / from conversion
+
+// f32
+impl From<[f32; 4]> for Color {
+    fn from(color_type: [f32; 4]) -> Color { Color::from_f32(color_type) }
+}
+impl From<Color> for [f32; 4] {
+    fn from(color: Color) -> Self { color.f32() }
+}
+impl From<[f32; 3]> for Color {
+    fn from(color_type: [f32; 3]) -> Color { Color::from_f32_rgb(color_type) }
+}
+impl From<Color> for [f32; 3] {
+    fn from(color: Color) -> Self { color.f32_rgb() }
+}
+
+// f64
+impl From<[f64; 4]> for Color {
+    fn from(color_type: [f64; 4]) -> Color { Color::from_f64(color_type) }
+}
+impl From<Color> for [f64; 4] {
+    fn from(color: Color) -> Self { color.f64() }
+}
+impl From<[f64; 3]> for Color {
+    fn from(color_type: [f64; 3]) -> Color { Color::from_f64_rgb(color_type) }
+}
+impl From<Color> for [f64; 3] {
+    fn from(color: Color) -> Self { color.f64_rgb() }
+}
+
+// u8
+impl From<[u8; 4]> for Color {
+    fn from(color_type: [u8; 4]) -> Color { Color::from_u8(color_type) }
+}
+impl From<Color> for [u8; 4] {
+    fn from(color: Color) -> Self { color.u8() }
+}
+impl From<[u8; 3]> for Color {
+    fn from(color_type: [u8; 3]) -> Color { Color::from_u8_rgb(color_type) }
+}
+impl From<Color> for [u8; 3] {
+    fn from(color: Color) -> Self { color.u8_rgb() }
+}
+
+// wgpu
+impl From<wgpu::Color> for Color {
+    fn from(color_type: wgpu::Color) -> Color { Color::from_wgpu(color_type) }
+}
+impl From<Color> for wgpu::Color {
+    fn from(color: Color) -> Self { color.wgpu() }
 }

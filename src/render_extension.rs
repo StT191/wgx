@@ -56,8 +56,8 @@ impl<'a> From<DepthAttachment<'a>> for wgpu::RenderPassDepthStencilAttachment<'a
             }),
             stencil_ops: None,
             /*stencil_ops: Some(wgpu::Operations {
-                load: wgpu::LoadOp::Clear(0),
-                store: true
+                load: if let Some(_cl) = att.clear { wgpu::LoadOp::Clear(0) } else { wgpu::LoadOp::Load },
+                store: StoreOp::Store,
             }),*/
         }
     }
@@ -65,6 +65,7 @@ impl<'a> From<DepthAttachment<'a>> for wgpu::RenderPassDepthStencilAttachment<'a
 
 
 // encoder extension
+use crate::util_extension::*;
 
 pub trait EncoderExtension {
 
@@ -73,16 +74,12 @@ pub trait EncoderExtension {
         dst_buffer:&wgpu::Buffer, dst_offset:wgpu::BufferAddress, size:wgpu::BufferAddress,
     );
 
-    fn buffer_to_texture(
-        &mut self,
-        buffer:&wgpu::Buffer, bf_extend:(u64, [u32;2]),
-        texture:&wgpu::Texture, tx_extend:(u32, [u32;3], [u32;3])
+    fn buffer_to_texture<'b, 't>(
+        &mut self, buffer: impl ToImageCopyBuffer<'b>, texture: impl ToImageCopyTexture<'t>, extent: impl ToExtent3d,
     );
 
-    fn texture_to_buffer(
-        &mut self,
-        texture:&wgpu::Texture, tx_extend:(u32, [u32;3], [u32;3]),
-        buffer:&wgpu::Buffer, bf_extend:(u64, [u32;2]),
+    fn texture_to_buffer<'t, 'b>(
+        &mut self, texture: impl ToImageCopyTexture<'t>, buffer: impl ToImageCopyBuffer<'b>, extent: impl ToExtent3d,
     );
 
     fn compute_pass(&mut self) -> wgpu::ComputePass;
@@ -115,43 +112,17 @@ impl EncoderExtension for wgpu::CommandEncoder {
     }
 
 
-    fn buffer_to_texture(
-        &mut self,
-        buffer:&wgpu::Buffer, (offset, [buffer_width, buffer_height]):(u64, [u32;2]),
-        texture:&wgpu::Texture, (mip_level, [x, y, z], [width, height, layers]):(u32, [u32;3], [u32;3])
+    fn buffer_to_texture<'b, 't>(
+        &mut self, buffer: impl ToImageCopyBuffer<'b>, texture: impl ToImageCopyTexture<'t>, extent: impl ToExtent3d,
     ) {
-        self.copy_buffer_to_texture(
-            wgpu::ImageCopyBuffer {
-                buffer,
-                layout: wgpu::ImageDataLayout {
-                    offset,
-                    bytes_per_row: Some(texture.format().block_copy_size(None).unwrap_or(0) * buffer_width),
-                    rows_per_image: Some(buffer_height),
-                }
-            },
-            wgpu::ImageCopyTexture { texture, mip_level, origin: wgpu::Origin3d { x, y, z, }, aspect: wgpu::TextureAspect::All },
-            wgpu::Extent3d {width, height, depth_or_array_layers: layers},
-        );
+        self.copy_buffer_to_texture(buffer.to(), texture.to(), extent.to());
     }
 
 
-    fn texture_to_buffer(
-        &mut self,
-        texture:&wgpu::Texture, (mip_level, [x, y, z], [width, height, layers]):(u32, [u32;3], [u32;3]),
-        buffer:&wgpu::Buffer, (offset, [buffer_width, buffer_height]):(u64, [u32;2])
+    fn texture_to_buffer<'t, 'b>(
+        &mut self, texture: impl ToImageCopyTexture<'t>, buffer: impl ToImageCopyBuffer<'b>, extent: impl ToExtent3d,
     ) {
-        self.copy_texture_to_buffer(
-            wgpu::ImageCopyTexture { texture, mip_level, origin: wgpu::Origin3d { x, y, z, }, aspect: wgpu::TextureAspect::All },
-            wgpu::ImageCopyBuffer {
-                buffer,
-                layout: wgpu::ImageDataLayout {
-                    offset,
-                    bytes_per_row: Some(texture.format().block_copy_size(None).unwrap_or(0) * buffer_width),
-                    rows_per_image: Some(buffer_height),
-                }
-            },
-            wgpu::Extent3d {width, height, depth_or_array_layers: layers},
-        );
+        self.copy_texture_to_buffer(texture.to(), buffer.to(), extent.to());
     }
 
 

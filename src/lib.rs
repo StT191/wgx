@@ -6,6 +6,8 @@ pub use wgpu::{
     BufferUsages as BufUse,
     TextureUsages as TexUse,
     ShaderStages as Stage,
+    TextureDimension as Dimension,
+    TextureViewDimension as ViewDimension,
     BlendState as Blend, BlendComponent, BlendFactor, BlendOperation,
     MapMode, // buffer mapping
     PrimitiveState as Primitive,
@@ -36,6 +38,9 @@ pub use buffer_extension::*;
 
 mod texture_extension;
 pub use texture_extension::*;
+
+mod util_extension;
+pub use util_extension::*;
 
 mod render_target;
 pub use render_target::*;

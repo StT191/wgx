@@ -24,47 +24,59 @@ macro_rules! limits {
 #[macro_export]
 macro_rules! binding {
     ($loc:expr, $stage:expr, UniformBuffer, $min_size:expr) => {
+        $crate::binding!($loc, $stage, UniformBuffer, $min_size, [0])
+    };
+    ($loc:expr, $stage:expr, UniformBuffer, $min_size:expr, [$count:expr]) => {
         $crate::wgpu::BindGroupLayoutEntry {
             binding: $loc,
             visibility: $stage,
             ty: $crate::wgpu::BindingType::Buffer {
                 ty: $crate::wgpu::BufferBindingType::Uniform,
                 has_dynamic_offset: false,
-                min_binding_size: core::num::NonZeroU64::new($min_size),
+                min_binding_size: ::core::num::NonZeroU64::new($min_size),
             },
-            count: None,
+            count: ::core::num::NonZeroU32::new($count),
         }
     };
     ($loc:expr, $stage:expr, StorageBuffer, $min_size:expr, $ro:expr) => {
+        $crate::binding!($loc, $stage, StorageBuffer, $min_size, $ro, [0])
+    };
+    ($loc:expr, $stage:expr, StorageBuffer, $min_size:expr, $ro:expr, [$count:expr]) => {
         $crate::wgpu::BindGroupLayoutEntry {
             binding: $loc,
             visibility: $stage,
             ty: $crate::wgpu::BindingType::Buffer {
                 ty: $crate::wgpu::BufferBindingType::Storage { read_only: $ro },
                 has_dynamic_offset: false,
-                min_binding_size: core::num::NonZeroU64::new($min_size),
+                min_binding_size: ::core::num::NonZeroU64::new($min_size),
             },
-            count: None,
+            count: ::core::num::NonZeroU32::new($count),
         }
     };
-    ($loc:expr, $stage:expr, SampledTexture2D) => {
+    ($loc:expr, $stage:expr, Texture, $dim:ident) => {
+        $crate::binding!($loc, $stage, Texture, $dim, [0])
+    };
+    ($loc:expr, $stage:expr, Texture, $dim:ident, [$count:expr]) => {
         $crate::wgpu::BindGroupLayoutEntry {
             binding: $loc,
             visibility: $stage,
             ty: $crate::wgpu::BindingType::Texture {
                 sample_type: $crate::wgpu::TextureSampleType::Float { filterable: true },
-                view_dimension: $crate::wgpu::TextureViewDimension::D2,
+                view_dimension: $crate::wgpu::TextureViewDimension::$dim,
                 multisampled: false,
             },
-            count: None,
+            count: ::core::num::NonZeroU32::new($count),
         }
     };
     ($loc:expr, $stage:expr, Sampler) => {
+        $crate::binding!($loc, $stage, Sampler, [0])
+    };
+    ($loc:expr, $stage:expr, Sampler, [$count:expr]) => {
         $crate::wgpu::BindGroupLayoutEntry {
             binding: $loc,
             visibility: $stage,
             ty: $crate::wgpu::BindingType::Sampler($crate::wgpu::SamplerBindingType::Filtering),
-            count: None,
+            count: ::core::num::NonZeroU32::new($count),
         }
     };
 }
