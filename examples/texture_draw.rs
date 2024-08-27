@@ -12,13 +12,11 @@ use wgx::*;
 
 fn main() {
 
-    const DEPTH_TESTING:bool = false;
-    const MSAA:u32 = 4;
-    const BLENDING:Option<Blend> = None;
-
+    let msaa = 4;
+    let depth_testing = None;
+    let blending = None;
 
     let event_loop = EventLoop::new().unwrap();
-
     let window = Arc::new(Window::new(&event_loop).unwrap());
 
     // size
@@ -32,7 +30,7 @@ fn main() {
 
 
     let (gx, surface) = Wgx::new(Some(window.clone()), features!(), limits!{}).block_on().unwrap();
-    let mut target = SurfaceTarget::new(&gx, surface.unwrap(), [width, height], MSAA, DEPTH_TESTING).unwrap();
+    let mut target = SurfaceTarget::new(&gx, surface.unwrap(), [width, height], msaa, depth_testing).unwrap();
 
 
     // common/shaders
@@ -42,7 +40,7 @@ fn main() {
     let pipeline = target.render_pipeline(&gx,
         None, &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
         (&shader, "vs_main", Primitive { topology: Topology::TriangleStrip, ..Primitive::default() }),
-        (&shader, "fs_main", BLENDING),
+        (&shader, "fs_main", blending),
     );
 
     // sampler
@@ -77,15 +75,15 @@ fn main() {
     // draw target
     const DRAW_MSAA:u32 = 4;
 
-    let draw_target = TextureTarget::new(&gx, [width, height], DRAW_MSAA, false, DEFAULT_SRGB, None, TexUse::TEXTURE_BINDING);
-    // let draw_target2 = TextureTarget::new(&gx, (width, height), DRAW_MSAA, false, DEFAULT_SRGB, None, TexUse::TEXTURE_BINDING);
+    let draw_target = TextureTarget::new(&gx, [width, height], DRAW_MSAA, None, DEFAULT_SRGB, None, TexUse::TEXTURE_BINDING);
+    // let draw_target2 = TextureTarget::new(&gx, (width, height), DRAW_MSAA, None, DEFAULT_SRGB, None, TexUse::TEXTURE_BINDING);
 
     let draw_pipeline = gx.render_pipeline(
         DRAW_MSAA, None, None,
         &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
         (&shader, "vs_main", Primitive { topology: Topology::TriangleStrip, ..Primitive::default() }),
         Some((&shader, "fs_main", &[
-            (draw_target.view_format(), BLENDING),
+            (draw_target.view_format(), blending),
             // (draw_target2.view_format(), BLENDING),
         ])),
     );
@@ -113,7 +111,7 @@ fn main() {
             }
         );
 
-        encoder.render_pass(frame.attachments(Some(bg_color_target), None));
+        encoder.render_pass(frame.attachments(Some(bg_color_target), None, None));
 
     })).expect("frame error");
 
@@ -152,7 +150,7 @@ fn main() {
 
                 target.with_frame(None, |frame| gx.with_encoder(|encoder| {
                     encoder.with_render_pass(
-                        frame.attachments(Some(bg_color_target), None),
+                        frame.attachments(Some(bg_color_target), None, None),
                         |rpass| {
                             rpass.set_pipeline(&pipeline);
                             rpass.set_bind_group(0, &binding, &[]);

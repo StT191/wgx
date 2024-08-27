@@ -43,7 +43,7 @@ pub trait RenderAttachable: RenderTarget {
 
     // to implement
     fn color_views(&self) -> (&wgpu::TextureView, Option<&wgpu::TextureView>);
-    fn depth_view(&self) -> Option<&wgpu::TextureView>;
+    fn depth_view(&self) -> Option<(&wgpu::TextureView, wgpu::TextureFormat)>;
 
     // provided
     fn color_attachment(&self, clear_color: Option<Color>) -> wgpu::RenderPassColorAttachment {
@@ -51,12 +51,12 @@ pub trait RenderAttachable: RenderTarget {
         ColorAttachment { view, msaa, clear: clear_color.map(|cl| (cl, self.clear_color_transform())) }.into()
     }
 
-    fn depth_attachment(&self, clear: Option<f32>) -> Option<wgpu::RenderPassDepthStencilAttachment> {
-        self.depth_view().map(|view| DepthAttachment { view, clear }.into())
+    fn depth_attachment(&self, clear_depth: Option<f32>, clear_stencil: Option<u32>) -> Option<wgpu::RenderPassDepthStencilAttachment> {
+        self.depth_view().map(|(view, format)| DepthAttachment { view, format, clear_depth, clear_stencil }.into())
     }
 
-    fn attachments(&self, clear_color: Option<Color>, clear_depth: Option<f32>) -> RenderAttachments<1> {
-        ([Some(self.color_attachment(clear_color))], self.depth_attachment(clear_depth))
+    fn attachments(&self, clear_color: Option<Color>, clear_depth: Option<f32>, clear_stencil: Option<u32>) -> RenderAttachments<1> {
+        ([Some(self.color_attachment(clear_color))], self.depth_attachment(clear_depth, clear_stencil))
     }
 }
 
@@ -107,7 +107,7 @@ impl RenderTarget for TextureLot {
 
 impl RenderAttachable for TextureLot {
     fn color_views(&self) -> (&wgpu::TextureView, Option<&wgpu::TextureView>) { (&self.view, None) }
-    fn depth_view(&self) -> Option<&wgpu::TextureView> { None }
+    fn depth_view(&self) -> Option<(&wgpu::TextureView, wgpu::TextureFormat)> { None }
 }
 
 
@@ -149,8 +149,8 @@ impl RenderAttachable for SurfaceFrame<'_> {
     fn color_views(&self) -> (&wgpu::TextureView, Option<&wgpu::TextureView>) {
         (&self.view, self.target.msaa_opt.as_ref().map(|o| &o.view))
     }
-    fn depth_view(&self) -> Option<&wgpu::TextureView> {
-        self.target.depth_opt.as_ref().map(|o| &o.view)
+    fn depth_view(&self) -> Option<(&wgpu::TextureView, TextureFormat)> {
+        self.target.depth_opt.as_ref().map(|d| (&d.view, d.view_format()))
     }
 }
 
@@ -168,7 +168,7 @@ const DEFAULT_CONFIG: wgpu::SurfaceConfiguration = wgpu::SurfaceConfiguration {
 
 impl SurfaceTarget {
 
-    pub fn new(gx:&Wgx, surface:wgpu::Surface<'static>, [width, height]:[u32; 2], msaa:u32, depth_testing:bool) -> Res<Self>
+    pub fn new(gx:&Wgx, surface:wgpu::Surface<'static>, [width, height]:[u32; 2], msaa:u32, depth_testing:Option<TextureFormat>) -> Res<Self>
     {
         let mut config = DEFAULT_CONFIG.clone();
         config.width = width;
@@ -198,8 +198,14 @@ impl SurfaceTarget {
 
         Ok(Self {
             config, surface, view_format, msaa,
-            msaa_opt: if msaa > 1 { Some(TextureLot::new_2d(gx, [width, height, 1], msaa, format, Some(view_format), TexUse::RENDER_ATTACHMENT)) } else { None },
-            depth_opt: if depth_testing { Some(TextureLot::new_2d(gx, [width, height, 1], msaa, DEFAULT_DEPTH, None, TexUse::RENDER_ATTACHMENT)) } else { None },
+
+            msaa_opt: if msaa > 1 {
+                Some(TextureLot::new_2d(gx, [width, height, 1], msaa, format, Some(view_format), TexUse::RENDER_ATTACHMENT))
+            } else { None },
+
+            depth_opt: if let Some(depth_format) = depth_testing {
+                Some(TextureLot::new_2d(gx, [width, height, 1], msaa, depth_format, None, TexUse::RENDER_ATTACHMENT))
+            } else { None },
         })
     }
 
@@ -220,8 +226,7 @@ impl SurfaceTarget {
 
         self.msaa_opt = if self.msaa > 1 { self.msaa_opt.as_ref().map(map_opt).or_else(||
             Some(TextureLot::new_2d(gx, [width, height, 1], self.msaa, self.format(), Some(self.view_format), TexUse::RENDER_ATTACHMENT))
-        )}
-        else { None };
+        )} else { None };
 
         self.depth_opt = self.depth_opt.as_ref().map(map_opt);
     }
@@ -275,24 +280,29 @@ impl RenderAttachable for TextureTarget {
     fn color_views(&self) -> (&wgpu::TextureView, Option<&wgpu::TextureView>) {
         (&self.view, self.msaa_opt.as_ref().map(|o| &o.view))
     }
-    fn depth_view(&self) -> Option<&wgpu::TextureView> {
-        self.depth_opt.as_ref().map(|o| &o.view)
+    fn depth_view(&self) -> Option<(&wgpu::TextureView, TextureFormat)> {
+        self.depth_opt.as_ref().map(|d| (&d.view, d.view_format()))
     }
 }
 
 impl TextureTarget {
 
     pub fn new(
-        gx:&impl WgxDevice, [w, h]:[u32; 2], msaa:u32, depth_testing: bool,
+        gx:&impl WgxDevice, [w, h]:[u32; 2], msaa:u32, depth_testing:Option<TextureFormat>,
         format:TextureFormat, view_format:Option<TextureFormat>, usage:wgpu::TextureUsages,
     ) -> Self
     {
         let TextureLot { texture, descriptor, view } = TextureLot::new_2d(gx, [w, h, 1], 1, format, view_format, usage | TexUse::RENDER_ATTACHMENT);
         Self {
-            texture, descriptor, view, // output attachment can have only one sample
-            msaa,
-            msaa_opt: if msaa > 1 { Some(TextureLot::new_2d(gx, [w, h, 1], msaa, format, view_format, TexUse::RENDER_ATTACHMENT)) } else { None },
-            depth_opt: if depth_testing { Some(TextureLot::new_2d(gx, [w, h, 1], msaa, DEFAULT_DEPTH, None, TexUse::RENDER_ATTACHMENT)) } else { None },
+            texture, descriptor, view, msaa, // output attachment can have only one sample
+
+            msaa_opt: if msaa > 1 {
+                Some(TextureLot::new_2d(gx, [w, h, 1], msaa, format, view_format, TexUse::RENDER_ATTACHMENT))
+            } else { None },
+
+            depth_opt: if let Some(depth_format) = depth_testing {
+                Some(TextureLot::new_2d(gx, [w, h, 1], msaa, depth_format, None, TexUse::RENDER_ATTACHMENT))
+            } else { None },
         }
     }
 

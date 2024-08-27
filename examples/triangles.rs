@@ -12,9 +12,9 @@ use wgx::{*};
 
 fn main() {
 
-    const DEPTH_TESTING:bool = true;
-    const MSAA:u32 = 4;
-    const BLENDING:Option<Blend> = Some(Blend::ALPHA_BLENDING);
+    let msaa = 4;
+    let depth_testing = Some(DEFAULT_DEPTH);
+    let blending = Some(Blend::ALPHA_BLENDING);
 
 
     let event_loop = EventLoop::new().unwrap();
@@ -25,7 +25,7 @@ fn main() {
 
 
     let (gx, surface) = Wgx::new(Some(window.clone()), features!(), limits!{}).block_on().unwrap();
-    let mut target = SurfaceTarget::new(&gx, surface.unwrap(), [1200, 1200], MSAA, DEPTH_TESTING).unwrap();
+    let mut target = SurfaceTarget::new(&gx, surface.unwrap(), [1200, 1200], msaa, depth_testing).unwrap();
 
 
     // global pipeline
@@ -34,7 +34,7 @@ fn main() {
     let pipeline = target.render_pipeline(&gx,
         None, &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
         (&shader, "vs_main", Primitive::default()),
-        (&shader, "fs_main", BLENDING),
+        (&shader, "fs_main", blending),
     );
 
     // colors
@@ -108,7 +108,7 @@ fn main() {
                 let then = Instant::now();
 
                 target.with_frame(None, |frame| gx.with_encoder(|encoder| {
-                    encoder.pass_bundles(frame.attachments(Some(Color::GREEN), Some(1.0)), &bundles);
+                    encoder.pass_bundles(frame.attachments(Some(Color::GREEN), Some(1.0), None), &bundles);
                 })).expect("frame error");
 
                 println!("{:?}", then.elapsed());

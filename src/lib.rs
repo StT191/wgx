@@ -6,6 +6,7 @@ pub use wgpu::{
     BufferUsages as BufUse,
     TextureUsages as TexUse,
     ShaderStages as Stage,
+    TextureFormat,
     TextureDimension as Dimension,
     TextureViewDimension as ViewDimension,
     BlendState as Blend, BlendComponent, BlendFactor, BlendOperation,

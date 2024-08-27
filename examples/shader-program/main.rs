@@ -17,9 +17,9 @@ mod timer;
 
 fn main() {
 
-    const DEPTH_TESTING:bool = false;
-    const MSAA:u32 = 1;
-    const BLENDING:Option<Blend> = None;
+    let msaa = 1;
+    let depth_testing = None;
+    let blending = None;
 
 
     let (width, height) = (1280, 900);
@@ -30,7 +30,7 @@ fn main() {
     window.set_title("WgFx - Shader Program");
 
     let (gx, surface) = Wgx::new(Some(window.clone()), features!(PUSH_CONSTANTS), limits!{max_push_constant_size: 4}).block_on().unwrap();
-    let mut target = SurfaceTarget::new(&gx, surface.unwrap(), [width, height], MSAA, DEPTH_TESTING).unwrap();
+    let mut target = SurfaceTarget::new(&gx, surface.unwrap(), [width, height], msaa, depth_testing).unwrap();
 
 
     let shader_src = match &*std::env::args().nth(1).expect("Specify a program!") {
@@ -51,7 +51,7 @@ fn main() {
         Some((push_constants![0..4 => Stage::FRAGMENT], &[&layout])),
         &[vertex_dsc!(Vertex, 0 => Float32x2)],
         (&shader, "vs_main", Primitive::default()),
-        (&shader, "fs_main", BLENDING),
+        (&shader, "fs_main", blending),
     );
 
     // vertices
@@ -135,7 +135,7 @@ fn main() {
 
                 // draw
                 target.with_frame(None, |frame| gx.with_encoder(|encoder| {
-                    encoder.with_render_pass(frame.attachments(Some(Color::BLACK), None), |rpass| {
+                    encoder.with_render_pass(frame.attachments(Some(Color::BLACK), None, None), |rpass| {
                         rpass.set_pipeline(&pipeline);
                         rpass.set_bind_group(0, &binding, &[]);
                         rpass.set_vertex_buffer(0, vertices.slice(..));

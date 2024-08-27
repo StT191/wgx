@@ -12,14 +12,14 @@ use wgx::{*, math::*};
 // common
 #[path="common/world_view.rs"] #[allow(dead_code)]
 mod world_view;
-use world_view::{WorldView, InputKey};
+use world_view::*;
 
 
 fn main() {
 
-  const DEPTH_TESTING:bool = true;
-  const MSAA:u32 = 4;
-  const BLENDING:Option<Blend> = None;
+  let msaa = 4;
+  let depth_testing = Some(DEFAULT_DEPTH);
+  let blending = None;
 
 
   let (width, height) = (1000, 1000);
@@ -32,7 +32,7 @@ fn main() {
   let features = features!(POLYGON_MODE_LINE/*, Features::MULTI_DRAW_INDIRECT*/);
 
   let (gx, surface) = Wgx::new(Some(window.clone()), features, limits!{}).block_on().unwrap();
-  let mut target = SurfaceTarget::new(&gx, surface.unwrap(), [width, height], MSAA, DEPTH_TESTING).unwrap();
+  let mut target = SurfaceTarget::new(&gx, surface.unwrap(), [width, height], msaa, depth_testing).unwrap();
 
 
   // pipeline
@@ -48,7 +48,7 @@ fn main() {
       polygon_mode: Polygon::Fill,
       ..Primitive::default()
     }),
-    (&shader, "fs_main", BLENDING),
+    (&shader, "fs_main", blending),
   );
 
   // colors
@@ -130,13 +130,13 @@ fn main() {
         }
       }
       else {
-        let n = normal_from_triangle(a, b, c).neg().into();
+        let n = Vec3::normal_from_triangle(a.into(), b.into(), c.into()).neg().into();
         mesh.push([a, t_c, n]);
         mesh.push([b, t_c, n]);
         mesh.push([c, t_c, n]);
 
         if j < k {
-          let n = normal_from_triangle(b, d, c).neg().into();
+          let n = Vec3::normal_from_triangle(b.into(), d.into(), c.into()).neg().into();
           mesh.push([b, t_c, n]);
           mesh.push([d, t_c, n]);
           mesh.push([c, t_c, n]);
@@ -148,14 +148,14 @@ fn main() {
   // println!("{:#?}", mesh);
 
   let instance_data = [
-    Mat4::from_rotation_y(deg(000.0)),
-    Mat4::from_rotation_y(deg(090.0)),
-    Mat4::from_rotation_y(deg(180.0)),
-    Mat4::from_rotation_y(deg(270.0)),
-    Mat4::from_rotation_y(deg(000.0))*Mat4::from_rotation_z(deg(180.0)),
-    Mat4::from_rotation_y(deg(090.0))*Mat4::from_rotation_z(deg(180.0)),
-    Mat4::from_rotation_y(deg(180.0))*Mat4::from_rotation_z(deg(180.0)),
-    Mat4::from_rotation_y(deg(270.0))*Mat4::from_rotation_z(deg(180.0)),
+    Mat4::from_rotation_y(f32::to_radians(000.0)),
+    Mat4::from_rotation_y(f32::to_radians(090.0)),
+    Mat4::from_rotation_y(f32::to_radians(180.0)),
+    Mat4::from_rotation_y(f32::to_radians(270.0)),
+    Mat4::from_rotation_y(f32::to_radians(000.0))*Mat4::from_rotation_z(f32::to_radians(180.0)),
+    Mat4::from_rotation_y(f32::to_radians(090.0))*Mat4::from_rotation_z(f32::to_radians(180.0)),
+    Mat4::from_rotation_y(f32::to_radians(180.0))*Mat4::from_rotation_z(f32::to_radians(180.0)),
+    Mat4::from_rotation_y(f32::to_radians(270.0))*Mat4::from_rotation_z(f32::to_radians(180.0)),
   ];
 
 
@@ -175,7 +175,7 @@ fn main() {
   world.objects = Mat4::from_uniform_scale(0.25 * height);
   world.calc_clip_matrix();
 
-  let light_matrix = Mat4::from_rotation_x(deg(-30.0));
+  let light_matrix = Mat4::from_rotation_x(f32::to_radians(-30.0));
 
   world.light_matrix = light_matrix * world.rotation; // keep light
 
@@ -239,7 +239,7 @@ fn main() {
         let then = Instant::now();
 
         target.with_frame(None, |frame| gx.with_encoder(|encoder| {
-          encoder.pass_bundles(frame.attachments(Some(Color::BLACK), Some(1.0)), &bundles);
+          encoder.pass_bundles(frame.attachments(Some(Color::BLACK), Some(1.0), None), &bundles);
         })).expect("frame error");
 
         println!("{:?}", then.elapsed());

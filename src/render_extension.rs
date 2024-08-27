@@ -1,5 +1,5 @@
 
-use wgpu::StoreOp;
+use wgpu::{StoreOp, TextureFormat};
 use crate::Color;
 
 // render attachments
@@ -43,22 +43,29 @@ impl<'a> From<ColorAttachment<'a>> for wgpu::RenderPassColorAttachment<'a> {
 #[derive(Debug, Clone, Copy)]
 pub struct DepthAttachment<'a> {
     pub view: &'a wgpu::TextureView,
-    pub clear: Option<f32>,
+    pub format: TextureFormat,
+    pub clear_depth: Option<f32>,
+    pub clear_stencil: Option<u32>,
 }
 
 impl<'a> From<DepthAttachment<'a>> for wgpu::RenderPassDepthStencilAttachment<'a> {
     fn from(att: DepthAttachment<'a>) -> Self {
         Self {
             view: att.view,
-            depth_ops: Some(wgpu::Operations {
-                load: if let Some(cl) = att.clear { wgpu::LoadOp::Clear(cl) } else { wgpu::LoadOp::Load },
-                store: StoreOp::Store,
-            }),
-            stencil_ops: None,
-            /*stencil_ops: Some(wgpu::Operations {
-                load: if let Some(_cl) = att.clear { wgpu::LoadOp::Clear(0) } else { wgpu::LoadOp::Load },
-                store: StoreOp::Store,
-            }),*/
+
+            depth_ops: if att.format.has_depth_aspect() {
+                Some(wgpu::Operations {
+                    load: if let Some(cl) = att.clear_depth { wgpu::LoadOp::Clear(cl) } else { wgpu::LoadOp::Load },
+                    store: StoreOp::Store,
+                })
+            } else { None },
+
+            stencil_ops: if att.format.has_stencil_aspect() {
+                Some(wgpu::Operations {
+                    load: if let Some(cl) = att.clear_stencil { wgpu::LoadOp::Clear(cl) } else { wgpu::LoadOp::Load },
+                    store: StoreOp::Store,
+                })
+            } else { None },
         }
     }
 }

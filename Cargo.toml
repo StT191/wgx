@@ -1,6 +1,6 @@
 [package]
 name = "wgx"
-version = "0.20.1"
+version = "0.20.2"
 authors = ["Stefan Tammer <st.tammer@gmail.com>"]
 edition = "2021"
 license = "MIT"
@@ -14,14 +14,14 @@ name = "wgx"
 members = ["wgsl_modules", "wgsl_modules/loader", "wgsl_modules/macro"]
 
 [workspace.package]
-version = "0.20.1"
+version = "0.20.2"
 authors = ["Stefan Tammer <st.tammer@gmail.com>"]
 edition = "2021"
 license = "MIT"
 
 [workspace.dependencies]
-wgsl_modules_macro = { version = "~0.20.1", path = "wgsl_modules/macro" }
-wgsl_modules_loader = { version = "~0.20.1", path = "wgsl_modules/loader" }
+wgsl_modules_macro = { version = "~0.20.2", path = "wgsl_modules/macro" }
+wgsl_modules_loader = { version = "~0.20.2", path = "wgsl_modules/loader" }
 naga = { version = "0.20", features = ["wgsl-in"] }
 
 
@@ -39,7 +39,7 @@ arrayvec = "0.7"
 
 # optional
 glam = { version = "0", optional = true }
-wgsl_modules = { version = "0.20.1", path = "wgsl_modules", optional = true }
+wgsl_modules = { version = "0.20.2", path = "wgsl_modules", optional = true }
 
 
 [dev-dependencies]

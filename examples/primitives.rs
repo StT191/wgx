@@ -12,9 +12,9 @@ use wgx::*;
 
 fn main() {
 
-    const DEPTH_TESTING:bool = false;
-    const MSAA:u32 = 4;
-    const BLENDING:Option<Blend> = Some(Blend::ALPHA_BLENDING);
+    let msaa = 4;
+    let depth_testing = None;
+    let blending = Some(Blend::ALPHA_BLENDING);
 
 
     let event_loop = EventLoop::new().unwrap();
@@ -32,7 +32,7 @@ fn main() {
 
 
     let (gx, surface) = Wgx::new(Some(window.clone()), features!(), limits!{}).block_on().unwrap();
-    let mut target = SurfaceTarget::new(&gx, surface.unwrap(), [width, height], MSAA, DEPTH_TESTING).unwrap();
+    let mut target = SurfaceTarget::new(&gx, surface.unwrap(), [width, height], msaa, depth_testing).unwrap();
 
 
     // global pipeline
@@ -70,7 +70,7 @@ fn main() {
     let t_pipeline = target.render_pipeline(&gx,
         Some((&[], &[&layout])), &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
         (&shader, "vs_main", Primitive { topology: Topology::TriangleStrip, ..Primitive::default() }),
-        (&shader, "fs_main", BLENDING),
+        (&shader, "fs_main", blending),
     );
 
     let t_data = [
@@ -87,7 +87,7 @@ fn main() {
     let l_pipeline = target.render_pipeline(&gx,
         Some((&[], &[&layout])), &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
         (&shader, "vs_main", Primitive { topology: Topology::LineStrip, ..Primitive::default() }),
-        (&shader, "fs_main", BLENDING),
+        (&shader, "fs_main", blending),
     );
 
     let l_data = [
@@ -106,7 +106,7 @@ fn main() {
     let p_pipeline = target.render_pipeline(&gx,
         Some((&[], &[&layout])), &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
         (&shader, "vs_main", Primitive { topology: Topology::PointList, ..Primitive::default() }),
-        (&shader, "fs_main", BLENDING),
+        (&shader, "fs_main", blending),
     );
 
     let p_data = [
@@ -138,7 +138,7 @@ fn main() {
     let i_pipeline = target.render_pipeline(&gx,
         Some((&[], &[&layout])), &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
         (&shader, "vs_main", Primitive { topology: Topology::TriangleStrip, ..Primitive::default() }),
-        (&shader, "fs_main", BLENDING),
+        (&shader, "fs_main", blending),
     );
 
     let i_data = [
@@ -204,7 +204,7 @@ fn main() {
                 let then = Instant::now();
 
                 target.with_frame(None, |frame| gx.with_encoder(|encoder| {
-                    encoder.pass_bundles(frame.attachments(Some(Color::GREEN), None), &bundles);
+                    encoder.pass_bundles(frame.attachments(Some(Color::GREEN), None, None), &bundles);
                 })).expect("frame error");
 
                 println!("{:?}", then.elapsed());

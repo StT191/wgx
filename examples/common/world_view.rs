@@ -26,7 +26,7 @@ impl InputKey {
             KeyCode::KeyU => Some(InputKey::RollLeft(None)), KeyCode::KeyO => Some(InputKey::RollRight(None)),
 
             // US layout!
-            KeyCode::KeyZ => Some(InputKey::ZoomIn(None)), KeyCode::KeyX => Some(InputKey::ZoomOut(None)),
+            KeyCode::KeyZ => Some(InputKey::ZoomOut(None)), KeyCode::KeyX => Some(InputKey::ZoomIn(None)),
 
             KeyCode::KeyR => Some(InputKey::Reset),
 
@@ -85,23 +85,23 @@ impl WorldView {
     }
 
     pub fn translate(&mut self, translation: (f32, f32, f32)) {
-        apply!(self.scene, Mat4::from_translation(translation.into()));
+        self.scene = Mat4::from_translation(translation.into()) * self.scene;
     }
 
     pub fn rotate_x(&mut self, angle_deg: f32) {
-        apply!(self.rotation, Mat4::from_rotation_x(deg(angle_deg)));
+        self.rotation = Mat4::from_rotation_x(angle_deg.to_radians()) * self.rotation;
     }
 
     pub fn rotate_y(&mut self, angle_deg: f32) {
-        apply!(self.rotation, Mat4::from_rotation_y(deg(angle_deg)));
+        self.rotation = Mat4::from_rotation_y(angle_deg.to_radians()) * self.rotation;
     }
 
     pub fn rotate_z(&mut self, angle_deg: f32) {
-        apply!(self.rotation, Mat4::from_rotation_z(deg(angle_deg)));
+        self.rotation = Mat4::from_rotation_z(angle_deg.to_radians()) * self.rotation;
     }
 
     pub fn scale(&mut self, factor: f32) {
-        apply!(self.rotation, Mat4::from_uniform_scale(factor));
+        self.rotation = Mat4::from_uniform_scale(factor) * self.rotation;
     }
 
     pub fn reset_scene_rotation(&mut self) {
@@ -132,4 +132,60 @@ impl WorldView {
         }
     }
 
+}
+
+
+#[derive(Debug, Clone)]
+pub struct FovProjection {
+    pub fov_deg: f32,
+    pub aspect: f32,
+    pub near: f32,
+    pub far: f32,
+    pub distance: f32,
+    pub projection: Mat4,
+    pub translation: Mat4,
+}
+
+
+impl FovProjection {
+
+    pub fn update(&mut self) {
+        self.projection = Mat4::perspective_lh(self.fov_deg.to_radians(), self.aspect, self.near, self.far);
+        self.translation = Mat4::from_translation([0.0, 0.0, self.distance].into());
+    }
+
+    pub fn new(fov_deg: f32, aspect: f32, near: f32, far: f32, distance: f32) -> Self {
+        let mut this = Self {
+            fov_deg, aspect, near, far, distance,
+            projection: Mat4::ZERO, translation: Mat4::ZERO,
+        };
+        this.update();
+        this
+    }
+
+    pub fn unit(fov_deg: f32, aspect: f32, unit: f32) -> Self {
+        let near = unit / 1.0e3;
+        let far = unit * 2.0e3;
+        let distance = unit / (fov_deg / 2.0).to_radians().tan();
+        Self::new(fov_deg, aspect, near, far, distance)
+    }
+
+    pub fn window(fov_deg: f32, width: f32, height: f32) -> Self {
+        let unit = f32::max(width, height);
+        let near = unit / 1.0e3;
+        let far = unit * 2.0e3;
+        let distance = height * 0.5 / (fov_deg / 2.0).to_radians().tan();
+        Self::new(fov_deg, width/height, near, far, distance)
+    }
+
+    pub fn resize_window(&mut self, width: f32, height: f32, update_distances: bool) {
+
+        if update_distances {
+            *self = FovProjection::window(self.fov_deg, width, height);
+        } else {
+            // or aspect only
+            self.aspect = width/height;
+            self.update();
+        };
+    }
 }
