@@ -1,6 +1,6 @@
 
-use crate::{*, error::*};
-use wgpu::{PresentMode as Prs, SurfaceCapabilities, TextureFormat};
+use wgpu::{*, PresentMode as Prs};
+use crate::{*, error::*, Color};
 
 
 pub trait RenderTarget {
@@ -111,11 +111,12 @@ impl RenderAttachable for TextureLot {
 }
 
 
+type Surface = wgpu::Surface<'static>;
 
 #[derive(Debug)]
 pub struct SurfaceTarget {
-    pub config: wgpu::SurfaceConfiguration,
-    pub surface: wgpu::Surface<'static>,
+    pub config: SurfaceConfiguration,
+    pub surface: Surface,
     pub view_format: TextureFormat,
     pub msaa: u32,
     pub msaa_opt: Option<TextureLot>,
@@ -155,48 +156,50 @@ impl RenderAttachable for SurfaceFrame<'_> {
 }
 
 
-// cloneable surface configuration
-const DEFAULT_CONFIG: wgpu::SurfaceConfiguration = wgpu::SurfaceConfiguration {
-    usage: TexUse::RENDER_ATTACHMENT,
-    format: DEFAULT_SRGB, width: 0, height: 0,
-    present_mode: Prs::Mailbox,
-    alpha_mode: wgpu::CompositeAlphaMode::Auto,
-    desired_maximum_frame_latency: 2,
-    view_formats: Vec::new(),
-};
+pub fn configure_surface_defaults(config: &mut SurfaceConfiguration, capabilites: &SurfaceCapabilities) {
+    // format
+    if let Some(format) = capabilites.formats.iter().find(|fmt| fmt.is_srgb()) { config.format = *format; }
+    let view_format = config.format.add_srgb_suffix();
+    if view_format != config.format && !config.view_formats.contains(&view_format) { config.view_formats.push(view_format); }
+
+    // present modes
+    if capabilites.present_modes.contains(&Prs::Mailbox) { config.present_mode = Prs::Mailbox; }
+    else if capabilites.present_modes.contains(&Prs::AutoVsync) { config.present_mode = Prs::AutoVsync; }
+
+    // alpha_modes
+    if capabilites.alpha_modes.contains(&CompositeAlphaMode::Auto) { config.alpha_mode = CompositeAlphaMode::Auto; }
+
+    // latency
+    config.desired_maximum_frame_latency = 2;
+}
 
 
 impl SurfaceTarget {
 
-    pub fn new(gx:&Wgx, surface:wgpu::Surface<'static>, [width, height]:[u32; 2], msaa:u32, depth_testing:Option<TextureFormat>) -> Res<Self>
+    pub fn new_with_default_config(gx:&Wgx, surface:Surface, size:impl Into<[u32; 2]>, msaa:u32, depth_testing:Option<TextureFormat>) -> Self
     {
-        let mut config = DEFAULT_CONFIG.clone();
-        config.width = width;
-        config.height = height;
+        let [width, height] = size.into();
+        let mut config = surface.get_default_config(&gx.adapter, width, height).unwrap();
 
-        let SurfaceCapabilities {formats, present_modes, ..} = surface.get_capabilities(&gx.adapter);
+        configure_surface_defaults(&mut config, &surface.get_capabilities(&gx.adapter));
 
-        let format =
-            *formats.iter().find(|fmt| fmt.is_srgb()) // find a supported srgb format
-            .unwrap_or(&formats[0]) // or use the default format
-        ;
+        let format = config.format;
+        let mut view_format = config.format.add_srgb_suffix();
+        if !config.view_formats.contains(&view_format) { view_format = format };
 
-        config.format = format;
-        let view_format = format.add_srgb_suffix();
+        Self::new(gx, surface, config, view_format, msaa, depth_testing)
+    }
 
-        if view_format != format {
-            config.view_formats.push(view_format);
-        }
-
-        config.present_mode =
-            if present_modes.contains(&Prs::Mailbox) { Prs::Mailbox }
-            else if present_modes.contains(&Prs::AutoVsync) { Prs::AutoVsync }
-            else { present_modes[0] }
-        ;
+    pub fn new(gx:&Wgx, surface:Surface, config:SurfaceConfiguration, view_format:TextureFormat, msaa:u32, depth_testing:Option<TextureFormat>)
+        -> Self
+    {
+        let format = config.format;
+        let width = config.width;
+        let height = config.height;
 
         surface.configure(gx.device(), &config);
 
-        Ok(Self {
+        Self {
             config, surface, view_format, msaa,
 
             msaa_opt: if msaa > 1 {
@@ -206,12 +209,13 @@ impl SurfaceTarget {
             depth_opt: if let Some(depth_format) = depth_testing {
                 Some(TextureLot::new_2d(gx, [width, height, 1], msaa, depth_format, None, TexUse::RENDER_ATTACHMENT))
             } else { None },
-        })
+        }
     }
 
 
-    pub fn update(&mut self, gx:&impl WgxDevice, [width, height]: [u32; 2]) {
+    pub fn update(&mut self, gx:&impl WgxDevice, size:impl Into<[u32; 2]>) {
 
+        let [width, height] = size.into();
         self.config.width = width;
         self.config.height = height;
 
@@ -288,10 +292,11 @@ impl RenderAttachable for TextureTarget {
 impl TextureTarget {
 
     pub fn new(
-        gx:&impl WgxDevice, [w, h]:[u32; 2], msaa:u32, depth_testing:Option<TextureFormat>,
+        gx:&impl WgxDevice, size:impl Into<[u32; 2]>, msaa:u32, depth_testing:Option<TextureFormat>,
         format:TextureFormat, view_format:Option<TextureFormat>, usage:wgpu::TextureUsages,
     ) -> Self
     {
+        let [w, h] = size.into();
         let TextureLot { texture, descriptor, view } = TextureLot::new_2d(gx, [w, h, 1], 1, format, view_format, usage | TexUse::RENDER_ATTACHMENT);
         Self {
             texture, descriptor, view, msaa, // output attachment can have only one sample
@@ -306,7 +311,9 @@ impl TextureTarget {
         }
     }
 
-    pub fn update(&mut self, gx:&impl WgxDevice, [w, h]:[u32; 2]) {
+    pub fn update(&mut self, gx:&impl WgxDevice, size:impl Into<[u32; 2]>) {
+
+        let [w, h] = size.into();
 
         let map_opt = |descriptor: &TexDsc| {
             let mut descriptor = descriptor.clone();

@@ -1,5 +1,5 @@
 
-use winit::keyboard::KeyCode;
+use platform::winit::keyboard::KeyCode;
 use wgx::{*, math::*};
 
 #[derive(Debug, Clone, PartialEq)]

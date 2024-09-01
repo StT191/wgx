@@ -1,12 +1,9 @@
 
-use std::sync::Arc;
-use std::{time::{Instant}, mem::size_of};
-use pollster::FutureExt;
-use winit::{
-    event_loop::{ControlFlow, EventLoop}, dpi::PhysicalSize,
-    window::WindowBuilder, event::{Event, WindowEvent, KeyEvent, ElementState},
-    keyboard::{PhysicalKey, /*KeyCode*/},
+use platform::winit::{
+  window::WindowBuilder, event::{WindowEvent, KeyEvent, ElementState}, keyboard::PhysicalKey,
+  dpi::PhysicalSize,
 };
+use platform::{*, time::*};
 use wgx::{*, math::*};
 
 // common
@@ -15,27 +12,22 @@ mod world_view;
 use world_view::*;
 
 
-fn main() {
+main_app_closure! {
+  LogLevel::Warn,
+  WindowBuilder::new().with_inner_size(PhysicalSize {width: 1000, height: 1000}),
+  init_app,
+}
+
+async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
+
+  let window = ctx.window_clone();
 
   let msaa = 4;
   let depth_testing = Some(DEFAULT_DEPTH);
   let blending = None;
+  let features = features!(MAPPABLE_PRIMARY_BUFFERS, POLYGON_MODE_LINE, MULTI_DRAW_INDIRECT);
 
-
-  let (width, height) = (1000, 1000);
-
-  let event_loop = EventLoop::new().unwrap();
-
-  let window = Arc::new(WindowBuilder::new().with_transparent(true).build(&event_loop).unwrap());
-
-  let _ = window.request_inner_size(PhysicalSize::<u32>::from((width, height)));
-  window.set_title("WgFx");
-
-  let features = features!(MAPPABLE_PRIMARY_BUFFERS, POLYGON_MODE_LINE/*, MULTI_DRAW_INDIRECT*/);
-
-  let (gx, surface) = Wgx::new(Some(window.clone()), features, limits!{}).block_on().unwrap();
-  let mut target = SurfaceTarget::new(&gx, surface.unwrap(), [width, height], msaa, depth_testing).unwrap();
-
+  let (gx, mut target) = Wgx::new_with_target(window.clone(), features, limits!{}, window.inner_size(), msaa, depth_testing).await.unwrap();
 
   // pipeline
   let shader = gx.load_wgsl(wgsl_modules::include!("common/shaders/shader_3d_inst_text_diff.wgsl"));
@@ -73,7 +65,7 @@ fn main() {
 
   println!("mesh_len: {mesh_len:#}");
 
-  let vertex_buffer = gx.buffer(BufUse::STORAGE | BufUse::VERTEX | BufUse::MAP_READ, mesh_size, false);
+  let vertex_buffer = gx.buffer(BufUse::STORAGE | BufUse::VERTEX /*| BufUse::MAP_READ*/, mesh_size, false);
 
   let layout = gx.layout(&[binding!(0, Stage::COMPUTE, StorageBuffer, mesh_size, false)]);
 
@@ -128,7 +120,9 @@ fn main() {
 
 
   // world
+  let PhysicalSize { width, height } = window.inner_size();
   let (width, height) = (width as f32, height as f32);
+
   let mut world = WorldView::new(&gx, 10.0, 5.0, 0.1, FovProjection::window(45.0, width, height));
 
   world.objects = Mat4::from_uniform_scale(0.25 * height);
@@ -170,19 +164,27 @@ fn main() {
 
   // event loop
 
-  event_loop.run(move |event, event_target| {
+  move |_ctx: &mut AppCtx, event: &AppEvent| match event {
 
-    event_target.set_control_flow(ControlFlow::Wait);
+    AppEvent::WindowEvent(WindowEvent::Resized(size)) => {
+      target.update(&gx, *size);
+      world.fov.resize_window(size.width as f32, size.height as f32, true);
+      world.calc_clip_matrix();
+      world.light_matrix = light_matrix * world.rotation; // keep light
 
-    match event {
+      gx.with_encoder(|mut encoder| {
+        staging_belt.write_data(&gx, &mut encoder, &world.clip_buffer, 0, world.clip_matrix);
+        staging_belt.write_data(&gx, &mut encoder, &world.light_buffer, 0, world.light_matrix);
+        staging_belt.finish();
+      });
+      staging_belt.recall();
+    },
 
-      Event::WindowEvent {event: WindowEvent::CloseRequested, ..} => {
-        event_target.exit();
-      },
-
-      Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
-        target.update(&gx, [size.width, size.height]);
-        world.fov.resize_window(size.width as f32, size.height as f32, true);
+    AppEvent::WindowEvent(WindowEvent::KeyboardInput { event: KeyEvent {
+      physical_key: PhysicalKey::Code(keycode), state: ElementState::Pressed, ..
+    }, ..}) => {
+      if let Some(key) = InputKey::match_keycode(*keycode) {
+        world.input(key);
         world.calc_clip_matrix();
         world.light_matrix = light_matrix * world.rotation; // keep light
 
@@ -192,39 +194,22 @@ fn main() {
           staging_belt.finish();
         });
         staging_belt.recall();
-      },
 
-      Event::WindowEvent { event: WindowEvent::KeyboardInput { event: KeyEvent {
-        physical_key: PhysicalKey::Code(keycode), state: ElementState::Pressed, ..
-      }, ..}, ..} => {
-        if let Some(key) = InputKey::match_keycode(keycode) {
-          world.input(key);
-          world.calc_clip_matrix();
-          world.light_matrix = light_matrix * world.rotation; // keep light
+        window.request_redraw();
+      }
+    },
 
-          gx.with_encoder(|mut encoder| {
-            staging_belt.write_data(&gx, &mut encoder, &world.clip_buffer, 0, world.clip_matrix);
-            staging_belt.write_data(&gx, &mut encoder, &world.light_buffer, 0, world.light_matrix);
-            staging_belt.finish();
-          });
-          staging_belt.recall();
+    AppEvent::WindowEvent(WindowEvent::RedrawRequested) => {
 
-          window.request_redraw();
-        }
-      },
+      let then = Instant::now();
 
-      Event::WindowEvent { event: WindowEvent::RedrawRequested, .. } => {
+      target.with_frame(None, |frame| gx.with_encoder(|encoder| {
+        encoder.pass_bundles(frame.attachments(Some(bg_color), Some(1.0), None), &bundles);
+      })).expect("frame error");
 
-        let then = Instant::now();
+      println!("{:?}", then.elapsed());
+    },
 
-        target.with_frame(None, |frame| gx.with_encoder(|encoder| {
-          encoder.pass_bundles(frame.attachments(Some(bg_color), Some(1.0), None), &bundles);
-        })).expect("frame error");
-
-        println!("{:?}", then.elapsed());
-      },
-
-      _ => {}
-    }
-  }).unwrap();
+    _ => {}
+  }
 }

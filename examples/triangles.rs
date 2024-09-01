@@ -1,32 +1,27 @@
 
-use std::sync::Arc;
-use std::{time::{Instant}};
-use pollster::FutureExt;
-use winit::{
-    event_loop::{ControlFlow, EventLoop}, dpi::PhysicalSize,
-    window::Window, event::{Event, WindowEvent, KeyEvent, ElementState},
-    keyboard::{PhysicalKey, KeyCode},
+use platform::winit::{
+  window::WindowBuilder, event::{WindowEvent, KeyEvent, ElementState}, keyboard::{PhysicalKey, KeyCode},
+  dpi::PhysicalSize,
 };
+use platform::{*, time::*};
 use wgx::{*};
 
 
-fn main() {
+main_app_closure! {
+    LogLevel::Warn,
+    WindowBuilder::new().with_inner_size(PhysicalSize {width: 1000, height: 1000}),
+    init_app,
+}
+
+async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
+
+    let window = ctx.window_clone();
 
     let msaa = 4;
     let depth_testing = Some(DEFAULT_DEPTH);
     let blending = Some(Blend::ALPHA_BLENDING);
 
-
-    let event_loop = EventLoop::new().unwrap();
-
-    let window = Arc::new(Window::new(&event_loop).unwrap());
-    let _ = window.request_inner_size(PhysicalSize::<u32>::from((1200, 1200)));
-    window.set_title("WgFx");
-
-
-    let (gx, surface) = Wgx::new(Some(window.clone()), features!(), limits!{}).block_on().unwrap();
-    let mut target = SurfaceTarget::new(&gx, surface.unwrap(), [1200, 1200], msaa, depth_testing).unwrap();
-
+    let (gx, mut target) = Wgx::new_with_target(window.clone(), features!(), limits!{}, window.inner_size(), msaa, depth_testing).await.unwrap();
 
     // global pipeline
     let shader = gx.load_wgsl(wgsl_modules::include!("common/shaders/shader_flat_text.wgsl"));
@@ -84,37 +79,29 @@ fn main() {
 
     // event loop
 
-    event_loop.run(move |event, event_target| {
+    move |_ctx: &mut AppCtx, event: &AppEvent| match event {
 
-        event_target.set_control_flow(ControlFlow::Wait);
+        AppEvent::WindowEvent(WindowEvent::Resized(size)) => {
+            target.update(&gx, *size);
+        },
 
-        match event {
-            Event::WindowEvent {event: WindowEvent::CloseRequested, ..} => {
-                event_target.exit();
-            },
+        AppEvent::WindowEvent(WindowEvent::KeyboardInput { event: KeyEvent {
+            state: ElementState::Pressed, physical_key: PhysicalKey::Code(KeyCode::KeyR), ..
+        }, ..}) => {
+            window.request_redraw();
+        },
 
-            Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
-                target.update(&gx, [size.width, size.height]);
-            },
+        AppEvent::WindowEvent(WindowEvent::RedrawRequested) => {
 
-            Event::WindowEvent { event: WindowEvent::KeyboardInput { event: KeyEvent {
-                state: ElementState::Pressed, physical_key: PhysicalKey::Code(KeyCode::KeyR), ..
-            }, ..}, ..} => {
-                window.request_redraw();
-            },
+            let then = Instant::now();
 
-            Event::WindowEvent { event: WindowEvent::RedrawRequested, .. } => {
+            target.with_frame(None, |frame| gx.with_encoder(|encoder| {
+                encoder.pass_bundles(frame.attachments(Some(Color::GREEN), Some(1.0), None), &bundles);
+            })).expect("frame error");
 
-                let then = Instant::now();
+            println!("{:?}", then.elapsed());
+        },
 
-                target.with_frame(None, |frame| gx.with_encoder(|encoder| {
-                    encoder.pass_bundles(frame.attachments(Some(Color::GREEN), Some(1.0), None), &bundles);
-                })).expect("frame error");
-
-                println!("{:?}", then.elapsed());
-            },
-
-            _ => {}
-        }
-    }).unwrap();
+        _ => {}
+    }
 }

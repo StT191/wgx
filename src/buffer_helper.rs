@@ -1,55 +1,34 @@
 
-use std::{
-  mem::size_of, ptr::copy_nonoverlapping,
-  slice::SliceIndex, ops::{Range, RangeBounds, Bound}, cmp::Ordering, marker::PhantomData,
-};
+use std::{mem::size_of, ptr::copy_nonoverlapping, cmp::Ordering, ops::Range};
+use wgpu::BufferAddress;
 use crate::{*, error::*};
 
-// data buffer
 
-#[derive(Debug)]
-pub struct DataBuffer<T: Copy + ReadBytes, D: AsRef<[T]>> {
-  pub vertex_type: PhantomData<T>,
-  pub data: D,
-  pub buffer: wgpu::Buffer,
+// range helper trait
+
+pub trait TryToRange<O, E> {
+  fn try_to(self) -> Result<Range<O>, E>;
 }
 
-impl<T: Copy + ReadBytes, D: AsRef<[T]>> DataBuffer<T, D> {
+impl<T, O: TryFrom<T>> TryToRange<O, <O as TryFrom<T>>::Error> for Range<T>
+  where <O as TryFrom<T>>::Error: std::fmt::Debug
+{
+  fn try_to(self) -> Result<Range<O>, <O as TryFrom<T>>::Error> { Ok(Range {
+    start: self.start.try_into()?,
+    end: self.end.try_into()?,
+  })}
+}
 
-  pub fn size(&self) -> u64 { self.buffer.size() }
-  pub fn len(&self) -> usize { self.data.as_ref().len() }
-  pub fn is_empty(&self) -> bool { self.data.as_ref().is_empty() }
 
-  pub fn new(gx: &impl WgxDevice, usage: BufUse, size: usize, data: D) -> Self {
-    Self {
-      vertex_type: PhantomData, data,
-      buffer: gx.buffer(BufUse::COPY_DST | usage, (size_of::<T>() * size) as u64, false),
-    }
-  }
+// convert to byte ranges
 
-  pub fn from_data(gx: &impl WgxDevice, usage: BufUse, data: D) -> Self {
-    Self {
-      buffer: gx.buffer_from_data(BufUse::COPY_DST | usage, data.as_ref()),
-      vertex_type: PhantomData, data,
-    }
-  }
+pub const fn byte_range<T>(data_range: Range<usize>) -> Range<usize> {
+  Range { start: data_range.start * size_of::<T>(), end: data_range.end * size_of::<T>() }
+}
 
-  pub fn write_buffer(&self, gx: &impl WgxDeviceQueue, range: impl SliceIndex<[T], Output = [T]> + RangeBounds<usize> + Clone) {
-
-    let data_slice = &self.data.as_ref()[range.clone()];
-
-    if !data_slice.is_empty() {
-
-      let offset = match range.start_bound() {
-        Bound::Included(start) => start * size_of::<T>(),
-        Bound::Excluded(start) => (start + 1) * size_of::<T>(),
-        Bound::Unbounded => 0,
-      };
-
-      // may panic if getting larger than size
-      gx.write_buffer(&self.buffer, offset as u64, data_slice);
-    }
-  }
+pub const fn buffer_range<T>(data_range: Range<usize>) -> Range<BufferAddress> {
+  let byte_range = byte_range::<T>(data_range);
+  Range { start: byte_range.start as BufferAddress, end: byte_range.end as BufferAddress }
 }
 
 

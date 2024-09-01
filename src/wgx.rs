@@ -59,6 +59,16 @@ impl Wgx {
         let (device, queue) = Self::request_device(&adapter, features, limits).await?;
         Ok((Self {device, queue, instance, adapter}, surface))
     }
+
+    pub async fn new_with_target<W: HasWindowHandle + HasDisplayHandle + Send + Sync + 'static>(
+        window: W, features:wgpu::Features, limits:wgpu::Limits, window_size:impl Into<[u32; 2]>, msaa:u32, depth_testing:Option<TextureFormat>,
+    )
+        -> Res<(Self, SurfaceTarget)>
+    {
+        let (gx, surface) = Wgx::new(Some(window), features, limits).await?;
+        let target = SurfaceTarget::new_with_default_config(&gx, surface.unwrap(), window_size, msaa, depth_testing);
+        Ok((gx, target))
+    }
 }
 
 

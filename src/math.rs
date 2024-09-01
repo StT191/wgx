@@ -157,3 +157,62 @@ impl_multi!{
     }
 }
 
+
+// types with no uninit bytes which fit into wgsl aligned types
+mod padding_types {
+
+    use std::{borrow::*, mem::transmute};
+    use super::{*};
+
+    #[derive(Debug, Clone, Copy, Default)]
+    #[repr(C)]
+    pub struct Vec3P {
+        pub vec3: Vec3,
+        _padding: f32,
+    }
+
+    impl<T: Into<Vec3>> From<T> for Vec3P {
+        fn from(value: T) -> Self { Self { vec3: value.into(), _padding: 0.0 } }
+    }
+
+    impl Borrow<Vec3> for Vec3P { fn borrow(&self) -> &Vec3 { &self.vec3 } }
+    impl BorrowMut<Vec3> for Vec3P { fn borrow_mut(&mut self) -> &mut Vec3 { &mut self.vec3 } }
+    impl AsRef<Vec3> for Vec3P { fn as_ref(&self) -> &Vec3 { &self.vec3 } }
+    impl AsMut<Vec3> for Vec3P { fn as_mut(&mut self) -> &mut Vec3 { &mut self.vec3 } }
+
+    impl Into<Vec3A> for Vec3P { fn into(self) -> Vec3A { unsafe {transmute(self)} } }
+    impl Borrow<Vec3A> for Vec3P { fn borrow(&self) -> &Vec3A { unsafe {transmute(self)} } }
+    impl AsRef<Vec3A> for Vec3P { fn as_ref(&self) -> &Vec3A { unsafe {transmute(self)} } }
+
+
+    #[derive(Debug, Clone, Copy, Default)]
+    #[repr(C)]
+    pub struct Mat3P {
+        pub x_axis: Vec3P,
+        pub y_axis: Vec3P,
+        pub z_axis: Vec3P,
+    }
+
+    impl Mat3P {
+        pub fn mat3(self) -> Mat3 {
+            Mat3::from_cols(self.x_axis.vec3, self.y_axis.vec3, self.z_axis.vec3)
+        }
+    }
+
+    impl<T: Into<Mat3>> From<T> for Mat3P {
+        fn from(value: T) -> Self {
+            let mat3 = value.into();
+            Self {
+                x_axis: mat3.x_axis.into(),
+                y_axis: mat3.y_axis.into(),
+                z_axis: mat3.z_axis.into(),
+            }
+        }
+    }
+
+    impl Into<Mat3A> for Mat3P { fn into(self) -> Mat3A { unsafe {transmute(self)} } }
+    impl Borrow<Mat3A> for Mat3P { fn borrow(&self) -> &Mat3A { unsafe {transmute(self)} } }
+    impl AsRef<Mat3A> for Mat3P { fn as_ref(&self) -> &Mat3A { unsafe {transmute(self)} } }
+}
+
+pub use padding_types::*;
