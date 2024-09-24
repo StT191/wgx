@@ -133,7 +133,7 @@ impl From<&TextureDescriptor<'_>> for TexDsc {
             view_dimension: dimension_to_view(tdsc.dimension, size[2]),
             view_aspect: TextureAspect::All,
             format: tdsc.format,
-            view_format: *tdsc.view_formats.get(0).unwrap_or(&tdsc.format),
+            view_format: *tdsc.view_formats.first().unwrap_or(&tdsc.format),
             usage: tdsc.usage,
         }
     }

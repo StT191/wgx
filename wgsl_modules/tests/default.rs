@@ -17,7 +17,6 @@ macro_rules! tokens_eq {
 }
 
 
-
 #[test]
 fn loading_from_path() {
 
@@ -54,6 +53,7 @@ fn nonexistent_includes() {
 
     assert_matches!(res, Err(err) if err.starts_with("No such file or directory"));
 }
+
 
 #[test]
 fn invalid_path() {
@@ -128,13 +128,27 @@ fn inline_inner_including() {
 }
 
 
-
 #[test]
-fn validation_failing() {
+fn naga_parsing_failing() {
 
     let res = Module::load("$module", stringify!{
         nonexistent token;
+    }).and_then(|module| {
+        // parse naga
+        module.naga_module(false)
     });
 
     assert_matches!(res, Err(err) if err.starts_with("error: expected global item"));
+}
+
+
+#[test]
+fn naga_validation_failing() {
+
+    let res = Module::load("$module", include_str!("../shaders/invalid.wgsl")).and_then(|module| {
+        // parse and validate naga
+        module.naga_module(true)
+    });
+
+    assert_matches!(res, Err(err) if err.starts_with("error: Entry point vs_main at Vertex is invalid"));
 }

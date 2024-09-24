@@ -13,7 +13,11 @@ thread_local!(static CACHE: RefCell<ModuleCache> = ModuleCache::new().into());
 
 // helper
 fn handle_result(res: Res<&Module>, path: &Path) -> TokenStream {
-    match res {
+    match res.and_then(|module| {
+        // validate naga_module
+        module.naga_module(true)?;
+        Ok(module)
+    }) {
         Ok(module) => {
             // track source code files
             if path.exists() {

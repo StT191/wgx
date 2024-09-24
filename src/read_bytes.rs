@@ -1,10 +1,12 @@
 
+/// # Safety
+/// must be guaranteed by implementor
 pub unsafe trait ReadBytes {
     fn read_bytes(&self) -> &[u8] where Self: Sized {
         // SAFETY: must be guaranteed by implementor
         unsafe { core::slice::from_raw_parts(
             self as *const Self as *const u8,
-            core::mem::size_of::<Self>()
+            core::mem::size_of::<Self>(),
         ) }
     }
 }
@@ -24,7 +26,7 @@ unsafe impl<T: ReadBytes> ReadBytes for &[T] {
         // SAFETY: guaranteed by ReadBytes binding
         unsafe { core::slice::from_raw_parts(
             self.as_ptr() as *const u8,
-            self.len() * core::mem::size_of::<T>()
+            core::mem::size_of_val(*self),
         ) }
     }
 }
@@ -34,7 +36,7 @@ unsafe impl<T: ReadBytes, const N: usize> ReadBytes for [T; N] {
         // SAFETY: guaranteed by ReadBytes binding
         unsafe { core::slice::from_raw_parts(
             self.as_ptr() as *const u8,
-            N * core::mem::size_of::<T>()
+            N * core::mem::size_of::<T>(),
         ) }
     }
 }

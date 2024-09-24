@@ -171,6 +171,6 @@ impl EncoderExtension for wgpu::CommandEncoder {
         &'a mut self, attachments: RenderAttachments<'a, S>,
         bundles: impl IntoIterator<Item = &'a wgpu::RenderBundle> + 'a
     ) {
-        self.render_pass(attachments).execute_bundles(bundles.into_iter());
+        self.render_pass(attachments).execute_bundles(bundles);
     }
 }

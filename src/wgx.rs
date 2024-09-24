@@ -2,7 +2,7 @@
 use arrayvec::ArrayVec;
 use wgpu::util::{DeviceExt, TextureDataOrder};
 use wgpu::rwh::{HasWindowHandle, HasDisplayHandle};
-use std::{ops::{RangeBounds, Bound}};
+use std::{ops::{RangeBounds, Bound}, borrow::Cow};
 use crate::{*, error::*};
 
 
@@ -120,7 +120,7 @@ pub trait WgxDevice {
 
     // shader
 
-    fn load_wgsl(&self, code:&str) -> wgpu::ShaderModule {
+    fn load_wgsl<'a>(&self, code: impl Into<Cow<'a, str>>) -> wgpu::ShaderModule {
         let source = wgpu::ShaderSource::Wgsl(code.into());
         self.device().create_shader_module(wgpu::ShaderModuleDescriptor { label: None, source })
     }
@@ -157,9 +157,9 @@ pub trait WgxDevice {
         let mut encoder = self.device().create_render_bundle_encoder(&wgpu::RenderBundleEncoderDescriptor {
             label: None,
             color_formats: formats,
-            depth_stencil: if let Some(format) = depth_testing { Some(wgpu::RenderBundleDepthStencil {
+            depth_stencil: depth_testing.map(|format| wgpu::RenderBundleDepthStencil {
                 format, depth_read_only: false, stencil_read_only: true,
-            })} else { None },
+            }),
             sample_count: msaa,
             multiview: None,
         });
@@ -245,14 +245,13 @@ pub trait WgxDevice {
             }
             else {None},
 
-            depth_stencil: if let Some(format) = depth_testing { Some(wgpu::DepthStencilState {
+            depth_stencil: depth_testing.map(|format| wgpu::DepthStencilState {
                 format,
                 depth_write_enabled: true,
                 depth_compare: wgpu::CompareFunction::LessEqual,
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
-            }) }
-            else { None },
+            }),
 
             multisample: wgpu::MultisampleState {
                 count: msaa, mask: !0, alpha_to_coverage_enabled: false,

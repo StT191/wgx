@@ -180,7 +180,7 @@ mod padding_types {
     impl AsRef<Vec3> for Vec3P { fn as_ref(&self) -> &Vec3 { &self.vec3 } }
     impl AsMut<Vec3> for Vec3P { fn as_mut(&mut self) -> &mut Vec3 { &mut self.vec3 } }
 
-    impl Into<Vec3A> for Vec3P { fn into(self) -> Vec3A { unsafe {transmute(self)} } }
+    impl From<Vec3P> for Vec3A { fn from(other: Vec3P) -> Self { unsafe {transmute(other)} } }
     impl Borrow<Vec3A> for Vec3P { fn borrow(&self) -> &Vec3A { unsafe {transmute(self)} } }
     impl AsRef<Vec3A> for Vec3P { fn as_ref(&self) -> &Vec3A { unsafe {transmute(self)} } }
 
@@ -210,7 +210,7 @@ mod padding_types {
         }
     }
 
-    impl Into<Mat3A> for Mat3P { fn into(self) -> Mat3A { unsafe {transmute(self)} } }
+    impl From<Mat3P> for Mat3A { fn from(other: Mat3P) -> Self { unsafe {transmute(other)} } }
     impl Borrow<Mat3A> for Mat3P { fn borrow(&self) -> &Mat3A { unsafe {transmute(self)} } }
     impl AsRef<Mat3A> for Mat3P { fn as_ref(&self) -> &Mat3A { unsafe {transmute(self)} } }
 }

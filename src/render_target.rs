@@ -202,13 +202,13 @@ impl SurfaceTarget {
         Self {
             config, surface, view_format, msaa,
 
-            msaa_opt: if msaa > 1 {
-                Some(TextureLot::new_2d(gx, [width, height, 1], msaa, format, Some(view_format), TexUse::RENDER_ATTACHMENT))
-            } else { None },
+            msaa_opt: (msaa > 1).then(||
+                TextureLot::new_2d(gx, [width, height, 1], msaa, format, Some(view_format), TexUse::RENDER_ATTACHMENT)
+            ),
 
-            depth_opt: if let Some(depth_format) = depth_testing {
-                Some(TextureLot::new_2d(gx, [width, height, 1], msaa, depth_format, None, TexUse::RENDER_ATTACHMENT))
-            } else { None },
+            depth_opt: depth_testing.map(|depth_format|
+                TextureLot::new_2d(gx, [width, height, 1], msaa, depth_format, None, TexUse::RENDER_ATTACHMENT)
+            ),
         }
     }
 
@@ -221,16 +221,17 @@ impl SurfaceTarget {
 
         self.surface.configure(gx.device(), &self.config);
 
-        let map_opt = |lot:&TextureLot| {
-            let mut descriptor = lot.descriptor.clone();
+        let map_opt = |lot: &TextureLot| {
+            let mut descriptor = lot.descriptor;
             descriptor.set_size_2d([width, height]);
             descriptor.sample_count = self.msaa;
             TextureLot::new(gx, descriptor)
         };
 
-        self.msaa_opt = if self.msaa > 1 { self.msaa_opt.as_ref().map(map_opt).or_else(||
-            Some(TextureLot::new_2d(gx, [width, height, 1], self.msaa, self.format(), Some(self.view_format), TexUse::RENDER_ATTACHMENT))
-        )} else { None };
+        self.msaa_opt = (self.msaa > 1).then(|| self.msaa_opt.as_ref().map_or_else(
+            || TextureLot::new_2d(gx, [width, height, 1], self.msaa, self.format(), Some(self.view_format), TexUse::RENDER_ATTACHMENT),
+            map_opt,
+        ));
 
         self.depth_opt = self.depth_opt.as_ref().map(map_opt);
     }
@@ -301,13 +302,13 @@ impl TextureTarget {
         Self {
             texture, descriptor, view, msaa, // output attachment can have only one sample
 
-            msaa_opt: if msaa > 1 {
-                Some(TextureLot::new_2d(gx, [w, h, 1], msaa, format, view_format, TexUse::RENDER_ATTACHMENT))
-            } else { None },
+            msaa_opt: (msaa > 1).then(||
+                TextureLot::new_2d(gx, [w, h, 1], msaa, format, view_format, TexUse::RENDER_ATTACHMENT)
+            ),
 
-            depth_opt: if let Some(depth_format) = depth_testing {
-                Some(TextureLot::new_2d(gx, [w, h, 1], msaa, depth_format, None, TexUse::RENDER_ATTACHMENT))
-            } else { None },
+            depth_opt: depth_testing.map(|depth_format|
+                TextureLot::new_2d(gx, [w, h, 1], msaa, depth_format, None, TexUse::RENDER_ATTACHMENT)
+            ),
         }
     }
 
@@ -316,7 +317,7 @@ impl TextureTarget {
         let [w, h] = size.into();
 
         let map_opt = |descriptor: &TexDsc| {
-            let mut descriptor = descriptor.clone();
+            let mut descriptor = *descriptor;
             descriptor.set_size_2d([w, h]);
             descriptor.sample_count = self.msaa;
             TextureLot::new(gx, descriptor)
@@ -325,11 +326,11 @@ impl TextureTarget {
         let TextureLot { texture, descriptor, view } = map_opt(&self.descriptor);
         self.texture = texture; self.descriptor = descriptor; self.view = view;
 
-        self.msaa_opt = if self.msaa > 1 { self.msaa_opt.as_ref().map(|d| map_opt(&d.descriptor)).or_else(||
-            Some(TextureLot::new_2d(gx, [w, h, 1], self.msaa, self.format(), Some(self.view_format()), TexUse::RENDER_ATTACHMENT))
-        )}
-        else { None };
+        self.msaa_opt = (self.msaa > 1).then(|| self.msaa_opt.as_ref().map_or_else(
+            || TextureLot::new_2d(gx, [w, h, 1], self.msaa, self.format(), Some(self.view_format()), TexUse::RENDER_ATTACHMENT),
+            |opt| map_opt(&opt.descriptor),
+        ));
 
-        self.depth_opt = self.depth_opt.as_ref().map(|d| map_opt(&d.descriptor));
+        self.depth_opt = self.depth_opt.as_ref().map(|opt| map_opt(&opt.descriptor));
     }
 }
