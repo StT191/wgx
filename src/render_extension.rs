@@ -91,13 +91,13 @@ pub trait EncoderExtension {
 
     fn compute_pass(&mut self) -> wgpu::ComputePass;
 
-    fn with_compute_pass<'a, T>(&'a mut self, handler: impl FnOnce(&mut wgpu::ComputePass<'a>) -> T) -> T;
+    fn with_compute_pass<'a, T>(&'a mut self, handler: impl FnOnce(&mut wgpu::ComputePass<'static>) -> T) -> T;
 
     fn render_pass<'a, const S: usize>(&'a mut self, attachments: RenderAttachments<'a, S>) -> wgpu::RenderPass<'a>;
 
     fn with_render_pass<'a, const S: usize, T>(
         &'a mut self, attachments: RenderAttachments<'a, S>,
-        handler: impl FnOnce(&mut wgpu::RenderPass<'a>) -> T
+        handler: impl FnOnce(&mut wgpu::RenderPass<'static>) -> T
     ) -> T;
 
     fn pass_bundles<'a, const S: usize>(
@@ -141,8 +141,8 @@ impl EncoderExtension for wgpu::CommandEncoder {
     }
 
 
-    fn with_compute_pass<'a, T>(&'a mut self, handler: impl FnOnce(&mut wgpu::ComputePass<'a>) -> T) -> T {
-        handler(&mut self.compute_pass())
+    fn with_compute_pass<'a, T>(&'a mut self, handler: impl FnOnce(&mut wgpu::ComputePass<'static>) -> T) -> T {
+        handler(&mut self.compute_pass().forget_lifetime())
     }
 
 
@@ -161,9 +161,9 @@ impl EncoderExtension for wgpu::CommandEncoder {
 
     fn with_render_pass<'a, const S: usize, T>(
         &'a mut self, attachments: RenderAttachments<'a, S>,
-        handler: impl FnOnce(&mut wgpu::RenderPass<'a>) -> T
+        handler: impl FnOnce(&mut wgpu::RenderPass<'static>) -> T
     ) -> T {
-        handler(&mut self.render_pass(attachments))
+        handler(&mut self.render_pass(attachments).forget_lifetime())
     }
 
 

@@ -1,6 +1,6 @@
 
 use platform::winit::{
-  window::WindowBuilder, event::{WindowEvent, KeyEvent, ElementState}, keyboard::PhysicalKey,
+  window::WindowAttributes, event::{WindowEvent, KeyEvent, ElementState}, keyboard::PhysicalKey,
   dpi::PhysicalSize,
 };
 use platform::{*, time::*};
@@ -14,7 +14,7 @@ use world_view::*;
 
 main_app_closure! {
   LogLevel::Warn,
-  WindowBuilder::new().with_inner_size(PhysicalSize {width: 1000, height: 1000}),
+  WindowAttributes::default().with_inner_size(PhysicalSize {width: 1000, height: 1000}),
   init_app,
 }
 

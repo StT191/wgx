@@ -1,6 +1,6 @@
 [package]
 name = "wgx"
-version = "0.20.4"
+version = "0.22.0"
 authors = ["Stefan Tammer <st.tammer@gmail.com>"]
 edition = "2021"
 license = "MIT"
@@ -14,16 +14,16 @@ name = "wgx"
 members = ["wgsl_modules", "wgsl_modules/loader", "wgsl_modules/macro"]
 
 [workspace.package]
-version = "0.20.4"
+version = "0.22.0"
 authors = ["Stefan Tammer <st.tammer@gmail.com>"]
 edition = "2021"
 license = "MIT"
 
 [workspace.dependencies]
-wgsl_modules = { version = "~0.20.4", path = "wgsl_modules" }
-wgsl_modules_macro = { version = "~0.20.4", path = "wgsl_modules/macro" }
-wgsl_modules_loader = { version = "~0.20.4", path = "wgsl_modules/loader" }
-naga = { version = "0.20", features = ["wgsl-in"] }
+wgsl_modules = { version = "~0.22.0", path = "wgsl_modules" }
+wgsl_modules_macro = { version = "~0.22.0", path = "wgsl_modules/macro" }
+wgsl_modules_loader = { version = "~0.22.0", path = "wgsl_modules/loader" }
+naga = { version = "22", features = ["wgsl-in"] }
 
 
 [features]
@@ -34,8 +34,8 @@ wgsl_modules_loader = ["wgsl_modules", "wgsl_modules/loader"]
 
 
 [dependencies]
-wgpu = { version = "0.20", default-features = false, features = ["wgsl"] }
-wgpu-types = "0.20"
+wgpu = { version = "22", default-features = false, features = ["wgsl"] }
+wgpu-types = "22"
 arrayvec = "0.7"
 
 # optional
@@ -47,6 +47,6 @@ wgsl_modules = { workspace = true, optional = true }
 # platform = { path = "../platform" }
 
 [dev-dependencies]
-platform = { version = "0.4.6", tag = "v0.4.6", git = "https://github.com/StT191/wgx-platform", features = ["frame_timer"] }
+platform = { version = "0.4.7", tag = "v0.4.7", git = "https://github.com/StT191/wgx-platform", features = ["frame_timer"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
-wgpu = { version = "0.20", default-features = false, features = ["webgpu", "webgl"] }
+wgpu = { version = "22", default-features = false, features = ["webgpu", "webgl"] }

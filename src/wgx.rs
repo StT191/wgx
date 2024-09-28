@@ -44,7 +44,12 @@ impl Wgx {
         #[cfg(target_family = "wasm")] let limits = limits.using_resolution(adapter.limits());
 
         adapter.request_device(
-            &wgpu::DeviceDescriptor { label: None, required_features: features, required_limits: limits },
+            &wgpu::DeviceDescriptor {
+                label: None,
+                required_features: features,
+                required_limits: limits,
+                memory_hints: Default::default(),
+            },
             None,
         ).await.convert()
     }
@@ -189,6 +194,7 @@ pub trait WgxDevice {
             layout: layout.as_ref(),
             module, entry_point,
             compilation_options: wgpu::PipelineCompilationOptions::default(),
+            cache: None,
         })
     }
 
@@ -212,6 +218,7 @@ pub trait WgxDevice {
         self.device().create_render_pipeline(&wgpu::RenderPipelineDescriptor {
 
             label: None,
+            cache: None,
 
             layout: if let Some((push_constant_ranges, bind_group_layouts)) = layout {
 

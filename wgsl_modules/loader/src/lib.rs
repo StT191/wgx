@@ -227,7 +227,7 @@ pub fn naga_module(source: &str) -> Res<naga::Module> {
 }
 
 pub fn naga_validate(module: &naga::Module, source: &str) -> Res<()> {
-    match Validator::new(ValidationFlags::all(), Capabilities::all()).validate(&module) {
+    match Validator::new(ValidationFlags::all(), Capabilities::all()).validate(module) {
         Ok(_) => Ok(()),
         Err(err) => Err(err.emit_to_string_with_path(source, "")),
     }

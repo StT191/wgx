@@ -1,6 +1,6 @@
 
 use platform::winit::{
-  window::WindowBuilder, event::{WindowEvent, KeyEvent, ElementState}, keyboard::{PhysicalKey, KeyCode},
+  window::WindowAttributes, event::{WindowEvent, KeyEvent, ElementState}, keyboard::{PhysicalKey, KeyCode},
   dpi::PhysicalSize,
 };
 use platform::{*, time::*};
@@ -9,7 +9,7 @@ use wgx::{*};
 
 main_app_closure! {
   LogLevel::Warn,
-  WindowBuilder::new().with_inner_size(PhysicalSize {width: 1280, height: 900}),
+  WindowAttributes::default().with_inner_size(PhysicalSize {width: 1280, height: 900}),
   init_app,
 }
 
