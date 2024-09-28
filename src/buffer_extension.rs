@@ -1,7 +1,8 @@
 
 use std::{sync::mpsc::sync_channel, ops::{RangeBounds}};
 use wgpu::{Buffer, BufferSlice, BufferAddress, BufferSize, BufferViewMut, util::StagingBelt, CommandEncoder};
-use crate::{*, error::*};
+use crate::{*};
+use anyhow::{Result as Res};
 
 
 pub trait StagingBeltExtension {
@@ -56,7 +57,7 @@ impl WithMapSync for Buffer {
 
       gx.device().poll(wgpu::Maintain::Wait); // poll blocking
 
-      receiver.recv().convert()?.convert()?;
+      receiver.recv()??;
 
       cb(&buffer_slice);
     }

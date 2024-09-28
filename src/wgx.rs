@@ -3,7 +3,8 @@ use arrayvec::ArrayVec;
 use wgpu::util::{DeviceExt, TextureDataOrder};
 use wgpu::rwh::{HasWindowHandle, HasDisplayHandle};
 use std::{ops::{RangeBounds, Bound}, borrow::Cow};
-use crate::{*, error::*};
+use crate::{*};
+use anyhow::{Result as Res, Context};
 
 
 // wgx
@@ -26,7 +27,7 @@ impl Wgx {
         -> Res<(wgpu::Adapter, Option<wgpu::Surface<'static>>)>
     {
         let surface = if let Some(win) = window {
-            Some(instance.create_surface(win).or(Err("couldn't create surface"))?)
+            Some(instance.create_surface(win)?)
         }
         else { None };
 
@@ -34,7 +35,7 @@ impl Wgx {
             power_preference: wgpu::PowerPreference::HighPerformance,
             force_fallback_adapter: false,
             compatible_surface: surface.as_ref(),
-        }).await.ok_or("couldn't get adapter")?;
+        }).await.context("couldn't get adapter")?;
 
         Ok((adapter, surface))
     }
@@ -43,7 +44,7 @@ impl Wgx {
 
         #[cfg(target_family = "wasm")] let limits = limits.using_resolution(adapter.limits());
 
-        adapter.request_device(
+        Ok(adapter.request_device(
             &wgpu::DeviceDescriptor {
                 label: None,
                 required_features: features,
@@ -51,7 +52,7 @@ impl Wgx {
                 memory_hints: Default::default(),
             },
             None,
-        ).await.convert()
+        ).await?)
     }
 
     pub async fn new<W: HasWindowHandle + HasDisplayHandle + Send + Sync + 'static>(

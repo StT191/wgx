@@ -9,7 +9,7 @@ use wgx::{*};
 
 main_app_closure! {
   LogLevel::Warn,
-  WindowAttributes::default().with_inner_size(PhysicalSize {width: 1280, height: 900}),
+  WindowAttributes::default().with_inner_size(PhysicalSize::new(1280, 900)),
   init_app,
 }
 

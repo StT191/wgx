@@ -61,10 +61,6 @@ pub mod math;
 pub use wgsl_modules;
 
 
-// error handling
-pub mod error;
-
-
 // control flow helper
 
 pub trait ImplicitControlflow {

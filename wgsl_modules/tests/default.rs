@@ -42,7 +42,7 @@ fn circular_includes() {
 
     let res = Module::load_from_path("../wgsl_modules/shaders/circular.wgsl");
 
-    assert_matches!(res, Err(err) if err.starts_with("circular dependency"));
+    assert_matches!(res, Err(err) if err.to_string().starts_with("circular dependency"));
 }
 
 
@@ -51,7 +51,7 @@ fn nonexistent_includes() {
 
     let res = Module::load_from_path("shaders/nonexistent.wgsl");
 
-    assert_matches!(res, Err(err) if err.starts_with("No such file or directory"));
+    assert_matches!(res, Err(err) if err.to_string().starts_with("failed loading module from path"));
 }
 
 
@@ -60,7 +60,7 @@ fn invalid_path() {
 
     let res = Module::load_from_path("");
 
-    assert_matches!(res, Err(err) if err.starts_with("invalid path"));
+    assert_matches!(res, Err(err) if err.to_string().starts_with("invalid path"));
 }
 
 
@@ -138,7 +138,7 @@ fn naga_parsing_failing() {
         module.naga_module(false)
     });
 
-    assert_matches!(res, Err(err) if err.starts_with("error: expected global item"));
+    assert_matches!(res, Err(err) if err.to_string().starts_with("error: expected global item"));
 }
 
 
@@ -150,5 +150,5 @@ fn naga_validation_failing() {
         module.naga_module(true)
     });
 
-    assert_matches!(res, Err(err) if err.starts_with("error: Entry point vs_main at Vertex is invalid"));
+    assert_matches!(res, Err(err) if err.to_string().starts_with("error: Entry point vs_main at Vertex is invalid"));
 }

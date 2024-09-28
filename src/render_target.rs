@@ -1,6 +1,7 @@
 
 use wgpu::{*, PresentMode as Prs};
-use crate::{*, error::*, Color};
+use crate::{*, Color};
+use anyhow::{Result as Res};
 
 
 pub trait RenderTarget {
@@ -241,7 +242,7 @@ impl SurfaceTarget {
         &mut self, dsc: Option<&wgpu::TextureViewDescriptor>, handler: impl FnOnce(&SurfaceFrame) -> C
     ) -> Res<()>
     {
-        let frame = self.surface.get_current_texture().convert()?;
+        let frame = self.surface.get_current_texture()?;
 
         let controlflow = handler(&SurfaceFrame {
             view: if let Some(dsc) = dsc {

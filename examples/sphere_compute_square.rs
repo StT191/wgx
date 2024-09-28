@@ -14,7 +14,10 @@ use world_view::*;
 
 main_app_closure! {
   LogLevel::Warn,
-  WindowAttributes::default().with_inner_size(PhysicalSize {width: 1000, height: 1000}),
+  WindowAttributes::default()
+    .with_inner_size(PhysicalSize::new(1000, 1000))
+    .with_transparent(true)
+  ,
   init_app,
 }
 

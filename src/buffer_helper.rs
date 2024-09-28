@@ -1,7 +1,8 @@
 
 use std::{mem::size_of, ptr::copy_nonoverlapping, cmp::Ordering, ops::Range};
 use wgpu::BufferAddress;
-use crate::{*, error::*};
+use crate::{*};
+use anyhow::{Result as Res, Context};
 
 
 // range helper trait
@@ -93,19 +94,19 @@ impl DrawIndirectRanges for DrawIndirectArgs {
 
   fn try_from_ranges(vertex_range: Range<usize>, instance_range: Range<usize>) -> Res<Self> {
     Ok(Self {
-      first_vertex: u32::try_from(vertex_range.start).map_err(|_| "DrawIndirect first_vertex overflow")?,
-      vertex_count: u32::try_from(vertex_range.len()).map_err(|_| "DrawIndirect vertex_count overflow")?,
-      first_instance: u32::try_from(instance_range.start).map_err(|_| "DrawIndirect first_instance overflow")?,
-      instance_count: u32::try_from(instance_range.len()).map_err(|_| "DrawIndirect instance_count overflow")?,
+      first_vertex: u32::try_from(vertex_range.start).context("DrawIndirect first_vertex overflow")?,
+      vertex_count: u32::try_from(vertex_range.len()).context("DrawIndirect vertex_count overflow")?,
+      first_instance: u32::try_from(instance_range.start).context("DrawIndirect first_instance overflow")?,
+      instance_count: u32::try_from(instance_range.len()).context("DrawIndirect instance_count overflow")?,
     })
   }
 
   fn vertex_range(&self) -> Res<Range<u32>> {
-    Ok(self.first_vertex..self.first_vertex.checked_add(self.vertex_count).ok_or("DrawIndirect vertex range overflow")?)
+    Ok(self.first_vertex..self.first_vertex.checked_add(self.vertex_count).context("DrawIndirect vertex range overflow")?)
   }
 
   fn instance_range(&self) -> Res<Range<u32>> {
-    Ok(self.first_instance..self.first_instance.checked_add(self.instance_count).ok_or("DrawIndirect instance range overflow")?)
+    Ok(self.first_instance..self.first_instance.checked_add(self.instance_count).context("DrawIndirect instance range overflow")?)
   }
 }
 
@@ -120,19 +121,19 @@ impl DrawIndexedIndirectRanges for DrawIndexedIndirectArgs {
 
   fn try_from_offset_ranges(vertex_offset: isize, index_range: Range<usize>, instance_range: Range<usize>) -> Res<Self> {
     Ok(Self {
-      base_vertex: i32::try_from(vertex_offset).map_err(|_| "DrawIndexedIndirect base_vertex overflow")?,
-      first_index: u32::try_from(index_range.start).map_err(|_| "DrawIndexedIndirect first_index overflow")?,
-      index_count: u32::try_from(index_range.len()).map_err(|_| "DrawIndexedIndirect index_count overflow")?,
-      first_instance: u32::try_from(instance_range.start).map_err(|_| "DrawIndexedIndirect first_instance overflow")?,
-      instance_count: u32::try_from(instance_range.len()).map_err(|_| "DrawIndexedIndirect instance_count overflow")?,
+      base_vertex: i32::try_from(vertex_offset).context("DrawIndexedIndirect base_vertex overflow")?,
+      first_index: u32::try_from(index_range.start).context("DrawIndexedIndirect first_index overflow")?,
+      index_count: u32::try_from(index_range.len()).context("DrawIndexedIndirect index_count overflow")?,
+      first_instance: u32::try_from(instance_range.start).context("DrawIndexedIndirect first_instance overflow")?,
+      instance_count: u32::try_from(instance_range.len()).context("DrawIndexedIndirect instance_count overflow")?,
     })
   }
 
   fn index_range(&self) -> Res<Range<u32>> {
-    Ok(self.first_index..self.first_index.checked_add(self.index_count).ok_or("DrawIndexedIndirect index range overflow")?)
+    Ok(self.first_index..self.first_index.checked_add(self.index_count).context("DrawIndexedIndirect index range overflow")?)
   }
 
   fn instance_range(&self) -> Res<Range<u32>> {
-    Ok(self.first_instance..self.first_instance.checked_add(self.instance_count).ok_or("DrawIndexedIndirect instance range overflow")?)
+    Ok(self.first_instance..self.first_instance.checked_add(self.instance_count).context("DrawIndexedIndirect instance range overflow")?)
   }
 }

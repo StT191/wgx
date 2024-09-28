@@ -1,11 +1,13 @@
 #![feature(proc_macro_span, track_path)]
 
 use std::{cell::RefCell, path::Path};
-use wgsl_modules_loader::{Module, ModuleCache, Res};
+use wgsl_modules_loader::{Module, ModuleCache};
 
 use proc_macro::{TokenStream, TokenTree, Literal, Span, tracked_path};
 use syn::{parse_macro_input, LitStr};
 use quote::quote;
+
+use anyhow::{Result as Res};
 
 
 thread_local!(static CACHE: RefCell<ModuleCache> = ModuleCache::new().into());
@@ -33,7 +35,10 @@ fn handle_result(res: Res<&Module>, path: &Path) -> TokenStream {
 
             TokenTree::from(Literal::string(module.code())).into()
         },
-        Err(err) => quote!(compile_error!(#err)).into(),
+        Err(err) => {
+            let err = format!("{err:?}");
+            quote!(compile_error!(#err)).into()
+        },
     }
 }
 

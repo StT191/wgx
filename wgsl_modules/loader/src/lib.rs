@@ -7,11 +7,7 @@ use lazy_static::lazy_static;
 use regex_lite::Regex;
 use naga::{FastHashMap, FastHashSet};
 use naga::{front::wgsl, valid::{ValidationFlags, Validator, Capabilities}};
-
-
-// error and result types
-pub type Error = String;
-pub type Res<T> = Result<T, Error>;
+use anyhow::{Result as Res, Context, anyhow, bail};
 
 
 #[derive(Debug)]
@@ -21,6 +17,7 @@ struct Include { path: Box<Path>, source_range: Range<usize> }
 // module
 #[derive(Debug)]
 pub struct Module {
+    path: Box<Path>,
     includes: Vec<Include>,
     dependencies: FastHashSet<Box<Path>>,
     source: Box<str>,
@@ -38,7 +35,7 @@ lazy_static! {
 
 impl Module {
 
-    fn load_source(source: Cow<str>) -> Self {
+    fn load_source(source: Cow<str>, path: Box<Path>) -> Self {
 
         let mut includes = Vec::new();
 
@@ -68,18 +65,20 @@ impl Module {
         }
 
         Self {
-            includes, dependencies: FastHashSet::default(),
+            path, includes, dependencies: FastHashSet::default(),
             source: source.into(), code: "".into(),
         }
     }
 
 
-    fn load_source_from_path(path: &Path) -> Res<Self> {
+    fn load_source_from_path(path: Box<Path>) -> Res<Self> {
 
         // fetch source
-        let source = read_to_string(path).map_err(|err| format!("{err} '{}'", path.display()))?;
+        let source = read_to_string(&path).with_context(
+            || format!("failed loading module from path '{}'", path.display())
+        )?;
 
-        Ok(Self::load_source(source.into()))
+        Ok(Self::load_source(source.into(), path))
     }
 }
 
@@ -87,7 +86,7 @@ impl Module {
 
 // helper
 fn parent_path(path: &Path) -> Res<&Path> {
-    path.parent().ok_or_else(|| format!("invalid path '{}'", path.display()))
+    path.parent().with_context(|| format!("invalid path '{}'", path.display()))
 }
 
 fn normpath(path: &Path) -> Box<Path> {
@@ -129,14 +128,14 @@ impl ModuleCache {
 
     fn resolve_module(&mut self, module_trace: &mut Vec<Box<Path>>, path: &Path) -> Res<&Module> {
 
-        if module_trace.iter().any(|p| p.as_ref() == path) { return Err(format!(
+        if module_trace.iter().any(|p| p.as_ref() == path) { bail!(
             "circular dependency {} from {}",
             path.display(),
             module_trace.last().unwrap().display(),
-        )) }
+        ) }
 
         if !self.map.contains_key(path) {
-            let mut module = Module::load_source_from_path(path)?;
+            let mut module = Module::load_source_from_path(path.into())?;
 
             let dir_path = parent_path(path)?;
 
@@ -212,8 +211,8 @@ impl Module {
     pub fn code(&self) -> &str { self.code.as_ref() }
 
     pub fn naga_module(&self, validate: bool) -> Res<naga::Module> {
-        let module = naga_module(&self.code)?;
-        if validate { naga_validate(&module, &self.code)? }
+        let module = naga_module(&self.code, &self.path)?;
+        if validate { naga_validate(&module, &self.code, &self.path)? }
         Ok(module)
     }
 }
@@ -221,15 +220,18 @@ impl Module {
 
 // naga validation
 
-pub fn naga_module(source: &str) -> Res<naga::Module> {
-    wgsl::parse_str(source)
-    .map_err(|err| err.emit_to_string_with_path(source, ""))
+pub fn naga_module(source: &str, path: impl AsRef<Path>) -> Res<naga::Module> {
+    wgsl::parse_str(source).map_err(|err|anyhow!(
+        err.emit_to_string_with_path(source, path)
+    ))
 }
 
-pub fn naga_validate(module: &naga::Module, source: &str) -> Res<()> {
+pub fn naga_validate(module: &naga::Module, source: &str, path: impl AsRef<Path>) -> Res<()> {
     match Validator::new(ValidationFlags::all(), Capabilities::all()).validate(module) {
         Ok(_) => Ok(()),
-        Err(err) => Err(err.emit_to_string_with_path(source, "")),
+        Err(err) => Err(anyhow!(
+            err.emit_to_string_with_path(source, &path.as_ref().display().to_string())
+        )),
     }
 }
 
@@ -253,9 +255,9 @@ impl ModuleCache {
         let dir_path = parent_path(&path)?;
 
         let mut module = if let Some(source_code) = source_code {
-            Module::load_source(source_code)
+            Module::load_source(source_code, path.clone())
         } else {
-            Module::load_source_from_path(&path)?
+            Module::load_source_from_path(path.clone())?
         };
 
         module.resolve_includes(self, &mut Vec::new(), dir_path)?;
