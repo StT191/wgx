@@ -37,16 +37,16 @@ impl StagingBeltExtension for StagingBelt {
 
 
 pub trait WithMapSync {
-  fn with_map_sync<S>(&self, gx: &impl WgxDevice, bounds: S, mode: MapMode, cb: impl FnOnce(&BufferSlice)) -> Res<()>
+  fn with_map_sync<S, T>(&self, gx: &impl WgxDevice, bounds: S, mode: MapMode, cb: impl FnOnce(&BufferSlice) -> T) -> Res<T>
     where S: RangeBounds<BufferAddress>;
 }
 
 impl WithMapSync for Buffer {
 
-  fn with_map_sync<S>(&self, gx: &impl WgxDevice, bounds: S, mode: MapMode, cb: impl FnOnce(&BufferSlice)) -> Res<()>
+  fn with_map_sync<S, T>(&self, gx: &impl WgxDevice, bounds: S, mode: MapMode, cb: impl FnOnce(&BufferSlice) -> T) -> Res<T>
     where S: RangeBounds<BufferAddress>
   {
-    {
+    let res = {
       let buffer_slice = self.slice(bounds);
 
       let (sender, receiver) = sync_channel(1);
@@ -59,11 +59,11 @@ impl WithMapSync for Buffer {
 
       receiver.recv()??;
 
-      cb(&buffer_slice);
-    }
+      cb(&buffer_slice)
+    };
 
     self.unmap();
 
-    Ok(())
+    Ok(res)
   }
 }

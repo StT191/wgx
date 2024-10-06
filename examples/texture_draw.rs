@@ -17,11 +17,12 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
 
     let window = ctx.window_clone();
 
-    let msaa = 4;
+    let srgb = false;
+    let msaa = 1;
     let depth_testing = None;
     let blending = None;
 
-    let (gx, mut target) = Wgx::new_with_target(window.clone(), features!(), limits!{}, window.inner_size(), msaa, depth_testing).await.unwrap();
+    let (gx, mut target) = Wgx::new_with_target(window.clone(), features!(), limits!{}, window.inner_size(), srgb, msaa, depth_testing).await.unwrap();
 
     // common/shaders
     let shader = gx.load_wgsl(wgsl_modules::include!("common/shaders/shader_flat_text.wgsl"));
@@ -54,8 +55,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
     // colors
     let color_texture = TextureLot::new_2d_with_data(&gx,
         [1, 1, 1], 1, DEFAULT_SRGB, None, TexUse::TEXTURE_BINDING,
-        // Color::from([0.5, 0.0, 1.0]).u8(),
-        Color::ORANGE.u8(),
+        Color::ORANGE.srgb().u8(),
     );
 
     let bg_color_draw_target = Color::ORANGE;
@@ -63,7 +63,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
 
 
     // draw target
-    const DRAW_MSAA:u32 = 4;
+    const DRAW_MSAA:u32 = 1;
 
     let draw_target = TextureTarget::new(&gx, window.inner_size(), DRAW_MSAA, None, DEFAULT_SRGB, None, TexUse::TEXTURE_BINDING);
     // let draw_target2 = TextureTarget::new(&gx, window.inner_size(), DRAW_MSAA, None, DEFAULT_SRGB, None, TexUse::TEXTURE_BINDING);
@@ -83,7 +83,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
         bind!(1, Sampler, &sampler),
     ]);
 
-    target.with_frame(None, |frame| gx.with_encoder(|encoder| { // !! ecoder witout draw to attachment produces hang!
+    target.with_frame(None, |frame| gx.with_encoder(|encoder| {
 
         encoder.with_render_pass(
             (
@@ -101,6 +101,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
             }
         );
 
+        // !! ecoder witout draw to attachment produces hang!
         encoder.render_pass(frame.attachments(Some(bg_color_target), None, None));
 
     })).expect("frame error");

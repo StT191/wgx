@@ -1,6 +1,6 @@
 [package]
 name = "wgx"
-version = "0.22.1"
+version = "0.22.2"
 authors = ["Stefan Tammer <st.tammer@gmail.com>"]
 edition = "2021"
 license = "MIT"
@@ -9,21 +9,21 @@ license = "MIT"
 name = "wgx"
 
 
-# wgsl modules
 [workspace]
 members = ["wgsl_modules", "wgsl_modules/loader", "wgsl_modules/macro"]
 
 [workspace.package]
-version = "0.22.1"
+version = "0.22.2"
 authors = ["Stefan Tammer <st.tammer@gmail.com>"]
 edition = "2021"
 license = "MIT"
 
 [workspace.dependencies]
-wgsl_modules = { version = "~0.22.1", path = "wgsl_modules" }
-wgsl_modules_macro = { version = "~0.22.1", path = "wgsl_modules/macro" }
-wgsl_modules_loader = { version = "~0.22.1", path = "wgsl_modules/loader" }
+wgsl_modules = { version = "~0.22.2", path = "wgsl_modules" }
+wgsl_modules_macro = { version = "~0.22.2", path = "wgsl_modules/macro" }
+wgsl_modules_loader = { version = "~0.22.2", path = "wgsl_modules/loader" }
 naga = { version = "22", features = ["wgsl-in"] }
+log = "0"
 anyhow = "1"
 
 
@@ -35,20 +35,20 @@ wgsl_modules_loader = ["wgsl_modules", "wgsl_modules/loader"]
 
 
 [dependencies]
-wgpu = { version = "22", default-features = false, features = ["wgsl", "fragile-send-sync-non-atomic-wasm"] }
+wgpu = { version = "22", default-features = false, features = ["wgsl"] }
 wgpu-types = "22"
+log = { workspace = true }
 anyhow = { workspace = true }
 arrayvec = "0.7"
 
-# optional
 glam = { version = "0", optional = true }
 wgsl_modules = { workspace = true, optional = true }
 
 
-# [patch."https://github.com/StT191/wgx-platform"]
+# [patch."https://github.com/StT191/platform"]
 # platform = { path = "../platform" }
 
 [dev-dependencies]
-platform = { version = "0.4.8", tag = "v0.4.8", git = "https://github.com/StT191/wgx-platform", features = ["frame_timer"] }
+platform = { version = "1.0.0", tag = "v1.0.0", git = "https://github.com/StT191/platform", features = ["frame_timer"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 wgpu = { version = "22", default-features = false, features = ["webgpu", "webgl"] }

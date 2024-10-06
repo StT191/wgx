@@ -16,7 +16,7 @@ main_app_closure! {
 async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
 
   let window = ctx.window_clone();
-  let (gx, mut target) = Wgx::new_with_target(window.clone(), features!(), limits!(), window.inner_size(), 1, None).await.unwrap();
+  let (gx, mut target) = Wgx::new_with_target(window.clone(), features!(), limits!(), window.inner_size(), false, 1, None).await.unwrap();
 
   let shader = gx.load_wgsl(wgsl_modules::inline!("$shader" <= {
     struct VertexData {
@@ -49,7 +49,6 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
       return vec4f(r, g, b, fma(r, 0.2, 0.8));
     }
   }));
-
 
   let pipeline = target.render_pipeline(&gx,
     None, &[],

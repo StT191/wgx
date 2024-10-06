@@ -1,10 +1,9 @@
 
 use arrayvec::ArrayVec;
 use wgpu::util::{DeviceExt, TextureDataOrder};
-use wgpu::rwh::{HasWindowHandle, HasDisplayHandle};
 use std::{ops::{RangeBounds, Bound}, borrow::Cow};
 use crate::{*};
-use anyhow::{Result as Res, Context};
+use anyhow::{Result as Res, Context, anyhow};
 
 
 // wgx
@@ -21,7 +20,7 @@ impl Wgx {
         wgpu::Instance::new(Default::default())
     }
 
-    pub async fn request_adapter<W: HasWindowHandle + HasDisplayHandle + Send + Sync + 'static>(
+    pub async fn request_adapter<W: Into<wgpu::SurfaceTarget<'static>>>(
         instance: &wgpu::Instance, window: Option<W>
     )
         -> Res<(wgpu::Adapter, Option<wgpu::Surface<'static>>)>
@@ -52,10 +51,10 @@ impl Wgx {
                 memory_hints: Default::default(),
             },
             None,
-        ).await?)
+        ).await.map_err(|err| anyhow!("{err:?}"))?)
     }
 
-    pub async fn new<W: HasWindowHandle + HasDisplayHandle + Send + Sync + 'static>(
+    pub async fn new<W: Into<wgpu::SurfaceTarget<'static>>>(
         window:Option<W>, features:wgpu::Features, limits:wgpu::Limits
     )
         -> Res<(Self, Option<wgpu::Surface<'static>>)>
@@ -66,13 +65,13 @@ impl Wgx {
         Ok((Self {device, queue, instance, adapter}, surface))
     }
 
-    pub async fn new_with_target<W: HasWindowHandle + HasDisplayHandle + Send + Sync + 'static>(
-        window: W, features:wgpu::Features, limits:wgpu::Limits, window_size:impl Into<[u32; 2]>, msaa:u32, depth_testing:Option<TextureFormat>,
+    pub async fn new_with_target<W: Into<wgpu::SurfaceTarget<'static>>>(
+        window: W, features:wgpu::Features, limits:wgpu::Limits, window_size:impl Into<[u32; 2]>, srgb: bool, msaa:u32, depth_testing:Option<TextureFormat>,
     )
         -> Res<(Self, SurfaceTarget)>
     {
         let (gx, surface) = Wgx::new(Some(window), features, limits).await?;
-        let target = SurfaceTarget::new_with_default_config(&gx, surface.unwrap(), window_size, msaa, depth_testing);
+        let target = SurfaceTarget::new_with_default_config(&gx, surface.unwrap(), window_size, srgb, msaa, depth_testing);
         Ok((gx, target))
     }
 }
@@ -318,13 +317,14 @@ pub trait WgxDeviceQueue: WgxDevice + WgxQueue {
 
     // with CommandEncoder
 
-    fn with_encoder<C: ImplicitControlflow>(&self, handler: impl FnOnce(&mut wgpu::CommandEncoder) -> C)
+    fn with_encoder<T: ImplicitControlFlow>(&self, handler: impl FnOnce(&mut wgpu::CommandEncoder) -> T) -> T
     {
         let mut encoder = self.command_encoder();
-        let controlflow = handler(&mut encoder);
-        if controlflow.should_continue() {
+        let res = handler(&mut encoder);
+        if res.should_continue() {
             self.queue().submit([encoder.finish()]);
         }
+        res
     }
 }
 

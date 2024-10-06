@@ -17,11 +17,12 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
 
     let window = ctx.window_clone();
 
+    let srgb = true;
     let msaa = 4;
     let depth_testing = Some(DEFAULT_DEPTH);
     let blending = Some(Blend::ALPHA_BLENDING);
 
-    let (gx, mut target) = Wgx::new_with_target(window.clone(), features!(), limits!{}, window.inner_size(), msaa, depth_testing).await.unwrap();
+    let (gx, mut target) = Wgx::new_with_target(window.clone(), features!(), limits!{}, window.inner_size(), srgb, msaa, depth_testing).await.unwrap();
 
     // global pipeline
     let shader = gx.load_wgsl(wgsl_modules::include!("common/shaders/shader_flat_text.wgsl"));
@@ -45,7 +46,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
 
     // vertices
     let data = [
-        Vtx([-0.25, -0.5, 0.35f32], [0.0, 0.0f32]),
+        Vtx([-0.25, -0.5, 0.35], [0.0, 0.0]),
         Vtx([0.0, -0.5, 0.35], [1.0, 0.0]),
         Vtx([-1.0, 0.5, 0.1], [0.0, 0.0]),
 

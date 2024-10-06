@@ -25,12 +25,13 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
 
   let window = ctx.window_clone();
 
+  let srgb = true;
   let msaa = 4;
   let depth_testing = Some(DEFAULT_DEPTH);
   let blending = None;
   let features = features!(MAPPABLE_PRIMARY_BUFFERS, POLYGON_MODE_LINE, MULTI_DRAW_INDIRECT);
 
-  let (gx, mut target) = Wgx::new_with_target(window.clone(), features, limits!{}, window.inner_size(), msaa, depth_testing).await.unwrap();
+  let (gx, mut target) = Wgx::new_with_target(window.clone(), features, limits!{}, window.inner_size(), srgb, msaa, depth_testing).await.unwrap();
 
   // pipeline
   let shader = gx.load_wgsl(wgsl_modules::include!("common/shaders/shader_3d_inst_text_diff.wgsl"));

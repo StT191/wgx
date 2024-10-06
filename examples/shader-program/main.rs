@@ -17,13 +17,14 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
 
   let window = ctx.window_clone();
 
+  let srgb = true;
   let msaa = 1;
   let depth_testing = None;
   let blending = None;
 
   let (gx, mut target) = Wgx::new_with_target(
     window.clone(), features!(PUSH_CONSTANTS), limits!{max_push_constant_size: 4},
-    window.inner_size(), msaa, depth_testing,
+    window.inner_size(), srgb, msaa, depth_testing,
   ).await.unwrap();
 
 

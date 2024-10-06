@@ -13,16 +13,7 @@ pub trait RenderTarget {
     fn format(&self) -> TextureFormat;
     fn view_format(&self) -> TextureFormat;
 
-    // provided
-    fn clear_color_transform(&self) -> ColorTransform {
-        if self.format().is_srgb() && self.view_format().is_srgb() && self.msaa() > 1 {
-            ColorTransform::None
-        } else {
-            ColorTransform::Linear
-        }
-    }
-
-    fn render_bundle<'a>(&self, gx: &'a Wgx, handler: impl FnOnce(&mut wgpu::RenderBundleEncoder<'a>)) -> wgpu::RenderBundle {
+    fn render_bundle<'a>(&self, gx: &'a impl WgxDevice, handler: impl FnOnce(&mut wgpu::RenderBundleEncoder<'a>)) -> wgpu::RenderBundle {
         gx.render_bundle(&[Some(self.view_format())], self.depth_testing(), self.msaa(), handler)
     }
 
@@ -49,7 +40,7 @@ pub trait RenderAttachable: RenderTarget {
     // provided
     fn color_attachment(&self, clear_color: Option<Color>) -> wgpu::RenderPassColorAttachment {
         let (view, msaa) = self.color_views();
-        ColorAttachment { view, msaa, clear: clear_color.map(|cl| (cl, self.clear_color_transform())) }.into()
+        ColorAttachment { view, msaa, clear: clear_color }.into()
     }
 
     fn depth_attachment(&self, clear_depth: Option<f32>, clear_stencil: Option<u32>) -> Option<wgpu::RenderPassDepthStencilAttachment> {
@@ -157,11 +148,22 @@ impl RenderAttachable for SurfaceFrame<'_> {
 }
 
 
-pub fn configure_surface_defaults(config: &mut SurfaceConfiguration, capabilites: &SurfaceCapabilities) {
+pub fn configure_surface_defaults(
+    config: &mut SurfaceConfiguration, capabilites: &SurfaceCapabilities,
+    downlevel_flags: &DownlevelFlags, srgb: bool,
+) {
     // format
-    if let Some(format) = capabilites.formats.iter().find(|fmt| fmt.is_srgb()) { config.format = *format; }
-    let view_format = config.format.add_srgb_suffix();
-    if view_format != config.format && !config.view_formats.contains(&view_format) { config.view_formats.push(view_format); }
+    if let Some(format) = capabilites.formats.iter().find(|fmt| fmt.is_srgb() == srgb) { config.format = *format; }
+
+    let other_format = if config.format.is_srgb() {
+        config.format.remove_srgb_suffix()
+    } else {
+        config.format.add_srgb_suffix()
+    };
+
+    if downlevel_flags.contains(DownlevelFlags::SURFACE_VIEW_FORMATS) && !config.view_formats.contains(&other_format) {
+        config.view_formats.push(other_format);
+    }
 
     // present modes
     if capabilites.present_modes.contains(&Prs::Mailbox) { config.present_mode = Prs::Mailbox; }
@@ -177,74 +179,67 @@ pub fn configure_surface_defaults(config: &mut SurfaceConfiguration, capabilites
 
 impl SurfaceTarget {
 
-    pub fn new_with_default_config(gx:&Wgx, surface:Surface, size:impl Into<[u32; 2]>, msaa:u32, depth_testing:Option<TextureFormat>) -> Self
+    pub fn new_with_default_config(gx:&Wgx, surface:Surface, size:impl Into<[u32; 2]>, srgb: bool, msaa:u32, depth_testing:Option<TextureFormat>) -> Self
     {
         let [width, height] = size.into();
         let mut config = surface.get_default_config(&gx.adapter, width, height).unwrap();
 
-        configure_surface_defaults(&mut config, &surface.get_capabilities(&gx.adapter));
+        configure_surface_defaults(
+            &mut config, &surface.get_capabilities(&gx.adapter),
+            &gx.adapter.get_downlevel_capabilities().flags, srgb,
+        );
 
         let format = config.format;
-        let mut view_format = config.format.add_srgb_suffix();
-        if !config.view_formats.contains(&view_format) { view_format = format };
+        let view_format = if srgb { format.add_srgb_suffix() } else { format.remove_srgb_suffix() };
+
+        if view_format != format {
+            assert!(config.view_formats.contains(&view_format), "view_formats may not be supported");
+        }
 
         Self::new(gx, surface, config, view_format, msaa, depth_testing)
     }
 
-    pub fn new(gx:&Wgx, surface:Surface, config:SurfaceConfiguration, view_format:TextureFormat, msaa:u32, depth_testing:Option<TextureFormat>)
+
+    pub fn new(gx:&impl WgxDevice, surface:Surface, config:SurfaceConfiguration, view_format:TextureFormat, msaa:u32, depth_testing:Option<TextureFormat>)
         -> Self
     {
-        let format = config.format;
-        let width = config.width;
-        let height = config.height;
+        let mut target = Self { config, surface, view_format, msaa, msaa_opt: None, depth_opt: None };
+        target.configure(gx, depth_testing);
+        target
+    }
 
-        surface.configure(gx.device(), &config);
 
-        Self {
-            config, surface, view_format, msaa,
+    pub fn configure(&mut self, gx:&impl WgxDevice, depth_testing:Option<TextureFormat>) {
 
-            msaa_opt: (msaa > 1).then(||
-                TextureLot::new_2d(gx, [width, height, 1], msaa, format, Some(view_format), TexUse::RENDER_ATTACHMENT)
-            ),
+        let [width, height] = self.size();
 
-            depth_opt: depth_testing.map(|depth_format|
-                TextureLot::new_2d(gx, [width, height, 1], msaa, depth_format, None, TexUse::RENDER_ATTACHMENT)
-            ),
-        }
+        self.surface.configure(gx.device(), &self.config);
+
+        self.msaa_opt = (self.msaa > 1).then(||
+            TextureLot::new_2d(gx, [width, height, 1], self.msaa, self.format(), Some(self.view_format), TexUse::RENDER_ATTACHMENT)
+        );
+
+        self.depth_opt = depth_testing.map(|depth_format|
+            TextureLot::new_2d(gx, [width, height, 1], self.msaa, depth_format, None, TexUse::RENDER_ATTACHMENT)
+        );
     }
 
 
     pub fn update(&mut self, gx:&impl WgxDevice, size:impl Into<[u32; 2]>) {
-
         let [width, height] = size.into();
         self.config.width = width;
         self.config.height = height;
-
-        self.surface.configure(gx.device(), &self.config);
-
-        let map_opt = |lot: &TextureLot| {
-            let mut descriptor = lot.descriptor;
-            descriptor.set_size_2d([width, height]);
-            descriptor.sample_count = self.msaa;
-            TextureLot::new(gx, descriptor)
-        };
-
-        self.msaa_opt = (self.msaa > 1).then(|| self.msaa_opt.as_ref().map_or_else(
-            || TextureLot::new_2d(gx, [width, height, 1], self.msaa, self.format(), Some(self.view_format), TexUse::RENDER_ATTACHMENT),
-            map_opt,
-        ));
-
-        self.depth_opt = self.depth_opt.as_ref().map(map_opt);
+        self.configure(gx, self.depth_testing());
     }
 
 
-    pub fn with_frame<C: ImplicitControlflow>(
-        &mut self, dsc: Option<&wgpu::TextureViewDescriptor>, handler: impl FnOnce(&SurfaceFrame) -> C
-    ) -> Res<()>
+    pub fn with_frame<T: ImplicitControlFlow>(
+        &mut self, dsc: Option<&wgpu::TextureViewDescriptor>, handler: impl FnOnce(&SurfaceFrame) -> T
+    ) -> Res<T>
     {
         let frame = self.surface.get_current_texture()?;
 
-        let controlflow = handler(&SurfaceFrame {
+        let res = handler(&SurfaceFrame {
             view: if let Some(dsc) = dsc {
                 frame.texture.create_view(dsc)
             } else {
@@ -253,11 +248,11 @@ impl SurfaceTarget {
             target: self,
         });
 
-        if controlflow.should_continue() {
+        if res.should_continue() {
             frame.present();
         }
 
-        Ok(())
+        Ok(res)
     }
 }
 
@@ -292,7 +287,6 @@ impl RenderAttachable for TextureTarget {
 }
 
 impl TextureTarget {
-
     pub fn new(
         gx:&impl WgxDevice, size:impl Into<[u32; 2]>, msaa:u32, depth_testing:Option<TextureFormat>,
         format:TextureFormat, view_format:Option<TextureFormat>, usage:wgpu::TextureUsages,
@@ -311,27 +305,5 @@ impl TextureTarget {
                 TextureLot::new_2d(gx, [w, h, 1], msaa, depth_format, None, TexUse::RENDER_ATTACHMENT)
             ),
         }
-    }
-
-    pub fn update(&mut self, gx:&impl WgxDevice, size:impl Into<[u32; 2]>) {
-
-        let [w, h] = size.into();
-
-        let map_opt = |descriptor: &TexDsc| {
-            let mut descriptor = *descriptor;
-            descriptor.set_size_2d([w, h]);
-            descriptor.sample_count = self.msaa;
-            TextureLot::new(gx, descriptor)
-        };
-
-        let TextureLot { texture, descriptor, view } = map_opt(&self.descriptor);
-        self.texture = texture; self.descriptor = descriptor; self.view = view;
-
-        self.msaa_opt = (self.msaa > 1).then(|| self.msaa_opt.as_ref().map_or_else(
-            || TextureLot::new_2d(gx, [w, h, 1], self.msaa, self.format(), Some(self.view_format()), TexUse::RENDER_ATTACHMENT),
-            |opt| map_opt(&opt.descriptor),
-        ));
-
-        self.depth_opt = self.depth_opt.as_ref().map(|opt| map_opt(&opt.descriptor));
     }
 }

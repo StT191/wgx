@@ -63,14 +63,14 @@ pub use wgsl_modules;
 
 // control flow helper
 
-pub trait ImplicitControlflow {
+pub trait ImplicitControlFlow {
     fn should_continue(&self) -> bool;
 }
 
-impl ImplicitControlflow for () {
+impl ImplicitControlFlow for () {
     fn should_continue(&self) -> bool { true }
 }
 
-impl<B, C> ImplicitControlflow for std::ops::ControlFlow<B, C> {
+impl<B, C> ImplicitControlFlow for std::ops::ControlFlow<B, C> {
     fn should_continue(&self) -> bool { self.is_continue() }
 }
