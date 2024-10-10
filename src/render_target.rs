@@ -1,59 +1,9 @@
 
 use wgpu::{*, PresentMode as Prs};
-use crate::{*, Color};
+use crate::*;
 use anyhow::{Result as Res};
 
 
-pub trait RenderTarget {
-
-    // to implement
-    fn size(&self) -> [u32; 2];
-    fn msaa(&self) -> u32;
-    fn depth_testing(&self) -> Option<TextureFormat>;
-    fn format(&self) -> TextureFormat;
-    fn view_format(&self) -> TextureFormat;
-
-    fn render_bundle<'a>(&self, gx: &'a impl WgxDevice, handler: impl FnOnce(&mut wgpu::RenderBundleEncoder<'a>)) -> wgpu::RenderBundle {
-        gx.render_bundle(&[Some(self.view_format())], self.depth_testing(), self.msaa(), handler)
-    }
-
-    fn render_pipeline(
-        &self, gx: &impl WgxDevice,
-        layout: Option<(&[wgpu::PushConstantRange], &[&wgpu::BindGroupLayout])>,
-        buffers: &[wgpu::VertexBufferLayout],
-        vertex_state: (&wgpu::ShaderModule, &str, Primitive),
-        (fs_module, fs_entry_point, blend): (&wgpu::ShaderModule, &str, Option<Blend>),
-    ) -> wgpu::RenderPipeline {
-        gx.render_pipeline(
-            self.msaa(), self.depth_testing(), layout, buffers, vertex_state,
-            Some((fs_module, fs_entry_point, &[(self.view_format(), blend)])),
-        )
-    }
-}
-
-pub trait RenderAttachable: RenderTarget {
-
-    // to implement
-    fn color_views(&self) -> (&wgpu::TextureView, Option<&wgpu::TextureView>);
-    fn depth_view(&self) -> Option<(&wgpu::TextureView, wgpu::TextureFormat)>;
-
-    // provided
-    fn color_attachment(&self, clear_color: Option<Color>) -> wgpu::RenderPassColorAttachment {
-        let (view, msaa) = self.color_views();
-        ColorAttachment { view, msaa, clear: clear_color }.into()
-    }
-
-    fn depth_attachment(&self, clear_depth: Option<f32>, clear_stencil: Option<u32>) -> Option<wgpu::RenderPassDepthStencilAttachment> {
-        self.depth_view().map(|(view, format)| DepthAttachment { view, format, clear_depth, clear_stencil }.into())
-    }
-
-    fn attachments(&self, clear_color: Option<Color>, clear_depth: Option<f32>, clear_stencil: Option<u32>) -> RenderAttachments<1> {
-        ([Some(self.color_attachment(clear_color))], self.depth_attachment(clear_depth, clear_stencil))
-    }
-}
-
-
-// helper
 #[derive(Debug)]
 pub struct TextureLot {
     pub texture: wgpu::Texture,
@@ -101,6 +51,7 @@ impl RenderAttachable for TextureLot {
     fn color_views(&self) -> (&wgpu::TextureView, Option<&wgpu::TextureView>) { (&self.view, None) }
     fn depth_view(&self) -> Option<(&wgpu::TextureView, wgpu::TextureFormat)> { None }
 }
+
 
 
 type Surface = wgpu::Surface<'static>;
@@ -255,7 +206,6 @@ impl SurfaceTarget {
         Ok(res)
     }
 }
-
 
 
 #[derive(Debug)]

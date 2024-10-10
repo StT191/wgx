@@ -131,3 +131,13 @@ macro_rules! push_constants {
     };
 }
 
+
+#[macro_export]
+macro_rules! shader_constants {
+    ($($const:ident: $value:expr),*) => {{
+        let capacity = 0 $( + {let _ = $value; 1} )*;
+        let mut hash_map = ::std::collections::HashMap::<String, f64>::with_capacity(capacity);
+        $(hash_map.insert(::std::stringify!($const).to_string(), $value as f64);)*
+        hash_map
+    }}
+}
