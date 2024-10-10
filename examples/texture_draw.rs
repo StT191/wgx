@@ -30,8 +30,8 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
     // pipeline
     let pipeline = target.render_pipeline(&gx,
         None, &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        (&shader, "vs_main", Primitive { topology: Topology::TriangleStrip, ..Primitive::default() }),
-        (&shader, "fs_main", blending),
+        (&shader, "vs_main", None, Primitive { topology: Topology::TriangleStrip, ..Primitive::default() }),
+        (&shader, "fs_main", None, blending),
     );
 
     // sampler
@@ -54,7 +54,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
 
     // colors
     let color_texture = TextureLot::new_2d_with_data(&gx,
-        [1, 1, 1], 1, DEFAULT_SRGB, None, TexUse::TEXTURE_BINDING,
+        [1, 1, 1], 1, TexFmt::Rgba8UnormSrgb, None, TexUse::TEXTURE_BINDING,
         Color::ORANGE.srgb().u8(),
     );
 
@@ -65,16 +65,16 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
     // draw target
     const DRAW_MSAA:u32 = 1;
 
-    let draw_target = TextureTarget::new(&gx, window.inner_size(), DRAW_MSAA, None, DEFAULT_SRGB, None, TexUse::TEXTURE_BINDING);
-    // let draw_target2 = TextureTarget::new(&gx, window.inner_size(), DRAW_MSAA, None, DEFAULT_SRGB, None, TexUse::TEXTURE_BINDING);
+    let draw_target = TextureTarget::new(&gx, window.inner_size(), DRAW_MSAA, None, TexFmt::Rgba8UnormSrgb, None, TexUse::TEXTURE_BINDING);
+    // let draw_target2 = TextureTarget::new(&gx, window.inner_size(), DRAW_MSAA, None, TexFmt::Rgba8UnormSrgb, None, TexUse::TEXTURE_BINDING);
 
     let draw_pipeline = gx.render_pipeline(
         DRAW_MSAA, None, None,
         &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        (&shader, "vs_main", Primitive { topology: Topology::TriangleStrip, ..Primitive::default() }),
-        Some((&shader, "fs_main", &[
-            (draw_target.view_format(), blending),
-            // (draw_target2.view_format(), BLENDING),
+        (&shader, "vs_main", None, Primitive { topology: Topology::TriangleStrip, ..Primitive::default() }),
+        Some((&shader, "fs_main", None, &[
+            (draw_target.format(), blending),
+            // (draw_target2.format(), blending),
         ])),
     );
 
@@ -83,16 +83,12 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
         bind!(1, Sampler, &sampler),
     ]);
 
-    target.with_frame(None, |frame| gx.with_encoder(|encoder| {
-
+    gx.with_encoder(|encoder| {
         encoder.with_render_pass(
-            (
-                [
-                    Some(draw_target.color_attachment(Some(bg_color_draw_target))),
-                    // Some(draw_target2.color_attachment(Some(bg_color_draw_target))),
-                ],
-                None
-            ),
+            ([
+                Some(draw_target.color_attachment(Some(bg_color_draw_target)).into()),
+                // Some(draw_target2.color_attachment(Some(bg_color_draw_target)).into()),
+            ], None),
             |rpass| {
                 rpass.set_pipeline(&draw_pipeline);
                 rpass.set_bind_group(0, &draw_binding, &[]);
@@ -100,11 +96,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
                 rpass.draw(0..vertex_data.len() as u32, 0..1);
             }
         );
-
-        // !! ecoder witout draw to attachment produces hang!
-        encoder.render_pass(frame.attachments(Some(bg_color_target), None, None));
-
-    })).expect("frame error");
+    });
 
 
     // binding

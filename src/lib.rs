@@ -6,7 +6,7 @@ pub use wgpu::{
     BufferUsages as BufUse,
     TextureUsages as TexUse,
     ShaderStages as Stage,
-    TextureFormat,
+    TextureFormat as TexFmt,
     TextureDimension as Dimension,
     TextureViewDimension as ViewDimension,
     BlendState as Blend, BlendComponent, BlendFactor, BlendOperation,
@@ -74,3 +74,9 @@ impl ImplicitControlFlow for () {
 impl<B, C> ImplicitControlFlow for std::ops::ControlFlow<B, C> {
     fn should_continue(&self) -> bool { self.is_continue() }
 }
+
+
+// shader_constants
+use std::collections::HashMap;
+
+pub type ShaderConstants = HashMap<String, f64>;
