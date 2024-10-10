@@ -1,8 +1,9 @@
 
-use wgpu::{StoreOp, TextureFormat};
-use crate::Color;
+use wgpu::{StoreOp, TextureFormat, Texture};
+use crate::*;
 
 // render attachments
+
 pub type RenderAttachments<'a, const S: usize> = (
     [Option<wgpu::RenderPassColorAttachment<'a>>; S],
     Option<wgpu::RenderPassDepthStencilAttachment<'a>>
@@ -11,6 +12,7 @@ pub type RenderAttachments<'a, const S: usize> = (
 #[derive(Debug, Clone, Copy)]
 pub struct ColorAttachment<'a> {
     pub view: &'a wgpu::TextureView,
+    pub format: TextureFormat,
     pub msaa: Option<&'a wgpu::TextureView>,
     pub clear: Option<Color>,
 }
@@ -68,27 +70,81 @@ impl<'a> From<DepthAttachment<'a>> for wgpu::RenderPassDepthStencilAttachment<'a
 }
 
 
-// encoder extension
-use crate::util_extension::*;
+// render target
+
+pub trait RenderTarget {
+
+    // to implement
+    fn size(&self) -> [u32; 2];
+    fn msaa(&self) -> u32;
+    fn depth_testing(&self) -> Option<TextureFormat>;
+    fn format(&self) -> TextureFormat;
+
+    fn bytes_per_row(&self) -> Option<u32> {
+        self.format().block_copy_size(None).map(|bytes| bytes * self.size()[0])
+    }
+
+    fn render_bundle<'a>(&self, gx: &'a impl WgxDevice, handler: impl FnOnce(&mut wgpu::RenderBundleEncoder<'a>)) -> wgpu::RenderBundle {
+        gx.render_bundle(&[Some(self.format())], self.depth_testing(), self.msaa(), handler)
+    }
+
+    fn render_pipeline(
+        &self, gx: &impl WgxDevice,
+        layout: Option<(&[wgpu::PushConstantRange], &[&wgpu::BindGroupLayout])>,
+        buffers: &[wgpu::VertexBufferLayout],
+        vertex_state: (&wgpu::ShaderModule, &str, Option<&ShaderConstants>, Primitive),
+        (fs_module, fs_entry_point, fs_constants, blend): (&wgpu::ShaderModule, &str, Option<&ShaderConstants>, Option<Blend>),
+    ) -> wgpu::RenderPipeline {
+        gx.render_pipeline(
+            self.msaa(), self.depth_testing(), layout, buffers, vertex_state,
+            Some((fs_module, fs_entry_point, fs_constants, &[(self.format(), blend)])),
+        )
+    }
+}
+
+pub trait RenderAttachable {
+
+    // to implement
+    fn color_views(&self) -> (&wgpu::TextureView, wgpu::TextureFormat, Option<&wgpu::TextureView>);
+    fn depth_view(&self) -> Option<(&wgpu::TextureView, wgpu::TextureFormat)>;
+
+    // provided
+    fn color_attachment(&self, clear_color: Option<Color>) -> ColorAttachment {
+        let (view, format, msaa) = self.color_views();
+        ColorAttachment { view, msaa, format, clear: clear_color }
+    }
+
+    fn depth_attachment(&self, clear_depth: Option<f32>, clear_stencil: Option<u32>) -> Option<DepthAttachment> {
+        self.depth_view().map(|(view, format)| DepthAttachment { view, format, clear_depth, clear_stencil })
+    }
+
+    fn attachments(&self, clear_color: Option<Color>, clear_depth: Option<f32>, clear_stencil: Option<u32>) -> RenderAttachments<1> {
+        ([Some(self.color_attachment(clear_color).into())], self.depth_attachment(clear_depth, clear_stencil).map(|a| a.into()))
+    }
+}
+
+impl RenderTarget for Texture {
+    fn size(&self) -> [u32; 2] { [self.width(), self.height()] }
+    fn msaa(&self) -> u32 { 1 }
+    fn depth_testing(&self) -> Option<TextureFormat> { None }
+    fn format(&self) -> TextureFormat { self.format() }
+}
+
+
+pub type ColorViews<'a> = (&'a wgpu::TextureView, wgpu::TextureFormat, Option<&'a wgpu::TextureView>);
+
+impl RenderAttachable for ColorViews<'_> {
+    fn color_views(&self) -> (&wgpu::TextureView, wgpu::TextureFormat, Option<&wgpu::TextureView>) { *self }
+    fn depth_view(&self) -> Option<(&wgpu::TextureView, wgpu::TextureFormat)> { None }
+}
+
+
 
 pub trait EncoderExtension {
 
-    fn buffer_to_buffer(
-        &mut self, src_buffer:&wgpu::Buffer, src_offset:wgpu::BufferAddress,
-        dst_buffer:&wgpu::Buffer, dst_offset:wgpu::BufferAddress, size:wgpu::BufferAddress,
-    );
-
-    fn buffer_to_texture<'b, 't>(
-        &mut self, buffer: impl ToImageCopyBuffer<'b>, texture: impl ToImageCopyTexture<'t>, extent: impl ToExtent3d,
-    );
-
-    fn texture_to_buffer<'t, 'b>(
-        &mut self, texture: impl ToImageCopyTexture<'t>, buffer: impl ToImageCopyBuffer<'b>, extent: impl ToExtent3d,
-    );
-
     fn compute_pass(&mut self) -> wgpu::ComputePass;
 
-    fn with_compute_pass<'a, T>(&'a mut self, handler: impl FnOnce(&mut wgpu::ComputePass<'static>) -> T) -> T;
+    fn with_compute_pass<T>(&mut self, handler: impl FnOnce(&mut wgpu::ComputePass<'static>) -> T) -> T;
 
     fn render_pass<'a, const S: usize>(&'a mut self, attachments: RenderAttachments<'a, S>) -> wgpu::RenderPass<'a>;
 
@@ -103,32 +159,7 @@ pub trait EncoderExtension {
     );
 }
 
-
 impl EncoderExtension for wgpu::CommandEncoder {
-
-    fn buffer_to_buffer(
-        &mut self,
-        src_buffer:&wgpu::Buffer, src_offset:wgpu::BufferAddress,
-        dst_buffer:&wgpu::Buffer, dst_offset:wgpu::BufferAddress,
-        size:wgpu::BufferAddress,
-    ) {
-        self.copy_buffer_to_buffer(src_buffer, src_offset, dst_buffer, dst_offset, size);
-    }
-
-
-    fn buffer_to_texture<'b, 't>(
-        &mut self, buffer: impl ToImageCopyBuffer<'b>, texture: impl ToImageCopyTexture<'t>, extent: impl ToExtent3d,
-    ) {
-        self.copy_buffer_to_texture(buffer.to(), texture.to(), extent.to());
-    }
-
-
-    fn texture_to_buffer<'t, 'b>(
-        &mut self, texture: impl ToImageCopyTexture<'t>, buffer: impl ToImageCopyBuffer<'b>, extent: impl ToExtent3d,
-    ) {
-        self.copy_texture_to_buffer(texture.to(), buffer.to(), extent.to());
-    }
-
 
     fn compute_pass(&mut self) -> wgpu::ComputePass {
         self.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -137,8 +168,7 @@ impl EncoderExtension for wgpu::CommandEncoder {
         })
     }
 
-
-    fn with_compute_pass<'a, T>(&'a mut self, handler: impl FnOnce(&mut wgpu::ComputePass<'static>) -> T) -> T {
+    fn with_compute_pass<T>(&mut self, handler: impl FnOnce(&mut wgpu::ComputePass<'static>) -> T) -> T {
         handler(&mut self.compute_pass().forget_lifetime())
     }
 
@@ -154,7 +184,6 @@ impl EncoderExtension for wgpu::CommandEncoder {
             occlusion_query_set: None,
         })
     }
-
 
     fn with_render_pass<'a, const S: usize, T>(
         &'a mut self, attachments: RenderAttachments<'a, S>,
