@@ -66,7 +66,7 @@ async fn init_app(app_ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
     ),
   ];
 
-  // let mut frame_counter = IntervalCounter::from_secs(3.0);
+  // let mut frame_counter = timer::IntervalCounter::from_secs(3.0);
 
   move |app_ctx: &mut AppCtx, event: &AppEvent| {
 
@@ -130,8 +130,9 @@ async fn init_app(app_ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
 
         app_ctx.request = Some(output.repaint_delay);
 
-        /*frame_counter.add();
-        if let Some(counted) = frame_counter.count() { log_warn!(counted) }*/
+        // frame_counter.add();
+        // if let Some(counted) = frame_counter.count() { log_warn!(counted) }
+        // window.request_redraw(); // draw as many as possible
 
       },
 
