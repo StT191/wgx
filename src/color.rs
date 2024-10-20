@@ -259,3 +259,84 @@ mod math_color_conversion {
     }
 
 }
+
+
+#[cfg(feature = "serde")]
+mod color_serde_impl {
+
+    use super::Color;
+    use serde::{ser::*, de::{self, *}};
+
+    impl Serialize for Color {
+        fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+            let mut state = serializer.serialize_tuple_struct("Color", 4)?;
+            state.serialize_field(&self.r)?;
+            state.serialize_field(&self.g)?;
+            state.serialize_field(&self.b)?;
+            state.serialize_field(&self.a)?;
+            state.end()
+        }
+    }
+
+    impl<'de> Deserialize<'de> for Color {
+        fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+
+            struct ColorVisitor;
+
+            impl<'de> Visitor<'de> for ColorVisitor {
+
+                type Value = Color;
+
+                fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    formatter.write_str("a sequence of 4 f32 values")
+                }
+
+                fn visit_seq<V: SeqAccess<'de>>(self, mut seq: V) -> Result<Color, V::Error> {
+
+                    let r = seq.next_element()?.ok_or_else(|| de::Error::invalid_length(0, &self))?;
+                    let g = seq.next_element()?.ok_or_else(|| de::Error::invalid_length(1, &self))?;
+                    let b = seq.next_element()?.ok_or_else(|| de::Error::invalid_length(2, &self))?;
+                    let a = seq.next_element()?.ok_or_else(|| de::Error::invalid_length(3, &self))?;
+
+                    Ok(Color::new(r, g, b, a))
+                }
+            }
+
+            deserializer.deserialize_tuple_struct("Color", 3, ColorVisitor)
+        }
+    }
+
+
+    #[cfg(test)]
+    mod test {
+
+        use super::Color;
+
+        #[test]
+        fn deserialize_json() {
+
+            let json = "[0.6, 0.9, 0.3, 1.0]";
+
+            let color: Color = match serde_json::from_str(json) {
+                Ok(cl) => cl,
+                Err(err) => panic!("{:?}", err),
+            };
+
+            assert_eq!(color, Color::new(0.6, 0.9, 0.3, 1.0));
+        }
+
+        #[test]
+        fn serialize_json() {
+
+            let color = Color::new(0.6, 0.9, 0.3, 1.0);
+
+            let json: String = match serde_json::to_string(&color) {
+                Ok(json) => json,
+                Err(err) => panic!("{:?}", err),
+            };
+
+            assert_eq!(json, "[0.6,0.9,0.3,1.0]");
+        }
+    }
+
+}
