@@ -65,16 +65,16 @@ pub trait FromToAttitudeExtension {
     fn to_attitude(&self) -> Self::A;
 }
 
-pub const ATTITUDE: EulerRot = EulerRot::ZXY; // roll|pich|yaw
+pub const ATTITUDE: EulerRot = EulerRot::YXZEx; // yaw|pitch|roll
 
 impl_multi!{
     FromToAttitudeExtension => Mat4, Mat3, Mat3A, Quat => {
         type A = Vec3;
         fn from_attitude(Vec3 {x:yaw, y:pitch, z:roll}: Vec3) -> Self {
-            Self::from_euler(ATTITUDE, roll, pitch, yaw)
+            Self::from_euler(ATTITUDE, yaw, pitch, roll)
         }
         fn to_attitude(&self) -> Vec3 {
-            let (roll, pitch, yaw) = self.to_euler(ATTITUDE);
+            let (yaw, pitch, roll) = self.to_euler(ATTITUDE);
             Vec3::new(yaw, pitch, roll)
         }
     }
@@ -92,10 +92,10 @@ impl_multi!{
     FromToAttitudeExtension => DMat4, DMat3, DQuat => {
         type A = DVec3;
         fn from_attitude(DVec3 {x:yaw, y:pitch, z:roll}: DVec3) -> Self {
-            Self::from_euler(ATTITUDE, roll, pitch, yaw)
+            Self::from_euler(ATTITUDE, yaw, pitch, roll)
         }
         fn to_attitude(&self) -> DVec3 {
-            let (roll, pitch, yaw) = self.to_euler(ATTITUDE);
+            let (yaw, pitch, roll) = self.to_euler(ATTITUDE);
             DVec3::new(yaw, pitch, roll)
         }
     }
@@ -110,32 +110,42 @@ impl FromToAttitudeExtension for DAffine3 {
 }
 
 
-pub trait NormalizeAngleExtension {
+pub trait AngleExtension: Sized {
     fn normalize_angle(self) -> Self;
+    fn norm_angle_as_delta(self) -> Self;
+    fn angle_as_delta(self) -> Self { Self::norm_angle_as_delta(Self::normalize_angle(self)) }
 }
 
-impl NormalizeAngleExtension for f32 {
-    fn normalize_angle(self) -> f32 { self.rem_euclid(2.0 * std::f32::consts::PI) }
+use std::f32::consts::PI as PI_32;
+use std::f64::consts::PI as PI_64;
+
+impl AngleExtension for f32 {
+    fn normalize_angle(self) -> Self { self.rem_euclid(2.0 * PI_32) }
+    fn norm_angle_as_delta(self) -> Self { if self > PI_32 { self - 2.0*PI_32 } else { self } }
 }
 
-impl NormalizeAngleExtension for f64 {
-    fn normalize_angle(self) -> f64 { self.rem_euclid(2.0 * std::f64::consts::PI) }
+impl AngleExtension for f64 {
+    fn normalize_angle(self) -> Self { self.rem_euclid(2.0 * PI_64) }
+    fn norm_angle_as_delta(self) -> Self { if self > PI_64 { self - 2.0*PI_64 } else { self } }
 }
 
-
-pub trait NormalizeAnglesExtension {
+pub trait AnglesExtension: Sized {
     fn normalize_angles(self) -> Self;
+    fn norm_angles_as_delta(self) -> Self;
+    fn angles_as_delta(self) -> Self { Self::norm_angles_as_delta(Self::normalize_angles(self)) }
 }
 
 impl_multi!{
-    NormalizeAnglesExtension => Vec4, Vec3, Vec3A, Vec2 => {
+    AnglesExtension => Vec4, Vec3, Vec3A, Vec2 => {
         fn normalize_angles(self) -> Self { self.map(f32::normalize_angle) }
+        fn norm_angles_as_delta(self) -> Self { self.map(f32::norm_angle_as_delta) }
     }
 }
 
 impl_multi!{
-    NormalizeAnglesExtension => DVec4, DVec3, DVec2 => {
+    AnglesExtension => DVec4, DVec3, DVec2 => {
         fn normalize_angles(self) -> Self { self.map(f64::normalize_angle) }
+        fn norm_angles_as_delta(self) -> Self { self.map(f64::norm_angle_as_delta) }
     }
 }
 
@@ -165,25 +175,24 @@ use std::{borrow::*, mem::transmute};
 
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 #[repr(C)]
-pub struct Vec3P {
-    pub vec3: Vec3,
-    _padding: f32,
-}
+pub struct Vec3P { vec3: Vec3, z: f32 }
 
 impl Vec3P {
-    pub const fn new(vec3: Vec3) -> Self { Self { vec3, _padding: 0.0 } }
+    pub const fn new(vec3: Vec3) -> Self { Self { vec3, z: vec3.z } }
+    pub const fn vec3(self) -> Vec3 { self.vec3 }
+    pub const fn vec3a(self) -> Vec3A { unsafe {transmute(self)} }
 }
 
 impl<T: Into<Vec3>> From<T> for Vec3P { fn from(value: T) -> Self { Self::new(value.into()) } }
 
 impl Borrow<Vec3> for Vec3P { fn borrow(&self) -> &Vec3 { &self.vec3 } }
-impl BorrowMut<Vec3> for Vec3P { fn borrow_mut(&mut self) -> &mut Vec3 { &mut self.vec3 } }
 impl AsRef<Vec3> for Vec3P { fn as_ref(&self) -> &Vec3 { &self.vec3 } }
-impl AsMut<Vec3> for Vec3P { fn as_mut(&mut self) -> &mut Vec3 { &mut self.vec3 } }
 
-impl From<Vec3P> for Vec3A { fn from(other: Vec3P) -> Self { unsafe {transmute(other)} } }
+impl From<Vec3P> for Vec3A { fn from(vec3p: Vec3P) -> Self { vec3p.vec3a() } }
 impl Borrow<Vec3A> for Vec3P { fn borrow(&self) -> &Vec3A { unsafe {transmute(self)} } }
+impl BorrowMut<Vec3A> for Vec3P { fn borrow_mut(&mut self) -> &mut Vec3A { unsafe {transmute(self)} } }
 impl AsRef<Vec3A> for Vec3P { fn as_ref(&self) -> &Vec3A { unsafe {transmute(self)} } }
+impl AsMut<Vec3A> for Vec3P { fn as_mut(&mut self) -> &mut Vec3A { unsafe {transmute(self)} } }
 
 #[cfg(feature = "serde")]
 mod vec3p_serde_impl {

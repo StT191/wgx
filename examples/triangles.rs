@@ -29,7 +29,11 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
 
     let pipeline = target.render_pipeline(&gx,
         None, &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        (&shader, "vs_main", None, Primitive::default()),
+        (&shader, "vs_main", None, Primitive {
+            front_face: FrontFace::Ccw,
+            cull_mode: Some(Face::Back), // None,
+            ..Primitive::default()
+        }),
         (&shader, "fs_main", None, blending),
     );
 
@@ -55,8 +59,8 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
         Vtx([-1.0, 0.5, 0.6], [0.0, 0.0]),
 
         Vtx([-0.75, -0.5, 0.1], [0.0, 0.0]),
-        Vtx([-1.0, -0.5, 0.1], [1.0, 0.0]),
         Vtx([-0.3, 0.5, 0.312], [1.0, 0.0]),
+        Vtx([-1.0, -0.5, 0.1], [1.0, 0.0]),
     ];
     let vertices = gx.buffer_from_data(BufUse::VERTEX, &data[..]);
 
