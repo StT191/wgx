@@ -158,63 +158,180 @@ impl_multi!{
 }
 
 
+
 // types with no uninit bytes which fit into wgsl aligned types
-mod padding_types {
 
-    use std::{borrow::*, mem::transmute};
-    use super::{*};
+use std::{borrow::*, mem::transmute};
 
-    #[derive(Debug, Default, Clone, Copy, PartialEq)]
-    #[repr(C)]
-    pub struct Vec3P {
-        pub vec3: Vec3,
-        _padding: f32,
-    }
-
-    impl Vec3P {
-        pub const fn new(vec3: Vec3) -> Self { Self { vec3, _padding: 0.0 } }
-    }
-
-    impl<T: Into<Vec3>> From<T> for Vec3P { fn from(value: T) -> Self { Self::new(value.into()) } }
-
-    impl Borrow<Vec3> for Vec3P { fn borrow(&self) -> &Vec3 { &self.vec3 } }
-    impl BorrowMut<Vec3> for Vec3P { fn borrow_mut(&mut self) -> &mut Vec3 { &mut self.vec3 } }
-    impl AsRef<Vec3> for Vec3P { fn as_ref(&self) -> &Vec3 { &self.vec3 } }
-    impl AsMut<Vec3> for Vec3P { fn as_mut(&mut self) -> &mut Vec3 { &mut self.vec3 } }
-
-    impl From<Vec3P> for Vec3A { fn from(other: Vec3P) -> Self { unsafe {transmute(other)} } }
-    impl Borrow<Vec3A> for Vec3P { fn borrow(&self) -> &Vec3A { unsafe {transmute(self)} } }
-    impl AsRef<Vec3A> for Vec3P { fn as_ref(&self) -> &Vec3A { unsafe {transmute(self)} } }
-
-
-    #[derive(Debug, Default, Clone, Copy, PartialEq)]
-    #[repr(C)]
-    pub struct Mat3P {
-        pub x_axis: Vec3P,
-        pub y_axis: Vec3P,
-        pub z_axis: Vec3P,
-    }
-
-    impl Mat3P {
-
-        pub const fn new(mat3: Mat3) -> Self {
-            Self {
-                x_axis: Vec3P::new(mat3.x_axis),
-                y_axis: Vec3P::new(mat3.y_axis),
-                z_axis: Vec3P::new(mat3.z_axis),
-            }
-        }
-
-        pub fn mat3(self) -> Mat3 {
-            Mat3::from_cols(self.x_axis.vec3, self.y_axis.vec3, self.z_axis.vec3)
-        }
-    }
-
-    impl<T: Into<Mat3>> From<T> for Mat3P { fn from(value: T) -> Self { Self::new(value.into()) } }
-
-    impl From<Mat3P> for Mat3A { fn from(other: Mat3P) -> Self { unsafe {transmute(other)} } }
-    impl Borrow<Mat3A> for Mat3P { fn borrow(&self) -> &Mat3A { unsafe {transmute(self)} } }
-    impl AsRef<Mat3A> for Mat3P { fn as_ref(&self) -> &Mat3A { unsafe {transmute(self)} } }
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
+#[repr(C)]
+pub struct Vec3P {
+    pub vec3: Vec3,
+    _padding: f32,
 }
 
-pub use padding_types::*;
+impl Vec3P {
+    pub const fn new(vec3: Vec3) -> Self { Self { vec3, _padding: 0.0 } }
+}
+
+impl<T: Into<Vec3>> From<T> for Vec3P { fn from(value: T) -> Self { Self::new(value.into()) } }
+
+impl Borrow<Vec3> for Vec3P { fn borrow(&self) -> &Vec3 { &self.vec3 } }
+impl BorrowMut<Vec3> for Vec3P { fn borrow_mut(&mut self) -> &mut Vec3 { &mut self.vec3 } }
+impl AsRef<Vec3> for Vec3P { fn as_ref(&self) -> &Vec3 { &self.vec3 } }
+impl AsMut<Vec3> for Vec3P { fn as_mut(&mut self) -> &mut Vec3 { &mut self.vec3 } }
+
+impl From<Vec3P> for Vec3A { fn from(other: Vec3P) -> Self { unsafe {transmute(other)} } }
+impl Borrow<Vec3A> for Vec3P { fn borrow(&self) -> &Vec3A { unsafe {transmute(self)} } }
+impl AsRef<Vec3A> for Vec3P { fn as_ref(&self) -> &Vec3A { unsafe {transmute(self)} } }
+
+#[cfg(feature = "serde")]
+mod vec3p_serde_impl {
+
+    use super::*;
+    use serde::*;
+
+    impl Serialize for Vec3P {
+        fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+            Vec3::serialize(&self.vec3, serializer)
+        }
+    }
+
+    impl<'de> Deserialize<'de> for Vec3P {
+        fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+            Ok(Self::new(Vec3::deserialize(deserializer)?))
+        }
+    }
+
+    #[cfg(test)]
+    mod test {
+
+        use super::Vec3P;
+
+        #[test]
+        fn json_roundtrip() {
+
+            let vec3p = Vec3P::from([1.0, 2.0, 3.0]);
+
+            let json: String = match serde_json::to_string(&vec3p) {
+                Ok(json) => json,
+                Err(err) => panic!("{:?}", err),
+            };
+
+            let deserialized: Vec3P = match serde_json::from_str(&json) {
+                Ok(cl) => cl,
+                Err(err) => panic!("{:?}", err),
+            };
+
+            assert_eq!(deserialized, vec3p);
+        }
+    }
+}
+
+
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
+#[repr(C)]
+pub struct Mat3P {
+    pub x_axis: Vec3P,
+    pub y_axis: Vec3P,
+    pub z_axis: Vec3P,
+}
+
+impl Mat3P {
+
+    pub const fn new(mat3: Mat3) -> Self {
+        Self {
+            x_axis: Vec3P::new(mat3.x_axis),
+            y_axis: Vec3P::new(mat3.y_axis),
+            z_axis: Vec3P::new(mat3.z_axis),
+        }
+    }
+
+    pub fn mat3(self) -> Mat3 {
+        Mat3::from_cols(self.x_axis.vec3, self.y_axis.vec3, self.z_axis.vec3)
+    }
+}
+
+impl<T: Into<Mat3>> From<T> for Mat3P { fn from(value: T) -> Self { Self::new(value.into()) } }
+
+impl From<Mat3P> for Mat3A { fn from(other: Mat3P) -> Self { unsafe {transmute(other)} } }
+impl Borrow<Mat3A> for Mat3P { fn borrow(&self) -> &Mat3A { unsafe {transmute(self)} } }
+impl AsRef<Mat3A> for Mat3P { fn as_ref(&self) -> &Mat3A { unsafe {transmute(self)} } }
+
+#[cfg(feature = "serde")]
+mod mat3p_serde_impl {
+
+    use super::*;
+    use serde::{ser::*, de::{self, *}};
+
+    impl Serialize for Mat3P {
+        fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+            let mut state = serializer.serialize_tuple_struct("Mat3P", 9)?;
+            state.serialize_field(&self.x_axis.vec3.x)?;
+            state.serialize_field(&self.x_axis.vec3.y)?;
+            state.serialize_field(&self.x_axis.vec3.z)?;
+            state.serialize_field(&self.y_axis.vec3.x)?;
+            state.serialize_field(&self.y_axis.vec3.y)?;
+            state.serialize_field(&self.y_axis.vec3.z)?;
+            state.serialize_field(&self.z_axis.vec3.x)?;
+            state.serialize_field(&self.z_axis.vec3.y)?;
+            state.serialize_field(&self.z_axis.vec3.z)?;
+            state.end()
+        }
+    }
+
+    impl<'de> Deserialize<'de> for Mat3P {
+        fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+
+            struct Mat3PVisitor;
+
+            impl<'de> Visitor<'de> for Mat3PVisitor {
+
+                type Value = Mat3P;
+
+                fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    formatter.write_str("a sequence of 9 f32 values")
+                }
+
+                fn visit_seq<V: SeqAccess<'de>>(self, mut seq: V) -> Result<Mat3P, V::Error> {
+                    let mut arr = [0.0f32; 12];
+                    for i in 0..9 {
+                        arr[i + i/3] = seq.next_element()?.ok_or_else(|| de::Error::invalid_length(i, &self))?;
+                    }
+                    Ok(unsafe {transmute(arr)})
+                }
+            }
+
+            deserializer.deserialize_tuple_struct("Mat3P", 9, Mat3PVisitor)
+        }
+    }
+
+
+    #[cfg(test)]
+    mod test {
+
+        use super::Mat3P;
+
+        #[test]
+        fn json_roundtrip() {
+
+            let mat3p = Mat3P {
+                x_axis: [1.0, 2.0, 3.0].into(),
+                y_axis: [4.0, 5.0, 6.0].into(),
+                z_axis: [7.0, 8.0, 9.0].into(),
+            };
+
+            let json: String = match serde_json::to_string(&mat3p) {
+                Ok(json) => json,
+                Err(err) => panic!("{:?}", err),
+            };
+
+            let deserialized: Mat3P = match serde_json::from_str(&json) {
+                Ok(cl) => cl,
+                Err(err) => panic!("{:?}", err),
+            };
+
+            assert_eq!(deserialized, mat3p);
+        }
+    }
+}
