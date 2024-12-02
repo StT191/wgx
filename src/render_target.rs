@@ -1,59 +1,9 @@
 
 use wgpu::{*, PresentMode as Prs};
-use crate::{*, Color};
+use crate::*;
 use anyhow::{Result as Res};
 
 
-pub trait RenderTarget {
-
-    // to implement
-    fn size(&self) -> [u32; 2];
-    fn msaa(&self) -> u32;
-    fn depth_testing(&self) -> Option<TextureFormat>;
-    fn format(&self) -> TextureFormat;
-    fn view_format(&self) -> TextureFormat;
-
-    fn render_bundle<'a>(&self, gx: &'a impl WgxDevice, handler: impl FnOnce(&mut wgpu::RenderBundleEncoder<'a>)) -> wgpu::RenderBundle {
-        gx.render_bundle(&[Some(self.view_format())], self.depth_testing(), self.msaa(), handler)
-    }
-
-    fn render_pipeline(
-        &self, gx: &impl WgxDevice,
-        layout: Option<(&[wgpu::PushConstantRange], &[&wgpu::BindGroupLayout])>,
-        buffers: &[wgpu::VertexBufferLayout],
-        vertex_state: (&wgpu::ShaderModule, &str, Primitive),
-        (fs_module, fs_entry_point, blend): (&wgpu::ShaderModule, &str, Option<Blend>),
-    ) -> wgpu::RenderPipeline {
-        gx.render_pipeline(
-            self.msaa(), self.depth_testing(), layout, buffers, vertex_state,
-            Some((fs_module, fs_entry_point, &[(self.view_format(), blend)])),
-        )
-    }
-}
-
-pub trait RenderAttachable: RenderTarget {
-
-    // to implement
-    fn color_views(&self) -> (&wgpu::TextureView, Option<&wgpu::TextureView>);
-    fn depth_view(&self) -> Option<(&wgpu::TextureView, wgpu::TextureFormat)>;
-
-    // provided
-    fn color_attachment(&self, clear_color: Option<Color>) -> wgpu::RenderPassColorAttachment {
-        let (view, msaa) = self.color_views();
-        ColorAttachment { view, msaa, clear: clear_color }.into()
-    }
-
-    fn depth_attachment(&self, clear_depth: Option<f32>, clear_stencil: Option<u32>) -> Option<wgpu::RenderPassDepthStencilAttachment> {
-        self.depth_view().map(|(view, format)| DepthAttachment { view, format, clear_depth, clear_stencil }.into())
-    }
-
-    fn attachments(&self, clear_color: Option<Color>, clear_depth: Option<f32>, clear_stencil: Option<u32>) -> RenderAttachments<1> {
-        ([Some(self.color_attachment(clear_color))], self.depth_attachment(clear_depth, clear_stencil))
-    }
-}
-
-
-// helper
 #[derive(Debug)]
 pub struct TextureLot {
     pub texture: wgpu::Texture,
@@ -93,14 +43,16 @@ impl RenderTarget for TextureLot {
     fn size(&self) -> [u32; 2] { [self.texture.width(), self.texture.height()] }
     fn msaa(&self) -> u32 { 1 }
     fn depth_testing(&self) -> Option<TextureFormat> { None }
-    fn format(&self) -> TextureFormat { self.descriptor.format }
-    fn view_format(&self) -> TextureFormat { self.descriptor.view_format }
+
+    #[allow(clippy::misnamed_getters)]
+    fn format(&self) -> TextureFormat { self.descriptor.view_format }
 }
 
 impl RenderAttachable for TextureLot {
-    fn color_views(&self) -> (&wgpu::TextureView, Option<&wgpu::TextureView>) { (&self.view, None) }
+    fn color_views(&self) -> (&wgpu::TextureView, wgpu::TextureFormat, Option<&wgpu::TextureView>) { (&self.view, self.format(), None) }
     fn depth_view(&self) -> Option<(&wgpu::TextureView, wgpu::TextureFormat)> { None }
 }
+
 
 
 type Surface = wgpu::Surface<'static>;
@@ -118,9 +70,8 @@ pub struct SurfaceTarget {
 impl RenderTarget for SurfaceTarget {
     fn size(&self) -> [u32; 2] { [self.config.width, self.config.height] }
     fn msaa(&self) -> u32 { self.msaa }
-    fn depth_testing(&self) -> Option<TextureFormat> { self.depth_opt.as_ref().map(|d| d.view_format()) }
-    fn format(&self) -> TextureFormat { self.config.format }
-    fn view_format(&self) -> TextureFormat { self.view_format }
+    fn depth_testing(&self) -> Option<TextureFormat> { self.depth_opt.as_ref().map(|d| d.format()) }
+    fn format(&self) -> TextureFormat { self.view_format }
 }
 
 
@@ -135,15 +86,14 @@ impl RenderTarget for SurfaceFrame<'_> {
     fn msaa(&self) -> u32 { self.target.msaa() }
     fn depth_testing(&self) -> Option<TextureFormat> { self.target.depth_testing() }
     fn format(&self) -> TextureFormat { self.target.format() }
-    fn view_format(&self) -> TextureFormat { self.target.view_format() }
 }
 
 impl RenderAttachable for SurfaceFrame<'_> {
-    fn color_views(&self) -> (&wgpu::TextureView, Option<&wgpu::TextureView>) {
-        (&self.view, self.target.msaa_opt.as_ref().map(|o| &o.view))
+    fn color_views(&self) -> (&wgpu::TextureView, wgpu::TextureFormat, Option<&wgpu::TextureView>) {
+        (&self.view, self.format(), self.target.msaa_opt.as_ref().map(|o| &o.view))
     }
     fn depth_view(&self) -> Option<(&wgpu::TextureView, TextureFormat)> {
-        self.target.depth_opt.as_ref().map(|d| (&d.view, d.view_format()))
+        self.target.depth_opt.as_ref().map(|d| (&d.view, d.format()))
     }
 }
 
@@ -165,14 +115,13 @@ pub fn configure_surface_defaults(
         config.view_formats.push(other_format);
     }
 
-    // present modes
-    if capabilites.present_modes.contains(&Prs::Mailbox) { config.present_mode = Prs::Mailbox; }
-    else if capabilites.present_modes.contains(&Prs::AutoVsync) { config.present_mode = Prs::AutoVsync; }
+    // present mode
+    config.present_mode = Prs::Fifo;
 
     // alpha_modes
     if capabilites.alpha_modes.contains(&CompositeAlphaMode::Auto) { config.alpha_mode = CompositeAlphaMode::Auto; }
 
-    // latency
+    // frame latency
     config.desired_maximum_frame_latency = 2;
 }
 
@@ -243,7 +192,7 @@ impl SurfaceTarget {
             view: if let Some(dsc) = dsc {
                 frame.texture.create_view(dsc)
             } else {
-                frame.texture.create_default_view(Some(self.view_format()))
+                frame.texture.create_default_view(Some(self.format()))
             },
             target: self,
         });
@@ -255,7 +204,6 @@ impl SurfaceTarget {
         Ok(res)
     }
 }
-
 
 
 #[derive(Debug)]
@@ -272,17 +220,18 @@ pub struct TextureTarget {
 impl RenderTarget for TextureTarget {
     fn size(&self) -> [u32; 2] { self.descriptor.size_2d() }
     fn msaa(&self) -> u32 { self.msaa }
-    fn depth_testing(&self) -> Option<TextureFormat> { self.depth_opt.as_ref().map(|d| d.view_format()) }
-    fn format(&self) -> TextureFormat { self.descriptor.format }
-    fn view_format(&self) -> TextureFormat { self.descriptor.view_format }
+    fn depth_testing(&self) -> Option<TextureFormat> { self.depth_opt.as_ref().map(|d| d.format()) }
+
+    #[allow(clippy::misnamed_getters)]
+    fn format(&self) -> TextureFormat { self.descriptor.view_format }
 }
 
 impl RenderAttachable for TextureTarget {
-    fn color_views(&self) -> (&wgpu::TextureView, Option<&wgpu::TextureView>) {
-        (&self.view, self.msaa_opt.as_ref().map(|o| &o.view))
+    fn color_views(&self) -> (&wgpu::TextureView, wgpu::TextureFormat, Option<&wgpu::TextureView>) {
+        (&self.view, self.format(), self.msaa_opt.as_ref().map(|o| &o.view))
     }
     fn depth_view(&self) -> Option<(&wgpu::TextureView, TextureFormat)> {
-        self.depth_opt.as_ref().map(|d| (&d.view, d.view_format()))
+        self.depth_opt.as_ref().map(|d| (&d.view, d.format()))
     }
 }
 

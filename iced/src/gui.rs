@@ -211,14 +211,15 @@ impl<P: 'static + Program<Renderer=Renderer>> Gui<P> {
     &mut self, gx: &impl WgxDeviceQueue, engine: &mut Engine, encoder: &mut CommandEncoder,
     target: &impl RenderAttachable, clear_color: Option<Color>,
   ) {
+    let (view, format, _) = target.color_views();
     self.renderer.present(
       engine,
       gx.device(),
       gx.queue(),
       encoder,
       clear_color.map(|cl| cl.iced_core()),
-      target.view_format(),
-      target.color_views().0,
+      format,
+      view,
       &self.viewport,
       &self.debug.overlay(),
     );

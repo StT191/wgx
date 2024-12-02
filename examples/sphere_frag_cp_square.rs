@@ -3,7 +3,7 @@ use platform::winit::{
   window::WindowAttributes, event::{WindowEvent, KeyEvent, ElementState}, keyboard::PhysicalKey,
   dpi::PhysicalSize,
 };
-use platform::{*, time::*};
+use platform::*;
 use wgx::{*, math::*};
 
 // common
@@ -29,7 +29,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
   let msaa = 4;
   let depth_testing = Some(TexFmt::Depth32Float);
   let blending = None;
-  let features = features!(MAPPABLE_PRIMARY_BUFFERS, POLYGON_MODE_LINE, MULTI_DRAW_INDIRECT);
+  let features = features!(/*MAPPABLE_PRIMARY_BUFFERS*/);
 
   let (gx, mut target) = Wgx::new_with_target(window.clone(), features, limits!{}, window.inner_size(), srgb, msaa, depth_testing).await.unwrap();
 
@@ -40,11 +40,11 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
 
   let pipeline = target.render_pipeline(&gx,
     None, &[
-      vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x3, 2 => Float32x3),
+      vertex_dsc!(Vertex, 0 => Float32x4), vertex_dsc!(Vertex, 1 => Float32x2), vertex_dsc!(Vertex, 2 => Float32x4),
       vertex_dsc!(Instance, 3 => Float32x4, 4 => Float32x4, 5 => Float32x4, 6 => Float32x4)
     ],
     (&shader, "vs_main", Some(&constants), Primitive {
-      cull_mode: Some(Face::Back),
+      cull_mode: None,//Some(Face::Back),
       polygon_mode: Polygon::Fill,
       ..Primitive::default()
     }),
@@ -58,48 +58,96 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
   let sampler = gx.default_sampler();
 
   // compute vertices
-  type Vertex = [[f32;3];3];
 
   let steps = 8u32;
 
-  let wg_size = UVec3::new(8, 8, 3); // workgroup size
+  let row_len = 2 * 3 * steps; // faces * verts * steps
+  let row_num = 3 * steps; // dirs * steps
 
-  let vertex_size = size_of::<Vertex>() as u64;
+  let mesh_len = row_len * row_num;
 
-  let mesh_len = 3 * (2 * 3) * (steps * steps);
-  let mesh_size = vertex_size * mesh_len as u64;
+  let vertex_size = TexFmt::Rgba32Float.block_copy_size(None).unwrap();
 
-  println!("mesh_len: {mesh_len:#}");
 
-  let vertex_buffer = gx.buffer(BufUse::STORAGE | BufUse::VERTEX | BufUse::COPY_DST /*| BufUse::MAP_READ*/, mesh_size, false);
+  let mesh_size = vertex_size as u64 * mesh_len as u64;
 
-  let layout = gx.layout(&[binding!(0, Stage::COMPUTE, StorageBuffer, mesh_size, false)]);
+  // check limits
+  let max_texture_side = gx.device().limits().max_texture_dimension_2d;
 
-  let cp_shader = gx.load_wgsl(wgsl_modules::include!("common/shaders/compute_sphere_square.wgsl"));
+  if row_len > max_texture_side { panic!("row-length ({row_len}) is greater then max_texture_side ({max_texture_side})") }
+  if row_num > max_texture_side { panic!("row-number ({row_num}) is greater then max_texture_side ({max_texture_side})") }
 
-  let cp_pipeline = gx.compute_pipeline(Some((&[], &[&layout])), (&cp_shader, "cp_main", None));
 
-  let binding_cp = gx.bind(&layout, &[bind!(0, Buffer, &vertex_buffer)]);
+  log::warn!("mesh_len: {mesh_len:#}");
+
+  let vertex_buffer = gx.buffer(BufUse::VERTEX | BufUse::COPY_DST | BufUse::COPY_SRC, mesh_size, false);
+  let normal_buffer = gx.buffer(BufUse::VERTEX | BufUse::COPY_DST, mesh_size, false);
+
+  // cp pipeline
+  let cp_shader = gx.load_wgsl(wgsl_modules::include!("common/shaders/frag_compute_sphere_square.wgsl"));
+
+  let consts = shader_constants!{
+    steps: steps,
+    step_da: std::f32::consts::FRAC_PI_2 / 2.0 / steps as f32 // delta angle per step
+  };
+
+  let cp_pipeline = gx.render_pipeline(
+    1, None, None, &[],
+    (&cp_shader, "vs_main", Some(&consts), Primitive { topology: Topology::TriangleStrip, ..Primitive::default() }),
+    Some((&cp_shader, "fs_main", Some(&consts), &[(TexFmt::Rgba32Float, None), (TexFmt::Rgba32Float, None)])),
+  );
+
+  let compute_tex = TextureLot::new_2d(&gx,
+    [row_len, row_num, 1], 1, TexFmt::Rgba32Float, None, TexUse::RENDER_ATTACHMENT | TexUse::COPY_SRC,
+  );
+  let compute_tex_normal = TextureLot::new_2d(&gx,
+    [row_len, row_num, 1], 1, TexFmt::Rgba32Float, None, TexUse::RENDER_ATTACHMENT | TexUse::COPY_SRC,
+  );
+
+  assert_eq!(compute_tex.bytes_per_row().unwrap() * row_num, mesh_size as u32);
+
+
+  // let read_buffer = gx.buffer(BufUse::COPY_DST | BufUse::MAP_READ, mesh_size, false);
 
   gx.with_encoder(|encoder| {
-    encoder.with_compute_pass(|cpass| {
-      cpass.set_pipeline(&cp_pipeline);
-      cpass.set_bind_group(0, &binding_cp, &[]);
-      cpass.dispatch_workgroups(steps/wg_size.x, steps/wg_size.y, 3/wg_size.z);
-    });
+
+    encoder.with_render_pass(
+      ([
+        Some(compute_tex.color_attachment(Some(Color::TRANSPARENT)).into()),
+        Some(compute_tex_normal.color_attachment(Some(Color::TRANSPARENT)).into()),
+      ], None),
+      |rpass| {
+        rpass.set_pipeline(&cp_pipeline);
+        rpass.draw(0..4, 0..1);
+      }
+    );
+
+    encoder.copy_texture_to_buffer(
+      compute_tex.texture.as_image_copy(),
+      (&vertex_buffer, 0, compute_tex.bytes_per_row(), None).to(),
+      compute_tex.texture.size(),
+    );
+
+    encoder.copy_texture_to_buffer(
+      compute_tex_normal.texture.as_image_copy(),
+      (&normal_buffer, 0, compute_tex_normal.bytes_per_row(), None).to(),
+      compute_tex_normal.texture.size(),
+    );
+
+    // encoder.copy_buffer_to_buffer(&vertex_buffer, 0, &read_buffer, 0, mesh_size);
   });
 
 
   // read out the first triangles
-  /*vertex_buffer.with_map_sync(&gx, 0..(3*vertex_size), MapMode::Read, |buffer_slice| {
+  /*read_buffer.with_map_sync(&gx, 0..(6*vertex_size as u64), MapMode::Read, |buffer_slice| {
 
     let mapped = buffer_slice.get_mapped_range();
-    let vertices: &[Vertex] = unsafe { mapped.align_to().1 };
+    let vertices: &[[[f32;3];3]] = unsafe { mapped.align_to().1 };
     // let vertices: Vec<_> = vertices.iter().map(|v| v[0]).collect();
     // let vertices: &[Vertex] = unsafe { vertices.align_to().1 };
     let vertices: Vec<_> = vertices.iter().map(|v| format!("{:?}", v)).collect();
 
-    eprintln!("{:#?}", vertices);
+    log::warn!("{:#?}", vertices);
 
   }).unwrap();*/
 
@@ -118,10 +166,6 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
   ];
 
   // buffers
-  let indirect_buffer = gx.buffer_from_data(BufUse::INDIRECT, [
-    DrawIndirectArgs::try_from_ranges(0..mesh_len as usize, 0..instance_data.len() as usize).unwrap(),
-  ]);
-
   let instance_buffer = gx.buffer_from_data(BufUse::VERTEX, instance_data);
 
 
@@ -163,8 +207,10 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
     rpass.set_pipeline(&pipeline);
     rpass.set_bind_group(0, &binding, &[]);
     rpass.set_vertex_buffer(0, vertex_buffer.slice(..));
-    rpass.set_vertex_buffer(1, instance_buffer.slice(..));
-    rpass.draw_indirect(&indirect_buffer, 0);
+    // rpass.set_vertex_buffer(1, texcoord_buffer.slice(..));
+    rpass.set_vertex_buffer(2, normal_buffer.slice(..));
+    rpass.set_vertex_buffer(3, instance_buffer.slice(..));
+    rpass.draw(0..mesh_len as u32, 0..instance_data.len() as u32);
   })];
 
 
@@ -207,13 +253,13 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
 
     AppEvent::WindowEvent(WindowEvent::RedrawRequested) => {
 
-      let then = Instant::now();
+      // let then = time::Instant::now();
 
       target.with_frame(None, |frame| gx.with_encoder(|encoder| {
         encoder.pass_bundles(frame.attachments(Some(bg_color), Some(1.0), None), &bundles);
       })).expect("frame error");
 
-      println!("{:?}", then.elapsed());
+      // log::warn!("{:?}", then.elapsed());
     },
 
     _ => {}

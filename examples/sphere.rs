@@ -1,5 +1,4 @@
 
-
 use platform::winit::{
   window::WindowAttributes, event::{WindowEvent, KeyEvent, ElementState}, keyboard::PhysicalKey,
   dpi::PhysicalSize,
@@ -26,7 +25,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
 
   let srgb = true;
   let msaa = 4;
-  let depth_testing = Some(DEFAULT_DEPTH);
+  let depth_testing = Some(TexFmt::Depth32Float);
   let blending = None;
   let features = features!(POLYGON_MODE_LINE, MULTI_DRAW_INDIRECT);
 
@@ -40,16 +39,16 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
       vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x3, 2 => Float32x3),
       vertex_dsc!(Instance, 3 => Float32x4, 4 => Float32x4, 5 => Float32x4, 6 => Float32x4)
     ],
-    (&shader, "vs_main", Primitive {
+    (&shader, "vs_main", None, Primitive {
       cull_mode: None, // Some(Face::Back),
       polygon_mode: Polygon::Fill,
       ..Primitive::default()
     }),
-    (&shader, "fs_main", blending),
+    (&shader, "fs_main", None, blending),
   );
 
   // colors
-  let color_texture = TextureLot::new_2d_with_data(&gx, [1, 1, 1], 1, DEFAULT_SRGB, None, TexUse::TEXTURE_BINDING, [255u8, 0, 0, 255]);
+  let color_texture = TextureLot::new_2d_with_data(&gx, [1, 1, 1], 1, TexFmt::Rgba8UnormSrgb, None, TexUse::TEXTURE_BINDING, [255u8, 0, 0, 255]);
   let sampler = gx.default_sampler();
 
 
