@@ -24,7 +24,7 @@ pub use egui_ctx::*;
 use wgx::{WgxDevice, WgxDeviceQueue, RenderTarget, wgpu::CommandEncoder};
 
 pub fn renderer(gx: &impl WgxDevice, target: &impl RenderTarget) -> Renderer {
-  Renderer::new(gx.device(), target.view_format(), target.depth_testing(), target.msaa(), false)
+  Renderer::new(gx.device(), target.format(), target.depth_testing(), target.msaa(), false)
 }
 
 fn prepare_renderer(

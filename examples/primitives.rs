@@ -29,14 +29,14 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
 
     // layout
     let layout = gx.layout(&[
-        binding!(0, Stage::FRAGMENT, Texture, D2),
-        binding!(1, Stage::FRAGMENT, Sampler)
+        binding!(0, Stage::FRAGMENT, Texture, D2, Float),
+        binding!(1, Stage::FRAGMENT, Sampler, Filtering)
     ]);
 
 
     // colors
     let color_texture = TextureLot::new_2d_with_data(&gx,
-        [3, 1, 1], 1, DEFAULT_SRGB, None, TexUse::TEXTURE_BINDING,
+        [3, 1, 1], 1, TexFmt::Rgba8UnormSrgb, None, TexUse::TEXTURE_BINDING,
         [[255u8, 0, 0, 255], [0, 255, 0, 255], [0, 0, 255, 255]]
     );
 
@@ -58,8 +58,8 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
     // triangle pipeline
     let t_pipeline = target.render_pipeline(&gx,
         Some((&[], &[&layout])), &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        (&shader, "vs_main", Primitive { topology: Topology::TriangleStrip, ..Primitive::default() }),
-        (&shader, "fs_main", blending),
+        (&shader, "vs_main", None, Primitive { topology: Topology::TriangleStrip, ..Primitive::default() }),
+        (&shader, "fs_main", None, blending),
     );
 
     let t_data = [
@@ -75,8 +75,8 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
     // lines pipeline
     let l_pipeline = target.render_pipeline(&gx,
         Some((&[], &[&layout])), &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        (&shader, "vs_main", Primitive { topology: Topology::LineStrip, ..Primitive::default() }),
-        (&shader, "fs_main", blending),
+        (&shader, "vs_main", None, Primitive { topology: Topology::LineStrip, ..Primitive::default() }),
+        (&shader, "fs_main", None, blending),
     );
 
     let l_data = [
@@ -94,8 +94,8 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
     // points pipeline
     let p_pipeline = target.render_pipeline(&gx,
         Some((&[], &[&layout])), &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        (&shader, "vs_main", Primitive { topology: Topology::PointList, ..Primitive::default() }),
-        (&shader, "fs_main", blending),
+        (&shader, "vs_main", None, Primitive { topology: Topology::PointList, ..Primitive::default() }),
+        (&shader, "fs_main", None, blending),
     );
 
     let p_data = [
@@ -115,7 +115,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
     ;
 
     let (w, h) = (img.width(), img.height());
-    let image_texture = TextureLot::new_2d_with_data(&gx, [w, h, 1], 1, DEFAULT_SRGB, None, TexUse::TEXTURE_BINDING, &img.as_raw()[..]);
+    let image_texture = TextureLot::new_2d_with_data(&gx, [w, h, 1], 1, TexFmt::Rgba8UnormSrgb, None, TexUse::TEXTURE_BINDING, &img.as_raw()[..]);
 
     // binding
     let img_binding = gx.bind(&layout, &[
@@ -126,8 +126,8 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
 
     let i_pipeline = target.render_pipeline(&gx,
         Some((&[], &[&layout])), &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        (&shader, "vs_main", Primitive { topology: Topology::TriangleStrip, ..Primitive::default() }),
-        (&shader, "fs_main", blending),
+        (&shader, "vs_main", None, Primitive { topology: Topology::TriangleStrip, ..Primitive::default() }),
+        (&shader, "fs_main", None, blending),
     );
 
     let i_data = [
