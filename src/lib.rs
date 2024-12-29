@@ -1,8 +1,10 @@
+#![feature(step_trait)]
 
 // passs wgpu types
 pub use wgpu::{
     self,
-    Features, Limits,
+    Features, Limits, PresentMode,
+    Buffer, Texture, TextureView,
     BufferUsages as BufUse,
     TextureUsages as TexUse,
     ShaderStages as Stage,
@@ -14,7 +16,7 @@ pub use wgpu::{
     PrimitiveState as Primitive,
     PrimitiveTopology as Topology,
     IndexFormat, Face, FrontFace, PolygonMode as Polygon,
-    util::{StagingBelt, DrawIndirectArgs, DrawIndexedIndirectArgs, DispatchIndirectArgs},
+    util::{StagingBelt, DrawIndirectArgs, DrawIndexedIndirectArgs, DispatchIndirectArgs, RenderEncoder},
 };
 
 // macros
@@ -34,17 +36,17 @@ pub use wgx::*;
 mod render_extension;
 pub use render_extension::*;
 
-mod buffer_extension;
-pub use buffer_extension::*;
-
 mod texture_extension;
 pub use texture_extension::*;
+
+mod render_target;
+pub use render_target::*;
 
 mod util_extension;
 pub use util_extension::*;
 
-mod render_target;
-pub use render_target::*;
+mod staging_extension;
+pub use staging_extension::*;
 
 mod buffer_helper;
 pub use buffer_helper::*;

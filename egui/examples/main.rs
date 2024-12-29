@@ -1,6 +1,6 @@
 
 use platform::winit::{window::{WindowAttributes}, event::{WindowEvent}};
-use platform::{*, time::*};
+use platform::{*, Event};
 use wgx_egui::*;
 use wgx::*;
 
@@ -12,9 +12,9 @@ main_app_closure! {
   init_app,
 }
 
-async fn init_app(app_ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
+async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
 
-  let window = app_ctx.window_clone();
+  let window = ctx.window_clone();
 
   let (gx, mut target) = Wgx::new_with_target(window.clone(), features!(), limits!(), window.inner_size(), false, 1, None).await.unwrap();
 
@@ -22,10 +22,10 @@ async fn init_app(app_ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
 
   let mut ui = ui::new();
   let mut egs_renderer = renderer(&gx, &target);
-  let mut egs = EguiCtx::new(app_ctx);
+  let mut egs = EguiCtx::new(ctx);
 
   // run once to initialize fonts
-  gx.with_encoder(|enc| egs.run(app_ctx, |_ctx| {}).prepare(&mut egs_renderer, &gx, enc));
+  gx.with_encoder(|enc| egs.run(ctx, |_ctx| {}).prepare(&mut egs_renderer, &gx, enc));
 
   let add_primitives = {
 
@@ -36,7 +36,7 @@ async fn init_app(app_ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
         fonts, [200.0, 200.0].into(), Align2::LEFT_CENTER,
         "HALLO TEST Hallo Test!",
         FontId { size: 14.0, family: FontFamily::default() },
-        Color32::from_rgb(0xFF, 0xFF, 0xFF),
+        Color32::WHITE,
       )
     });
 
@@ -66,21 +66,21 @@ async fn init_app(app_ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
     ),
   ];
 
-  // let mut frame_counter = timer::IntervalCounter::from_secs(3.0);
+  let mut frame_counter = timer::IntervalCounter::from_secs(3.0);
 
-  move |app_ctx: &mut AppCtx, event: &AppEvent| {
+  move |ctx, event| {
 
-    let (repaint, _) = egs.event(app_ctx, &event);
+    let (repaint, _) = egs.event(ctx, &event);
 
-    if repaint {
-      app_ctx.request = Some(Duration::ZERO); // as early as possible
-    }
+    if repaint { ctx.request_frame(); }
 
-    if let AppEvent::WindowEvent(window_event) = event { match window_event {
+    match event {
 
-      WindowEvent::Resized(size) => {
+      Event::Timeout {id: 0, ..} => ctx.request_frame(),
 
-        target.update(&gx, *size);
+      Event::WindowEvent(WindowEvent::Resized(size)) => {
+
+        target.update(&gx, size);
 
         // redraw epait ...
         ept.screen_dsc = ScreenDescriptor::from_window(&window);
@@ -98,10 +98,10 @@ async fn init_app(app_ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
         });
       },
 
-      WindowEvent::RedrawRequested => {
+      Event::WindowEvent(WindowEvent::RedrawRequested) => {
 
         // gui handling
-        let mut output = egs.run(app_ctx, &mut ui);
+        let mut output = egs.run(ctx, &mut ui);
 
         output.clipped_primitives.extend_from_slice(&add_primitives);
 
@@ -110,33 +110,38 @@ async fn init_app(app_ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
 
           output.prepare(&mut egs_renderer, &gx, encoder);
 
-          encoder.with_render_pass(frame.attachments(Some(Color::WHITE.into()), None, None), |mut rpass| {
+          encoder.with_render_pass(frame.attachments(Some(Color::WHITE.into()), None, None), |rpass| {
 
-            output.render(&egs_renderer, &mut rpass);
+            output.render(&egs_renderer, rpass);
 
-            ept.render(&ept_renderer, &mut rpass, &primitives);
+            ept.render(&ept_renderer, rpass, &primitives);
 
           });
 
         })).expect("frame error");
 
+        if output.repaint_delay <= ctx.frame_duration() {
+          ctx.request_frame();
+        }
+        else if let Some(next_frame) = ctx.frame_time().checked_add(output.repaint_delay) {
+          ctx.set_timeout(0, next_frame);
+        }
+
         // handle other commands
         for command in output.commands {
           log::warn!("Cmd: {:#?}", command);
           if command == ViewportCommand::Close {
-            app_ctx.exit = true;
+            ctx.exit = true;
           }
         }
 
-        app_ctx.request = Some(output.repaint_delay);
-
-        // frame_counter.add();
-        // if let Some(counted) = frame_counter.count() { log_warn!(counted) }
+        frame_counter.add();
+        if let Some(counted) = frame_counter.count() { log::warn!("{:?}", counted) }
         // window.request_redraw(); // draw as many as possible
 
       },
 
       _ => (),
-    }}
+    }
   }
 }

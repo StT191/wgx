@@ -42,7 +42,8 @@ impl Color {
     pub const fn u8(self) -> [u8; 4] { [(self.r*F) as u8, (self.g*F) as u8, (self.b*F) as u8, (self.a*F) as u8] }
     pub const fn u8_rgb(self) -> [u8; 3] { [(self.r*F) as u8, (self.g*F) as u8, (self.b*F) as u8] }
 
-    pub const fn packed_u32(self) -> u32 { u32::from_be_bytes(self.u8()) } // packed u32
+    pub const fn u32(self) -> u32 { u32::from_be_bytes(self.u8()) } // packed u32
+    pub const fn u32_rgb(self) -> u32 { u32::from_be_bytes(self.u8()) >> 8 } // packed u32_rgb
 
     pub const fn wgpu(self) -> wgpu::Color { wgpu::Color {r: self.r as f64, g: self.g as f64, b: self.b as f64, a: self.a as f64} }
 
@@ -59,7 +60,8 @@ impl Color {
     pub const fn from_u8([r, g, b, a]:[u8; 4]) -> Self { Self::new((r as f32)/F, (g as f32)/F, (b as f32)/F, (a as f32)/F) }
     pub const fn from_u8_rgb([r, g, b]:[u8; 3]) -> Self { Self::new_rgb((r as f32)/F, (g as f32)/F, (b as f32)/F) }
 
-    pub const fn from_packed_u32(c: u32) -> Self { Self::from_u8(c.to_be_bytes()) } // packed u32
+    pub const fn from_u32(c: u32) -> Self { Self::from_u8(c.to_be_bytes()) } // packed u32
+    pub const fn from_u32_rgb(c: u32) -> Self { Self::from_u8((c << 8 | 0xFF).to_be_bytes()) } // packed u32
 
     pub const fn from_wgpu(wgpu::Color {r, g, b, a}:wgpu::Color) -> Self { Self::from_f64([r, g, b, a]) }
 
@@ -179,10 +181,10 @@ impl From<Color> for [u8; 3] {
 
 // packed
 impl From<u32> for Color {
-    fn from(packed: u32) -> Color { Color::from_packed_u32(packed) }
+    fn from(packed: u32) -> Color { Color::from_u32(packed) }
 }
 impl From<Color> for u32 {
-    fn from(color: Color) -> Self { color.packed_u32() }
+    fn from(color: Color) -> Self { color.u32() }
 }
 
 // wgpu

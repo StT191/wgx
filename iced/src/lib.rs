@@ -17,6 +17,6 @@ pub trait IntoIcedCoreColor {
 
 impl IntoIcedCoreColor for wgx::Color {
     fn iced_core(self) -> iced_core::Color {
-        iced_core::Color::from_linear_rgba(self.r, self.g, self.b, self.a)
+        iced_core::Color::from_rgba(self.r, self.g, self.b, self.a)
     }
 }

@@ -13,7 +13,7 @@ main_app_closure! {
   init_app,
 }
 
-async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
+async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
 
   let window = ctx.window_clone();
 
@@ -76,15 +76,12 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
   ]);
 
 
-  // event loop
-  ctx.animate = true;
-
   // let mut frame_counter = timer::IntervalCounter::from_secs(5.0);
 
-  move |_ctx: &mut AppCtx, event: &AppEvent| match event {
+  move |_ctx, event| match event {
 
-    AppEvent::WindowEvent(WindowEvent::Resized(size)) => {
-      target.update(&gx, *size);
+    Event::WindowEvent(WindowEvent::Resized(size)) => {
+      target.update(&gx, size);
 
       width = size.width as f32;
       height = size.height as f32;
@@ -93,7 +90,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
       gx.write_buffer(&view_buffer, 0, [width, height, width/height, scale]);
     },
 
-    AppEvent::WindowEvent(WindowEvent::KeyboardInput { event: KeyEvent {
+    Event::WindowEvent(WindowEvent::KeyboardInput { event: KeyEvent {
       physical_key: PhysicalKey::Code(keycode), state: ElementState::Pressed, ..
     }, ..}) => {
       let mut update = true;
@@ -110,7 +107,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
       }
     },
 
-    AppEvent::WindowEvent(WindowEvent::RedrawRequested) => {
+    Event::WindowEvent(WindowEvent::RedrawRequested) => {
 
       // draw
       target.with_frame(None, |frame| gx.with_encoder(|encoder| {
@@ -122,6 +119,9 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
           rpass.draw(0..vertex_data.len() as u32, 0..1);
         });
       })).expect("frame error");
+
+      target.request_frame().expect("frame error");
+      window.request_redraw();
 
       // statistics
       /*frame_counter.add();

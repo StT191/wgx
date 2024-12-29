@@ -92,9 +92,9 @@ fn inline_registering() {
         }
     ");
 
-    let module_src = inline!("$module/$module" <= {
-        &include "../$inline/$util";
-    });
+    let module_src = inline!("$inline//$util" <= r"
+        &include '../$inline/$util';
+    ");
 
     tokens_eq!(module_src, include_str!("../shaders/util.wgsl"));
 }
@@ -135,7 +135,7 @@ fn naga_parsing_failing() {
         nonexistent token;
     }).and_then(|module| {
         // parse naga
-        module.naga_module(false)
+        module.naga_module(None)
     });
 
     assert_matches!(res, Err(err) if err.to_string().starts_with("error: expected global item"));
@@ -147,7 +147,7 @@ fn naga_validation_failing() {
 
     let res = Module::load("$module", include_str!("../shaders/invalid.wgsl")).and_then(|module| {
         // parse and validate naga
-        module.naga_module(true)
+        module.naga_module(Some(Default::default()))
     });
 
     assert_matches!(res, Err(err) if err.to_string().starts_with("error: Entry point vs_main at Vertex is invalid"));

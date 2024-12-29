@@ -9,7 +9,7 @@ pub type RenderAttachments<'a, const S: usize> = (
     Option<wgpu::RenderPassDepthStencilAttachment<'a>>
 );
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ColorAttachment<'a> {
     pub view: &'a wgpu::TextureView,
     pub format: TextureFormat,
@@ -33,7 +33,7 @@ impl<'a> From<ColorAttachment<'a>> for wgpu::RenderPassColorAttachment<'a> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct DepthAttachment<'a> {
     pub view: &'a wgpu::TextureView,
     pub format: TextureFormat,
@@ -72,6 +72,13 @@ impl<'a> From<DepthAttachment<'a>> for wgpu::RenderPassDepthStencilAttachment<'a
 
 // render target
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct TargetDsc {
+    pub msaa: u32,
+    pub depth_testing: Option<TextureFormat>,
+    pub format: TextureFormat,
+}
+
 pub trait RenderTarget {
 
     // to implement
@@ -80,12 +87,20 @@ pub trait RenderTarget {
     fn depth_testing(&self) -> Option<TextureFormat>;
     fn format(&self) -> TextureFormat;
 
+    fn target_dsc(&self) -> TargetDsc {
+        TargetDsc { msaa: self.msaa(), depth_testing: self.depth_testing(), format: self.format() }
+    }
+
     fn bytes_per_row(&self) -> Option<u32> {
         self.format().block_copy_size(None).map(|bytes| bytes * self.size()[0])
     }
 
+    fn render_bundle_encoder<'a>(&self, gx: &'a impl WgxDevice) -> wgpu::RenderBundleEncoder<'a> {
+        gx.render_bundle_encoder(&[Some(self.format())], self.depth_testing(), self.msaa())
+    }
+
     fn render_bundle<'a>(&self, gx: &'a impl WgxDevice, handler: impl FnOnce(&mut wgpu::RenderBundleEncoder<'a>)) -> wgpu::RenderBundle {
-        gx.render_bundle(&[Some(self.format())], self.depth_testing(), self.msaa(), handler)
+        self.render_bundle_encoder(gx).record(handler)
     }
 
     fn render_pipeline(
@@ -123,6 +138,16 @@ pub trait RenderAttachable {
     }
 }
 
+
+impl RenderTarget for TargetDsc {
+    fn size(&self) -> [u32; 2] { [0, 0] }
+    fn msaa(&self) -> u32 { self.msaa }
+    fn depth_testing(&self) -> Option<TextureFormat> { self.depth_testing }
+    fn format(&self) -> TextureFormat { self.format }
+    fn target_dsc(&self) -> Self { *self }
+}
+
+
 impl RenderTarget for Texture {
     fn size(&self) -> [u32; 2] { [self.width(), self.height()] }
     fn msaa(&self) -> u32 { 1 }
@@ -139,18 +164,36 @@ impl RenderAttachable for ColorViews<'_> {
 }
 
 
+pub trait RenderBundleEncoderExtension {
+    fn bundle(self) -> wgpu::RenderBundle;
+    fn record(self, handler: impl FnOnce(&mut Self)) -> wgpu::RenderBundle;
+}
+
+
+impl RenderBundleEncoderExtension for wgpu::RenderBundleEncoder<'_> {
+
+    fn bundle(self) -> wgpu::RenderBundle {
+        self.finish(&wgpu::RenderBundleDescriptor::default())
+    }
+
+    fn record(mut self, handler: impl FnOnce(&mut Self)) -> wgpu::RenderBundle {
+        handler(&mut self);
+        self.bundle()
+    }
+}
+
 
 pub trait EncoderExtension {
 
     fn compute_pass(&mut self) -> wgpu::ComputePass;
 
-    fn with_compute_pass<T>(&mut self, handler: impl FnOnce(&mut wgpu::ComputePass<'static>) -> T) -> T;
+    fn with_compute_pass<'a, T>(&mut self, handler: impl FnOnce(&mut wgpu::ComputePass<'a>) -> T) -> T;
 
     fn render_pass<'a, const S: usize>(&'a mut self, attachments: RenderAttachments<'a, S>) -> wgpu::RenderPass<'a>;
 
-    fn with_render_pass<'a, const S: usize, T>(
+    fn with_render_pass<'a, 'b, const S: usize, T>(
         &'a mut self, attachments: RenderAttachments<'a, S>,
-        handler: impl FnOnce(&mut wgpu::RenderPass<'static>) -> T
+        handler: impl FnOnce(&mut wgpu::RenderPass<'b>) -> T
     ) -> T;
 
     fn pass_bundles<'a, const S: usize>(
@@ -168,7 +211,7 @@ impl EncoderExtension for wgpu::CommandEncoder {
         })
     }
 
-    fn with_compute_pass<T>(&mut self, handler: impl FnOnce(&mut wgpu::ComputePass<'static>) -> T) -> T {
+    fn with_compute_pass<'a, T>(&mut self, handler: impl FnOnce(&mut wgpu::ComputePass<'a>) -> T) -> T {
         handler(&mut self.compute_pass().forget_lifetime())
     }
 
@@ -185,9 +228,9 @@ impl EncoderExtension for wgpu::CommandEncoder {
         })
     }
 
-    fn with_render_pass<'a, const S: usize, T>(
+    fn with_render_pass<'a, 'b, const S: usize, T>(
         &'a mut self, attachments: RenderAttachments<'a, S>,
-        handler: impl FnOnce(&mut wgpu::RenderPass<'static>) -> T
+        handler: impl FnOnce(&mut wgpu::RenderPass<'b>) -> T
     ) -> T {
         handler(&mut self.render_pass(attachments).forget_lifetime())
     }

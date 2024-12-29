@@ -49,6 +49,24 @@ fn prepare_renderer(
 }
 
 
+// wgx-color extension
+
+pub trait IntoEColor {
+  fn ecolor_rgba(self) -> ecolor::Rgba;
+  fn ecolor_32(self) -> ecolor::Color32;
+}
+
+impl IntoEColor for wgx::Color {
+  fn ecolor_rgba(self) -> Rgba {
+    Rgba::from_rgba_premultiplied(self.r, self.g, self.b, self.a)
+  }
+  fn ecolor_32(self) -> Color32 {
+    let [r, g, b, a] = self.u8();
+    Color32::from_rgba_premultiplied(r, g, b, a)
+  }
+}
+
+
 // helper trait
 use platform::winit::{window::Window as WinitWindow};
 
