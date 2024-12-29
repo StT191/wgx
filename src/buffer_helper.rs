@@ -1,23 +1,71 @@
 
-use std::{mem::size_of, ptr::copy_nonoverlapping, cmp::Ordering, ops::Range};
+use std::{mem::size_of, ptr::copy_nonoverlapping, cmp::Ordering};
+use std::{fmt, ops::{Range, RangeBounds, Bound}, iter::Step};
 use wgpu::BufferAddress;
 use crate::{*};
-use anyhow::{Result as Res, Context};
+use anyhow::{Result as Res, Context, bail};
 
 
-// range helper trait
+// range helper
 
 pub trait TryToRange<O, E> {
   fn try_to(self) -> Result<Range<O>, E>;
 }
 
 impl<T, O: TryFrom<T>> TryToRange<O, <O as TryFrom<T>>::Error> for Range<T>
-  where <O as TryFrom<T>>::Error: std::fmt::Debug
+  where <O as TryFrom<T>>::Error: fmt::Debug
 {
   fn try_to(self) -> Result<Range<O>, <O as TryFrom<T>>::Error> { Ok(Range {
     start: self.start.try_into()?,
     end: self.end.try_into()?,
   })}
+}
+
+
+pub trait MapRange<T> {
+  fn map_range<U>(self, map_fn: impl FnMut(T) -> U) -> Range<U>;
+}
+
+impl<T> MapRange<T> for Range<T> {
+  fn map_range<U>(self, mut map_fn: impl FnMut(T) -> U) -> Range<U> {
+    Range { start: map_fn(self.start), end: map_fn(self.end) }
+  }
+}
+
+
+pub trait MapIntoRange<T> {
+  fn map_into(&self, range: Range<T>) -> Res<Range<T>>;
+}
+
+impl<T: Step + fmt::Debug, R: RangeBounds<T>> MapIntoRange<T> for R {
+  fn map_into(&self, range: Range<T>) -> Res<Range<T>> {
+    use Bound::*;
+    Ok(Range {
+      start: match self.start_bound().cloned() {
+        Unbounded => range.start.clone(),
+        Included(start) => {
+          if range.start <= start { start }
+          else { bail!("start {:?} is out of range {:?}", self.start_bound(), &range) }
+        },
+        Excluded(border) => {
+          let start = T::forward(border, 1);
+          if range.start <= start { start }
+          else { bail!("start {:?} is out of range {:?}", self.start_bound(), &range) }
+        },
+      },
+      end: match self.end_bound().cloned() {
+        Unbounded => range.end.clone(),
+        Included(last) => {
+          if last < range.end { T::forward(last, 1) }
+          else { bail!("end {:?} is out of range {:?}", self.end_bound(), &range) }
+        },
+        Excluded(end) => {
+          if end <= range.end { end }
+          else { bail!("end {:?} is out of range {:?}", self.end_bound(), &range) }
+        },
+      },
+    })
+  }
 }
 
 

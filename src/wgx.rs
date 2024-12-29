@@ -41,7 +41,16 @@ impl Wgx {
 
     pub async fn request_device(adapter: &wgpu::Adapter, features:wgpu::Features, limits:wgpu::Limits) -> Res<(wgpu::Device, wgpu::Queue)> {
 
-        #[cfg(target_family = "wasm")] let limits = limits.using_resolution(adapter.limits());
+        let adapter_limits = adapter.limits();
+
+        #[cfg(target_family = "wasm")] let limits = limits.using_resolution(adapter_limits.clone());
+
+        let limits = wgpu::Limits {
+            // choose the smallest uniform offset alignment possible
+            min_uniform_buffer_offset_alignment: adapter_limits.min_uniform_buffer_offset_alignment,
+            min_storage_buffer_offset_alignment: adapter_limits.min_storage_buffer_offset_alignment,
+            ..limits
+        };
 
         adapter.request_device(
             &wgpu::DeviceDescriptor {
@@ -153,13 +162,8 @@ pub trait WgxDevice {
 
     // render bundle
 
-    fn render_bundle<'a>(&'a self,
-        formats: &[Option<TexFmt>], depth_testing:Option<TexFmt>, msaa:u32,
-        handler: impl FnOnce(&mut wgpu::RenderBundleEncoder<'a>),
-    )
-        -> wgpu::RenderBundle
-    {
-        let mut encoder = self.device().create_render_bundle_encoder(&wgpu::RenderBundleEncoderDescriptor {
+    fn render_bundle_encoder(&self, formats: &[Option<TexFmt>], depth_testing:Option<TexFmt>, msaa:u32) -> wgpu::RenderBundleEncoder {
+        self.device().create_render_bundle_encoder(&wgpu::RenderBundleEncoderDescriptor {
             label: None,
             color_formats: formats,
             depth_stencil: depth_testing.map(|format| wgpu::RenderBundleDepthStencil {
@@ -167,11 +171,16 @@ pub trait WgxDevice {
             }),
             sample_count: msaa,
             multiview: None,
-        });
+        })
+    }
 
-        handler(&mut encoder);
-
-        encoder.finish(&wgpu::RenderBundleDescriptor::default())
+    fn render_bundle<'a>(&'a self,
+        formats: &[Option<TexFmt>], depth_testing:Option<TexFmt>, msaa:u32,
+        handler: impl FnOnce(&mut wgpu::RenderBundleEncoder<'a>),
+    )
+        -> wgpu::RenderBundle
+    {
+        self.render_bundle_encoder(formats, depth_testing, msaa).record(handler)
     }
 
 
@@ -193,10 +202,10 @@ pub trait WgxDevice {
             label: None,
             cache: None,
             layout: layout.map(|(c, b)| self.pipeline_layout(c, b)).as_ref(),
-            module, entry_point,
+            module,
+            entry_point: if entry_point.is_empty() { None } else { Some(entry_point) },
             compilation_options: wgpu::PipelineCompilationOptions {
                 zero_initialize_workgroup_memory: false,
-                vertex_pulling_transform: false,
                 constants: constants.unwrap_or(wgpu::PipelineCompilationOptions::default().constants),
             },
         })
@@ -223,10 +232,11 @@ pub trait WgxDevice {
             layout: layout.map(|(c, b)| self.pipeline_layout(c, b)).as_ref(),
 
             vertex: wgpu::VertexState {
-                module, entry_point, buffers,
+                module,
+                entry_point: if entry_point.is_empty() { None } else { Some(entry_point) },
+                buffers,
                 compilation_options: wgpu::PipelineCompilationOptions {
                     zero_initialize_workgroup_memory: false,
-                    vertex_pulling_transform: false,
                     constants: vtx_constants.unwrap_or(wgpu::PipelineCompilationOptions::default().constants),
                 },
             },
@@ -242,11 +252,11 @@ pub trait WgxDevice {
                 })).collect();
 
                 Some(wgpu::FragmentState {
-                    module, entry_point, targets: &targets,
-
+                    module,
+                    entry_point: if entry_point.is_empty() { None } else { Some(entry_point) },
+                    targets: &targets,
                     compilation_options: wgpu::PipelineCompilationOptions {
                         zero_initialize_workgroup_memory: false,
-                        vertex_pulling_transform: false,
                         constants: frag_constants.unwrap_or(wgpu::PipelineCompilationOptions::default().constants),
                     },
 

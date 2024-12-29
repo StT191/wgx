@@ -46,7 +46,7 @@ impl TextureExtension<wgpu::TextureView> for wgpu::Texture {
 
 
 // our own TextureDescriptor
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TexDsc {
     pub label: Option<&'static str>,
     pub size: [u32; 3],

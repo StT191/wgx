@@ -21,7 +21,7 @@ main_app_closure! {
   init_app,
 }
 
-async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
+async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
 
   let window = ctx.window_clone();
 
@@ -216,10 +216,10 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
 
   // event loop
 
-  move |_ctx: &mut AppCtx, event: &AppEvent| match event {
+  move |_ctx, event| match event {
 
-    AppEvent::WindowEvent(WindowEvent::Resized(size)) => {
-      target.update(&gx, *size);
+    Event::WindowEvent(WindowEvent::Resized(size)) => {
+      target.update(&gx, size);
       world.fov.resize_window(size.width as f32, size.height as f32, true);
       world.calc_clip_matrix();
       world.light_matrix = light_matrix * world.rotation; // keep light
@@ -232,10 +232,10 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
       staging_belt.recall();
     },
 
-    AppEvent::WindowEvent(WindowEvent::KeyboardInput { event: KeyEvent {
+    Event::WindowEvent(WindowEvent::KeyboardInput { event: KeyEvent {
       physical_key: PhysicalKey::Code(keycode), state: ElementState::Pressed, ..
     }, ..}) => {
-      if let Some(key) = InputKey::match_keycode(*keycode) {
+      if let Some(key) = InputKey::match_keycode(keycode) {
         world.input(key);
         world.calc_clip_matrix();
         world.light_matrix = light_matrix * world.rotation; // keep light
@@ -251,7 +251,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
       }
     },
 
-    AppEvent::WindowEvent(WindowEvent::RedrawRequested) => {
+    Event::WindowEvent(WindowEvent::RedrawRequested) => {
 
       // let then = time::Instant::now();
 

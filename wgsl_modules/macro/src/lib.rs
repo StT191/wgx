@@ -1,7 +1,7 @@
 #![feature(proc_macro_span, track_path)]
 
 use std::{cell::RefCell, path::Path};
-use wgsl_modules_loader::{Module, ModuleCache};
+use wgsl_modules_loader::{Module, ModuleCache, naga::valid::{ValidationFlags, Capabilities}};
 
 use proc_macro::{TokenStream, TokenTree, Literal, Span, tracked_path};
 use syn::{parse_macro_input, LitStr};
@@ -17,7 +17,7 @@ thread_local!(static CACHE: RefCell<ModuleCache> = ModuleCache::new().into());
 fn handle_result(res: Res<&Module>, path: &Path) -> TokenStream {
     match res.and_then(|module| {
         // validate naga_module
-        module.naga_module(true)?;
+        module.naga_module(Some((ValidationFlags::all(), Capabilities::all())))?;
         Ok(module)
     }) {
         Ok(module) => {
