@@ -5,8 +5,10 @@ use std::{
 };
 use regex_lite::Regex;
 use naga::{FastHashMap, FastHashSet};
-use naga::{front::wgsl, valid::{ValidationFlags, Validator, Capabilities}};
+use naga::{front::wgsl, valid::{ValidationFlags, Validator, Capabilities, ModuleInfo}};
 use anyhow::{Result as Res, Context, anyhow, bail};
+
+pub use naga;
 
 
 #[derive(Debug)]
@@ -17,7 +19,7 @@ struct Include { path: Box<Path>, source_range: Range<usize> }
 #[derive(Debug)]
 pub struct Module {
     path: Box<Path>,
-    includes: Vec<Include>,
+    includes: Box<[Include]>,
     dependencies: FastHashSet<Box<Path>>,
     source: Box<str>,
     code: Box<str>,
@@ -25,13 +27,13 @@ pub struct Module {
 
 
 static TEST_REGEXES: LazyLock<[Regex; 2]> = LazyLock::new(|| [
-    Regex::new(r#"(\n|}|;|^)(\s*)(?://)?\s*&\s*include\s+(?:"|')(.+?)(?:"|')\s*(;|\n)"#).unwrap(), // \n|}|; // & include "<path>" ;|\n
+    Regex::new(r#"(\n|}|;|^)([\t ]*)(?://)?[\t ]*&[\t ]*include[\t ]+(?:"|')(.+?)(?:"|')[\t ]*(;|\n|$)"#).unwrap(), // \n|}|; // & include "<path>" ;|\n
     Regex::new(r#"(\n|}|;|^)(\s*)/\*\s*&\s*include\s+(?:"|')(.+?)(?:"|')\s*;?\s*\*/()"#).unwrap(), // \n|}|; /* & include "<path>" ;? */
 ]);
 
 impl Module {
 
-    fn load_source(source: Cow<str>, path: Box<Path>) -> Self {
+    fn parse(path: Box<Path>, source: Cow<str>) -> Self {
 
         let mut includes = Vec::new();
 
@@ -61,23 +63,21 @@ impl Module {
         }
 
         Self {
-            path, includes, dependencies: FastHashSet::default(),
+            path, includes: includes.into(), dependencies: FastHashSet::default(),
             source: source.into(), code: "".into(),
         }
     }
 
-
-    fn load_source_from_path(path: Box<Path>) -> Res<Self> {
+    fn load_source(path: &Path) -> Res<Cow<str>> {
 
         // fetch source
-        let source = read_to_string(&path).with_context(
+        let source = read_to_string(path).with_context(
             || format!("failed loading module from path '{}'", path.display())
         )?;
 
-        Ok(Self::load_source(source.into(), path))
+        Ok(source.into())
     }
 }
-
 
 
 // helper
@@ -131,7 +131,8 @@ impl ModuleCache {
         ) }
 
         if !self.map.contains_key(path) {
-            let mut module = Module::load_source_from_path(path.into())?;
+            let code = Module::load_source(path)?;
+            let mut module = Module::parse(path.into(), code);
 
             let dir_path = parent_path(path)?;
 
@@ -180,21 +181,34 @@ impl Module {
         Ok(())
     }
 
-
     // module loading
 
-    pub fn load<'a>(path: impl AsRef<Path>, source_code: impl Into<Cow<'a, str>>) -> Res<Self> {
+    fn load_helper(cache: Option<&mut ModuleCache>, path: &Path, source_code: Option<Cow<str>>) -> Res<Module> {
+
         let path = normpath(path.as_ref());
-        let mut cache = ModuleCache::new();
-        cache.load(&path, source_code)?;
-        Ok(cache.map.remove(&path).unwrap())
+        let dir_path = parent_path(&path)?;
+
+        let source_code = match source_code {
+            Some(code) => code,
+            None => Module::load_source(&path)?,
+        };
+
+        let mut module = Module::parse(path.clone(), source_code);
+
+        let mut temp_cache = ModuleCache::new();
+        let cache = cache.unwrap_or(&mut temp_cache);
+
+        module.resolve_includes(cache, &mut Vec::new(), dir_path)?;
+
+        Ok(module)
+    }
+
+    pub fn load<'a>(path: impl AsRef<Path>, source_code: impl Into<Cow<'a, str>>) -> Res<Self> {
+        Self::load_helper(None, path.as_ref(), Some(source_code.into()))
     }
 
     pub fn load_from_path(path: impl AsRef<Path>) -> Res<Self> {
-        let path = normpath(path.as_ref());
-        let mut cache = ModuleCache::new();
-        cache.load_from_path(&path)?;
-        Ok(cache.map.remove(&path).unwrap())
+        Self::load_helper(None, path.as_ref(), None)
     }
 
     // accessors
@@ -206,10 +220,13 @@ impl Module {
     pub fn source(&self) -> &str { self.source.as_ref() }
     pub fn code(&self) -> &str { self.code.as_ref() }
 
-    pub fn naga_module(&self, validate: bool) -> Res<naga::Module> {
+    pub fn naga_module(&self, validate: Option<(ValidationFlags, Capabilities)>) -> Res<(naga::Module, Option<ModuleInfo>)> {
         let module = naga_module(&self.code, &self.path)?;
-        if validate { naga_validate(&module, &self.code, &self.path)? }
-        Ok(module)
+        let module_info = match validate {
+            Some(config) => Some(naga_validate(config, &module, &self.code, &self.path)?),
+            None => None,
+        };
+        Ok((module, module_info))
     }
 }
 
@@ -217,20 +234,16 @@ impl Module {
 // naga validation
 
 pub fn naga_module(source: &str, path: impl AsRef<Path>) -> Res<naga::Module> {
-    wgsl::parse_str(source).map_err(|err| anyhow!(
-        err.emit_to_string_with_path(source, path)
-    ))
+    wgsl::parse_str(source)
+    .map_err(|err| anyhow!(err.emit_to_string_with_path(source, path)))
 }
 
-pub fn naga_validate(module: &naga::Module, source: &str, path: impl AsRef<Path>) -> Res<()> {
-    match Validator::new(ValidationFlags::all(), Capabilities::all()).validate(module) {
-        Ok(_) => Ok(()),
-        Err(err) => Err(anyhow!(
-            err.emit_to_string_with_path(source, &path.as_ref().display().to_string())
-        )),
-    }
+pub fn naga_validate(
+    config: (ValidationFlags, Capabilities), module: &naga::Module, source: &str, path: impl AsRef<Path>,
+) -> Res<ModuleInfo> {
+    Validator::new(config.0, config.1).validate(module)
+    .map_err(|err| anyhow!(err.emit_to_string_with_path(source, &path.as_ref().display().to_string())))
 }
-
 
 
 impl ModuleCache {
@@ -246,18 +259,8 @@ impl ModuleCache {
     }
 
     fn load_helper(&mut self, path: &Path, source_code: Option<Cow<str>>) -> Res<&Module> {
-
-        let path = normpath(path);
-        let dir_path = parent_path(&path)?;
-
-        let mut module = if let Some(source_code) = source_code {
-            Module::load_source(source_code, path.clone())
-        } else {
-            Module::load_source_from_path(path.clone())?
-        };
-
-        module.resolve_includes(self, &mut Vec::new(), dir_path)?;
-
+        let module = Module::load_helper(Some(self), path.as_ref(), source_code)?;
+        let path = module.path.clone();
         Ok(self.insert_and_get(path, module))
     }
 

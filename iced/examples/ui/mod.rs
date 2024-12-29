@@ -3,7 +3,7 @@ use iced_wgpu::Renderer;
 
 use iced_winit::{
     runtime::{Task, Program},
-    core::{Alignment, Element, Length, Rectangle, mouse::Cursor},
+    core::{Alignment, Element, Length, Rectangle, mouse::Cursor, Font},
     core::theme::{Theme, Custom, Palette},
 };
 
@@ -11,8 +11,8 @@ use wgx_iced::{*};
 use wgx::{Color};
 
 use iced_widget::{
-    Canvas, canvas::{self, Geometry, Frame, Path, event::Status},
-    Column, Row, Text, TextInput, Slider,
+    Canvas, canvas::{self, Geometry, Frame, Path},
+    Column, Row, Text, TextInput, Slider, Action,
 };
 
 
@@ -24,6 +24,7 @@ pub fn theme() -> Theme {
         text: Color::BLACK.iced_core(),
         primary: Color::from([0x88; 3]).iced_core(),
         success: Color::GREEN.iced_core(),
+        warning: Color::ORANGE.iced_core(),
         danger: Color::RED.iced_core(),
     }).into())
 }
@@ -66,14 +67,14 @@ impl canvas::Program<Msg, Theme, Renderer> for Circle {
         vec![frame.into_geometry()]
     }
 
-    fn update(&self, state: &mut Color, _event: canvas::Event, bounds: Rectangle, cursor: Cursor) -> (Status, Option<Msg>){
+    fn update(&self, state: &mut Color, _event: &canvas::Event, bounds: Rectangle, cursor: Cursor) -> Option<Action<Msg>> {
         if cursor.is_over(bounds) {
             *state = Color::GREEN;
-            (Status::Captured, None)
+            None
         }
         else {
             *state = Color::RED;
-            (Status::Ignored, None)
+            None
         }
     }
 }
@@ -111,6 +112,7 @@ impl Program for Ui {
 
         column.push(
             Text::new(&self.text)
+            .font(Font::MONOSPACE)
             .width(Length::Fill).height(Length::Fill)
             .size(18).color(Color::WHITE.iced_core())
         )

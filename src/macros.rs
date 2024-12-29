@@ -13,7 +13,10 @@ macro_rules! limits {
             $($key: $value, )*
             ..{
                 #[cfg(not(target_family = "wasm"))] let limits = $crate::wgpu::Limits::default();
-                #[cfg(target_family = "wasm")] let limits = $crate::wgpu::Limits::downlevel_webgl2_defaults();
+                #[cfg(target_family = "wasm")] let limits = $crate::wgpu::Limits {
+                    max_color_attachments: 4, // lower for some mobile browsers
+                    ..$crate::wgpu::Limits::downlevel_webgl2_defaults()
+                };
                 limits
             }
         }

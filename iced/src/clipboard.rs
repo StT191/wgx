@@ -6,7 +6,7 @@ pub use iced_winit::Clipboard;
 #[cfg(target_family = "wasm")]
 mod web_clipboard {
 
-    use platform::{AppCtx, web_clipboard::WebClipboard};
+    use platform::{AppCtx, WebClipboard};
     use iced_winit::core::clipboard::{Clipboard as IcedClipboard, Kind};
 
     #[derive(Debug)]

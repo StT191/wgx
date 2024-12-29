@@ -61,6 +61,7 @@ type Surface = wgpu::Surface<'static>;
 pub struct SurfaceTarget {
     pub config: SurfaceConfiguration,
     pub surface: Surface,
+    pub frame: Option<SurfaceTexture>,
     pub view_format: TextureFormat,
     pub msaa: u32,
     pub msaa_opt: Option<TextureLot>,
@@ -72,6 +73,13 @@ impl RenderTarget for SurfaceTarget {
     fn msaa(&self) -> u32 { self.msaa }
     fn depth_testing(&self) -> Option<TextureFormat> { self.depth_opt.as_ref().map(|d| d.format()) }
     fn format(&self) -> TextureFormat { self.view_format }
+}
+
+impl Drop for SurfaceTarget {
+    fn drop(&mut self) {
+        // drop SurfaceTexture before Surface
+        self.frame = None;
+    }
 }
 
 
@@ -122,7 +130,7 @@ pub fn configure_surface_defaults(
     if capabilites.alpha_modes.contains(&CompositeAlphaMode::Auto) { config.alpha_mode = CompositeAlphaMode::Auto; }
 
     // frame latency
-    config.desired_maximum_frame_latency = 2;
+    config.desired_maximum_frame_latency = 0;
 }
 
 
@@ -152,7 +160,7 @@ impl SurfaceTarget {
     pub fn new(gx:&impl WgxDevice, surface:Surface, config:SurfaceConfiguration, view_format:TextureFormat, msaa:u32, depth_testing:Option<TextureFormat>)
         -> Self
     {
-        let mut target = Self { config, surface, view_format, msaa, msaa_opt: None, depth_opt: None };
+        let mut target = Self { config, surface, frame: None, view_format, msaa, msaa_opt: None, depth_opt: None };
         target.configure(gx, depth_testing);
         target
     }
@@ -162,6 +170,7 @@ impl SurfaceTarget {
 
         let [width, height] = self.size();
 
+        self.frame = None; // drop current frame
         self.surface.configure(gx.device(), &self.config);
 
         self.msaa_opt = (self.msaa > 1).then(||
@@ -182,11 +191,20 @@ impl SurfaceTarget {
     }
 
 
+    pub fn request_frame(&mut self) -> Res<()> {
+        self.frame = Some(self.surface.get_current_texture()?);
+        Ok(())
+    }
+
+
     pub fn with_frame<T: ImplicitControlFlow>(
         &mut self, dsc: Option<&wgpu::TextureViewDescriptor>, handler: impl FnOnce(&SurfaceFrame) -> T
     ) -> Res<T>
     {
-        let frame = self.surface.get_current_texture()?;
+        let frame = match self.frame.take() {
+            Some(frame) => frame,
+            None => self.surface.get_current_texture()?,
+        };
 
         let res = handler(&SurfaceFrame {
             view: if let Some(dsc) = dsc {
