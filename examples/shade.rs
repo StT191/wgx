@@ -68,7 +68,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
           rpass.set_pipeline(&pipeline);
           rpass.draw(0..4, 0..1);
         });
-      })).unwrap_or_else(|err| log_err!(err));
+      })).unwrap_or_else(|m| log::error!("{m:?}"));
     }
 
     _ => {},

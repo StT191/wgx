@@ -1,6 +1,6 @@
 
 use platform::winit::{window::{WindowAttributes}, event::{WindowEvent}};
-use platform::{*, time::*};
+use platform::{*, STD_FRAME_TIMEOUT};
 use wgx_egui::*;
 use wgx::*;
 
@@ -73,7 +73,7 @@ async fn init_app(app_ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
     let (repaint, _) = egs.event(app_ctx, &event);
 
     if repaint {
-      app_ctx.request = Some(Duration::ZERO); // as early as possible
+      app_ctx.redraw_timeout(STD_FRAME_TIMEOUT);
     }
 
     if let AppEvent::WindowEvent(window_event) = event { match window_event {
@@ -108,6 +108,8 @@ async fn init_app(app_ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
         // draw
         target.with_frame(None, |frame| gx.with_encoder(|encoder| {
 
+          app_ctx.redraw_timeout(output.repaint_delay.max(STD_FRAME_TIMEOUT));
+
           output.prepare(&mut egs_renderer, &gx, encoder);
 
           encoder.with_render_pass(frame.attachments(Some(Color::WHITE.into()), None, None), |mut rpass| {
@@ -128,10 +130,8 @@ async fn init_app(app_ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
           }
         }
 
-        app_ctx.request = Some(output.repaint_delay);
-
         // frame_counter.add();
-        // if let Some(counted) = frame_counter.count() { log_warn!(counted) }
+        // if let Some(counted) = frame_counter.count() { log::warn!("{:?}", counted) }
         // window.request_redraw(); // draw as many as possible
 
       },

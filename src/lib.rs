@@ -2,7 +2,8 @@
 // passs wgpu types
 pub use wgpu::{
     self,
-    Features, Limits,
+    Features, Limits, PresentMode,
+    Buffer, Texture, TextureView,
     BufferUsages as BufUse,
     TextureUsages as TexUse,
     ShaderStages as Stage,

@@ -3,7 +3,7 @@ use platform::winit::{
   window::WindowAttributes, event::{WindowEvent, KeyEvent, ElementState}, keyboard::{PhysicalKey, KeyCode},
   dpi::PhysicalSize,
 };
-use platform::{*, time::*};
+use platform::{*, time::*, STD_FRAME_TIMEOUT};
 use wgx::{*};
 
 
@@ -76,12 +76,9 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
   ]);
 
 
-  // event loop
-  ctx.animate = true;
-
   // let mut frame_counter = timer::IntervalCounter::from_secs(5.0);
 
-  move |_ctx: &mut AppCtx, event: &AppEvent| match event {
+  move |ctx: &mut AppCtx, event: &AppEvent| match event {
 
     AppEvent::WindowEvent(WindowEvent::Resized(size)) => {
       target.update(&gx, *size);
@@ -114,6 +111,9 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
 
       // draw
       target.with_frame(None, |frame| gx.with_encoder(|encoder| {
+
+        ctx.redraw_timeout(STD_FRAME_TIMEOUT);
+
         encoder.with_render_pass(frame.attachments(Some(Color::BLACK), None, None), |rpass| {
           rpass.set_pipeline(&pipeline);
           rpass.set_bind_group(0, &binding, &[]);

@@ -25,7 +25,7 @@ pub struct Module {
 
 
 static TEST_REGEXES: LazyLock<[Regex; 2]> = LazyLock::new(|| [
-    Regex::new(r#"(\n|}|;|^)(\s*)(?://)?\s*&\s*include\s+(?:"|')(.+?)(?:"|')\s*(;|\n)"#).unwrap(), // \n|}|; // & include "<path>" ;|\n
+    Regex::new(r#"(\n|}|;|^)([\t ]*)(?://)?[\t ]*&[\t ]*include[\t ]+(?:"|')(.+?)(?:"|')[\t ]*(;|\n|$)"#).unwrap(), // \n|}|; // & include "<path>" ;|\n
     Regex::new(r#"(\n|}|;|^)(\s*)/\*\s*&\s*include\s+(?:"|')(.+?)(?:"|')\s*;?\s*\*/()"#).unwrap(), // \n|}|; /* & include "<path>" ;? */
 ]);
 
@@ -230,7 +230,6 @@ pub fn naga_validate(module: &naga::Module, source: &str, path: impl AsRef<Path>
         )),
     }
 }
-
 
 
 impl ModuleCache {

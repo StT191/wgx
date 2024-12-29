@@ -3,7 +3,7 @@ use platform::winit::event::WindowEvent;
 use platform::{time::Duration, AppCtx, AppEvent};
 
 #[cfg(target_family="wasm")]
-use platform::{web_clipboard::WebClipboard, log_warn};
+use platform::{web_clipboard::WebClipboard, log};
 
 use epaint::ahash::HashSet;
 use egui::{Context, ClippedPrimitive, TexturesDelta, ViewportCommand, ViewportInfo, ViewportId};
@@ -46,7 +46,7 @@ impl EguiCtx {
       state.set_clipboard_text("DUMMY_CONTENT".to_string());
 
       let web_clipboard = WebClipboard::connect(app_ctx, true);
-      log_warn!(web_clipboard);
+      log::warn!("{:?}", &web_clipboard);
 
       Self { state, screen_dsc, context, web_clipboard }
     }

@@ -193,10 +193,10 @@ pub trait WgxDevice {
             label: None,
             cache: None,
             layout: layout.map(|(c, b)| self.pipeline_layout(c, b)).as_ref(),
-            module, entry_point,
+            module,
+            entry_point: if entry_point.is_empty() { None } else { Some(entry_point) },
             compilation_options: wgpu::PipelineCompilationOptions {
                 zero_initialize_workgroup_memory: false,
-                vertex_pulling_transform: false,
                 constants: constants.unwrap_or(wgpu::PipelineCompilationOptions::default().constants),
             },
         })
@@ -223,10 +223,11 @@ pub trait WgxDevice {
             layout: layout.map(|(c, b)| self.pipeline_layout(c, b)).as_ref(),
 
             vertex: wgpu::VertexState {
-                module, entry_point, buffers,
+                module,
+                entry_point: if entry_point.is_empty() { None } else { Some(entry_point) },
+                buffers,
                 compilation_options: wgpu::PipelineCompilationOptions {
                     zero_initialize_workgroup_memory: false,
-                    vertex_pulling_transform: false,
                     constants: vtx_constants.unwrap_or(wgpu::PipelineCompilationOptions::default().constants),
                 },
             },
@@ -242,11 +243,11 @@ pub trait WgxDevice {
                 })).collect();
 
                 Some(wgpu::FragmentState {
-                    module, entry_point, targets: &targets,
-
+                    module,
+                    entry_point: if entry_point.is_empty() { None } else { Some(entry_point) },
+                    targets: &targets,
                     compilation_options: wgpu::PipelineCompilationOptions {
                         zero_initialize_workgroup_memory: false,
-                        vertex_pulling_transform: false,
                         constants: frag_constants.unwrap_or(wgpu::PipelineCompilationOptions::default().constants),
                     },
 

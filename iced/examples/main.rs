@@ -1,6 +1,6 @@
 
 use platform::winit::{window::{WindowAttributes}, event::{WindowEvent}};
-use platform::{*, time::*};
+use platform::{*, STD_FRAME_TIMEOUT};
 use wgx_iced::*;
 use wgx::*;
 
@@ -29,7 +29,7 @@ async fn init_app(app_ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
   let mut gui = Gui::new(app_ctx, engine.renderer(&gx), ui::Ui::default(), ui::theme());
 
 
-  // let mut frame_counter = timer::IntervalCounter::from_secs(5.0);
+  let mut frame_counter = timer::IntervalCounter::from_secs(5.0);
 
   move |app_ctx: &mut AppCtx, event: &AppEvent| {
 
@@ -37,7 +37,7 @@ async fn init_app(app_ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
 
     // redraw handling
     if event_was_queued {
-      app_ctx.request = Some(Duration::ZERO); // as early as possible
+      app_ctx.redraw_timeout(STD_FRAME_TIMEOUT);
     }
 
     if let AppEvent::WindowEvent(window_event) = event { match window_event {
@@ -59,8 +59,8 @@ async fn init_app(app_ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
 
         })).expect("frame error");
 
-        // frame_counter.add();
-        // if let Some(counted) = frame_counter.count() { println!("{:?}", counted) }
+        frame_counter.add();
+        if let Some(counted) = frame_counter.count() { println!("{:?}", counted) }
         // window.request_redraw();
 
       },

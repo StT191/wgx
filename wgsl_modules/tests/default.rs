@@ -92,9 +92,9 @@ fn inline_registering() {
         }
     ");
 
-    let module_src = inline!("$module/$module" <= {
-        &include "../$inline/$util";
-    });
+    let module_src = inline!("$inline//$util" <= r"
+        &include '../$inline/$util';
+    ");
 
     tokens_eq!(module_src, include_str!("../shaders/util.wgsl"));
 }

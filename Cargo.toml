@@ -1,5 +1,5 @@
 [workspace.package]
-version = "0.22.5"
+version = "0.23.0"
 authors = ["Stefan Tammer <st.tammer@gmail.com>"]
 edition = "2021"
 license = "MIT"
@@ -8,12 +8,14 @@ license = "MIT"
 members = ["wgsl_modules", "wgsl_modules/loader", "wgsl_modules/macro", "egui", "iced"]
 
 [workspace.dependencies]
-wgsl_modules = { version = "~0.22.5", path = "wgsl_modules" }
-wgsl_modules_macro = { version = "~0.22.5", path = "wgsl_modules/macro" }
-wgsl_modules_loader = { version = "~0.22.5", path = "wgsl_modules/loader" }
-naga = { version = "22", features = ["wgsl-in"] }
-platform = { version = "1.1.0", tag = "v1.1.0", git = "https://github.com/StT191/platform" }
+wgpu = { version = "23", default-features = false }
+wgpu-types = "23"
+naga = { version = "23", features = ["wgsl-in"] }
 wgx = { path = ".", default-features = false }
+wgsl_modules = { version = "~0.23.0", path = "wgsl_modules" }
+wgsl_modules_macro = { version = "~0.23.0", path = "wgsl_modules/macro" }
+wgsl_modules_loader = { version = "~0.23.0", path = "wgsl_modules/loader" }
+platform = { version = "2.0.0", tag = "v2.0.0", git = "https://github.com/StT191/platform" }
 log = "0"
 anyhow = "1"
 
@@ -38,8 +40,8 @@ wgsl_modules_loader = ["wgsl_modules", "wgsl_modules/loader"]
 
 
 [dependencies]
-wgpu = { version = "22", default-features = false, features = ["wgsl"] }
-wgpu-types = "22"
+wgpu = { workspace = true, features = ["wgsl"] }
+wgpu-types = { workspace = true }
 log = { workspace = true }
 anyhow = { workspace = true }
 arrayvec = "0.7"
@@ -50,7 +52,7 @@ wgsl_modules = { workspace = true, optional = true }
 
 
 [dev-dependencies]
-platform = { workspace = true, features = ["frame_timer"] }
+platform = { workspace = true, features = ["redraw_timer"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
-wgpu = { version = "22", default-features = false, features = ["webgpu", "webgl"] }
+wgpu = { workspace = true, features = ["webgpu", "webgl"] }
 serde_json = "1.0"
