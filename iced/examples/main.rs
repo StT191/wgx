@@ -1,6 +1,6 @@
 
 use platform::winit::{window::{WindowAttributes}, event::{WindowEvent}};
-use platform::{*, time::*};
+use platform::*;
 use wgx_iced::*;
 use wgx::*;
 
@@ -12,7 +12,7 @@ main_app_closure! {
   init_app,
 }
 
-async fn init_app(app_ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
+async fn init_app(app_ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &Event) {
 
   let window = app_ctx.window_clone();
 
@@ -29,24 +29,24 @@ async fn init_app(app_ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
   let mut gui = Gui::new(app_ctx, engine.renderer(&gx), ui::Ui::default(), ui::theme());
 
 
-  // let mut frame_counter = timer::IntervalCounter::from_secs(5.0);
+  let mut frame_counter = timer::IntervalCounter::from_secs(5.0);
 
-  move |app_ctx: &mut AppCtx, event: &AppEvent| {
+  move |app_ctx: &mut AppCtx, event: &Event| {
 
     let event_was_queued = gui.event(app_ctx, event);
 
     // redraw handling
     if event_was_queued {
-      app_ctx.request = Some(Duration::ZERO); // as early as possible
+      app_ctx.request_frame();
     }
 
-    if let AppEvent::WindowEvent(window_event) = event { match window_event {
+    match event {
 
-      WindowEvent::Resized(size) => {
+      Event::WindowEvent(WindowEvent::Resized(size)) => {
         target.update(&gx, *size);
       },
 
-      WindowEvent::RedrawRequested => {
+      Event::WindowEvent(WindowEvent::RedrawRequested) => {
 
         // gui handling
         gui.update(app_ctx);
@@ -59,13 +59,12 @@ async fn init_app(app_ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
 
         })).expect("frame error");
 
-        // frame_counter.add();
-        // if let Some(counted) = frame_counter.count() { println!("{:?}", counted) }
-        // window.request_redraw();
+        frame_counter.add();
+        if let Some(counted) = frame_counter.count() { println!("{:?}", counted) }
 
       },
 
       _ => (),
-    }}
+    }
   }
 }

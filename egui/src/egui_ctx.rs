@@ -1,9 +1,9 @@
 
 use platform::winit::event::WindowEvent;
-use platform::{time::Duration, AppCtx, AppEvent};
+use platform::{time::Duration, AppCtx, Event};
 
 #[cfg(target_family="wasm")]
-use platform::{web_clipboard::WebClipboard, log_warn};
+use platform::{WebClipboard, log};
 
 use epaint::ahash::HashSet;
 use egui::{Context, ClippedPrimitive, TexturesDelta, ViewportCommand, ViewportInfo, ViewportId};
@@ -46,16 +46,16 @@ impl EguiCtx {
       state.set_clipboard_text("DUMMY_CONTENT".to_string());
 
       let web_clipboard = WebClipboard::connect(app_ctx, true);
-      log_warn!(web_clipboard);
+      log::warn!("{:?}", &web_clipboard);
 
       Self { state, screen_dsc, context, web_clipboard }
     }
   }
 
-  pub fn event(&mut self, app_ctx: &AppCtx, app_event: &AppEvent) -> (bool, bool) {
+  pub fn event(&mut self, app_ctx: &AppCtx, app_event: &Event) -> (bool, bool) {
     match app_event {
 
-      AppEvent::WindowEvent(window_event) => {
+      Event::WindowEvent(window_event) => {
 
         if matches!(window_event, WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged {..}) {
           self.screen_dsc = ScreenDescriptor::from_window(app_ctx.window());
@@ -88,7 +88,7 @@ impl EguiCtx {
       },
 
       #[cfg(target_family="wasm")]
-      AppEvent::ClipboardPaste | AppEvent::ClipboardFetch => {
+      Event::ClipboardPaste | Event::ClipboardFetch => {
         if let Some(text) = self.web_clipboard.read() {
           self.state.egui_input_mut().events.push(egui::Event::Paste(text));
           (true, true)

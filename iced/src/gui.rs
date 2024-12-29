@@ -1,7 +1,7 @@
 
 use platform::winit::{dpi::PhysicalPosition, event::WindowEvent, keyboard::ModifiersState};
 
-use platform::{AppCtx, AppEvent};
+use platform::{AppCtx, Event};
 use wgx::wgpu::{CommandEncoder, TextureFormat};
 use wgx::{Wgx, WgxDevice, WgxDeviceQueue, ImplicitControlFlow, RenderAttachable, Color};
 
@@ -11,7 +11,7 @@ pub use iced_wgpu::{Engine};
 use iced_winit::{
   graphics::{Viewport, Antialiasing},
   runtime::{program::{Program, State}, Task, Debug},
-  core::{Event, mouse::{Interaction, Cursor}, Pixels, Size, Font, renderer::Style},
+  core::{Event as IcedEvent, mouse::{Interaction, Cursor}, Pixels, Size, Font, renderer::Style},
   conversion,
 };
 
@@ -105,10 +105,10 @@ impl<P: 'static + Program<Renderer=Renderer>> Gui<P> {
   }
 
 
-  pub fn event(&mut self, _app_ctx: &AppCtx, app_event: &AppEvent) -> bool {
+  pub fn event(&mut self, _app_ctx: &AppCtx, app_event: &Event) -> bool {
     match app_event {
 
-      AppEvent::WindowEvent(window_event) => {
+      Event::WindowEvent(window_event) => {
 
         match window_event {
           WindowEvent::CursorMoved { position, .. } => {
@@ -159,8 +159,8 @@ impl<P: 'static + Program<Renderer=Renderer>> Gui<P> {
       },
 
       #[cfg(target_family="wasm")]
-      AppEvent::ClipboardPaste | AppEvent::ClipboardFetch => {
-        self.state.queue_event(Event::Keyboard(keyboard::Event::KeyPressed {
+      Event::ClipboardPaste | Event::ClipboardFetch => {
+        self.state.queue_event(IcedEvent::Keyboard(keyboard::Event::KeyPressed {
           key: key::Key::Character("v".into()),
           modified_key: key::Key::Character("v".into()),
           physical_key: key::Physical::Code(key::Code::KeyV),
@@ -181,7 +181,7 @@ impl<P: 'static + Program<Renderer=Renderer>> Gui<P> {
   }
 
 
-  pub fn update(&mut self, app_ctx: &AppCtx) -> (Vec<Event>, Option<Task<P::Message>>) {
+  pub fn update(&mut self, app_ctx: &AppCtx) -> (Vec<IcedEvent>, Option<Task<P::Message>>) {
 
     let res = self.state.update(
       self.viewport.logical_size(),

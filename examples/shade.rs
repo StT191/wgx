@@ -13,7 +13,7 @@ main_app_closure! {
   init_app,
 }
 
-async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
+async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &Event) {
 
   let window = ctx.window_clone();
   let (gx, mut target) = Wgx::new_with_target(window.clone(), features!(), limits!(), window.inner_size(), false, 1, None).await.unwrap();
@@ -56,19 +56,19 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
     (&shader, "fs_main", None, Some(Blend::ALPHA_BLENDING)),
   );
 
-  move |_ctx: &mut AppCtx, event: &AppEvent| match event {
+  move |_ctx: &mut AppCtx, event: &Event| match event {
 
-    AppEvent::WindowEvent(WindowEvent::Resized(size)) => {
+    Event::WindowEvent(WindowEvent::Resized(size)) => {
       target.update(&gx, *size);
     },
 
-    AppEvent::WindowEvent(WindowEvent::RedrawRequested) => {
+    Event::WindowEvent(WindowEvent::RedrawRequested) => {
       target.with_frame(None, |frame| gx.with_encoder(|encoder| {
         encoder.with_render_pass(frame.attachments(None, None, None), |rpass| {
           rpass.set_pipeline(&pipeline);
           rpass.draw(0..4, 0..1);
         });
-      })).unwrap_or_else(|err| log_err!(err));
+      })).unwrap_or_else(|m| log::error!("{m:?}"));
     }
 
     _ => {},
