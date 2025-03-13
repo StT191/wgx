@@ -40,7 +40,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
         [[255u8, 0, 0, 255], [0, 255, 0, 255], [0, 0, 255, 255]]
     );
 
-    let sampler = gx.default_sampler();
+    let sampler = gx.std_sampler();
 
     // binding
     let binding = gx.bind(&layout, &[

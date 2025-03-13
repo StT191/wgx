@@ -1,5 +1,5 @@
 [workspace.package]
-version = "0.23.0"
+version = "0.24.0"
 authors = ["Stefan Tammer <st.tammer@gmail.com>"]
 edition = "2024"
 license = "MIT"
@@ -8,13 +8,13 @@ license = "MIT"
 members = ["wgsl_modules", "wgsl_modules/loader", "wgsl_modules/macro"]
 
 [workspace.dependencies]
-wgpu = { version = "23", default-features = false }
-wgpu-types = "23"
-naga = { version = "23", features = ["wgsl-in"] }
+wgpu = { version = "24", default-features = false }
+wgpu-types = "24"
+naga = { version = "24", features = ["wgsl-in"] }
 wgx = { path = ".", default-features = false }
-wgsl_modules = { version = "~0.23.0", path = "wgsl_modules" }
-wgsl_modules_macro = { version = "~0.23.0", path = "wgsl_modules/macro" }
-wgsl_modules_loader = { version = "~0.23.0", path = "wgsl_modules/loader" }
+wgsl_modules = { version = "~0.24.0", path = "wgsl_modules" }
+wgsl_modules_macro = { version = "~0.24.0", path = "wgsl_modules/macro" }
+wgsl_modules_loader = { version = "~0.24.0", path = "wgsl_modules/loader" }
 platform = { version = "1.3.0", tag = "v1.3.0", git = "https://github.com/StT191/platform" }
 log = "0"
 anyhow = "1"

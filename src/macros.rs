@@ -26,6 +26,7 @@ macro_rules! limits {
 
 #[macro_export]
 macro_rules! binding {
+
     ($loc:expr, $stage:expr, UniformBuffer, $min_size:expr) => {
         $crate::binding!($loc, $stage, UniformBuffer, $min_size, [0])
     };
@@ -39,6 +40,7 @@ macro_rules! binding {
             [$count]
         )
     };
+
     ($loc:expr, $stage:expr, StorageBuffer, $min_size:expr, $ro:expr) => {
         $crate::binding!($loc, $stage, StorageBuffer, $min_size, $ro, [0])
     };
@@ -52,6 +54,7 @@ macro_rules! binding {
             [$count]
         )
     };
+
     ($loc:expr, $stage:expr, Texture, $dim:ident, $sample_type:ident) => {
         $crate::binding!($loc, $stage, Texture, $dim, $sample_type, [0])
     };
@@ -61,6 +64,7 @@ macro_rules! binding {
     ($loc:expr, $stage:expr, Texture, $dim:ident, $sample_type:ident, [$count:expr]) => {
         $crate::binding!($loc, $stage, Texture, $dim, $crate::wgpu::TextureSampleType::$sample_type, false, [0])
     };
+
     ($loc:expr, $stage:expr, MultisampledTexture, $dim:ident, $sample_type:ident) => {
         $crate::binding!($loc, $stage, MultisampledTexture, $dim, $sample_type, [0])
     };
@@ -70,6 +74,7 @@ macro_rules! binding {
     ($loc:expr, $stage:expr, MultisampledTexture, $dim:ident, $sample_type:ident, [$count:expr]) => {
         $crate::binding!($loc, $stage, Texture, $dim, $crate::wgpu::TextureSampleType::$sample_type, true, [0])
     };
+
     ($loc:expr, $stage:expr, Texture, $dim:ident, $sample_type:expr, $multisampled:expr, [$count:expr]) => {
         $crate::binding!($loc, $stage,
             $crate::wgpu::BindingType::Texture {
@@ -80,6 +85,7 @@ macro_rules! binding {
             [$count]
         )
     };
+
     ($loc:expr, $stage:expr, StorageTexture, $dim:ident, $format:expr, $access:ident) => {
         $crate::binding!($loc, $stage, StorageTexture, $dim, $format, $access, [0])
     };
@@ -93,6 +99,7 @@ macro_rules! binding {
             [$count]
         )
     };
+
     ($loc:expr, $stage:expr, Sampler, $binding_type:ident) => {
         $crate::binding!($loc, $stage, Sampler, $binding_type, [0])
     };
@@ -102,6 +109,7 @@ macro_rules! binding {
             [$count]
         )
     };
+
     ($loc:expr, $stage:expr, AccelerationStructure) => {
         $crate::binding!($loc, $stage, Sampler, $binding_type, [0])
     };
@@ -111,6 +119,7 @@ macro_rules! binding {
             [$count]
         )
     };
+
     ($loc:expr, $stage:expr, $ty:expr) => {
         $crate::binding!($loc, $stage, $ty, [0])
     };

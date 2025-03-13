@@ -84,6 +84,7 @@ impl TexDsc {
             label: None,
             format: Some(self.view_format),
             dimension: Some(self.view_dimension),
+            usage: Some(self.usage),
             aspect: self.view_aspect,
             base_mip_level: 0,
             mip_level_count: Some(self.mip_level_count),

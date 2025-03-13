@@ -49,7 +49,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
 
   // colors
   let color_texture = TextureLot::new_2d_with_data(&gx, [1, 1, 1], 1, TexFmt::Rgba8UnormSrgb, None, TexUse::TEXTURE_BINDING, [255u8, 0, 0, 255]);
-  let sampler = gx.default_sampler();
+  let sampler = gx.std_sampler();
 
 
   // vertices

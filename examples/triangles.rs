@@ -66,7 +66,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
 
 
     // texture + sampler
-    let sampler = gx.default_sampler();
+    let sampler = gx.std_sampler();
 
     let binding = gx.bind(&pipeline.get_bind_group_layout(0), &[
         bind!(0, TextureView, &texture.view),
