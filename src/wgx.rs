@@ -17,7 +17,7 @@ pub struct Wgx {
 
 impl Wgx {
     pub fn instance() -> wgpu::Instance {
-        wgpu::Instance::new(Default::default())
+        wgpu::Instance::new(&Default::default())
     }
 
     pub async fn request_adapter<W: Into<wgpu::SurfaceTarget<'static>>>(
@@ -289,8 +289,8 @@ pub trait WgxQueue {
     fn queue(&self) -> &wgpu::Queue;
 
     fn write_texture<'a, T: ReadBytes>(&self,
-        copy_texture: impl ToImageCopyTexture<'a>,
-        (data, data_layout):(T, impl ToImageDataLayout),
+        copy_texture: impl ToTexelCopyTextureInfo<'a>,
+        (data, data_layout):(T, impl ToTexelCopyBufferLayout),
         extent: impl ToExtent3d,
     ) {
         self.queue().write_texture(copy_texture.to(), data.read_bytes(), data_layout.to(), extent.to())
