@@ -1,5 +1,5 @@
 
-use std::{sync::mpsc::sync_channel, ops::{RangeBounds}};
+use std::{sync::mpsc::sync_channel, ops::{RangeBounds}, iter::TrustedLen};
 use wgpu::{Buffer, BufferSlice, BufferAddress, BufferSize, BufferViewMut, util::StagingBelt, CommandEncoder};
 use crate::{*};
 use anyhow::{Result as Res};
@@ -16,7 +16,7 @@ pub trait StagingBeltExtension {
     &mut self, gx: &impl WgxDevice, encoder: &mut CommandEncoder, target: &Buffer, offset: BufferAddress, data: T,
   );
 
-  fn write_iter<T: ReadBytes, I: ExactSizeIterator<Item=T>>(
+  fn write_iter<T: ReadBytes, I: TrustedLen<Item=T>>(
     &mut self, gx: &impl WgxDevice, encoder: &mut CommandEncoder,
     target: &Buffer, offset: BufferAddress, data: I
   );
@@ -39,11 +39,13 @@ impl StagingBeltExtension for StagingBelt {
     self.stage(gx, encoder, target, offset..(bytes.len() as u64)).copy_from_slice(bytes);
   }
 
-  fn write_iter<T: ReadBytes, I: ExactSizeIterator<Item=T>>(
+  fn write_iter<T: ReadBytes, I: TrustedLen<Item=T>>(
     &mut self, gx: &impl WgxDevice, encoder: &mut CommandEncoder,
     target: &Buffer, offset: BufferAddress, data: I
   ) {
-    let size = (data.len() * size_of::<T>()) as u64;
+    let size_hint = data.size_hint();
+    assert_eq!(Some(size_hint.0), size_hint.1, "data doesn't provide a trusted size_hint: {size_hint:?}");
+    let size = (size_hint.0 * size_of::<T>()) as u64;
     let mut staging = self.stage(gx, encoder, target, offset..(offset + size));
     staging.chunks_mut(size_of::<T>()).zip(data).for_each(|(c, d)| c.copy_from_slice(d.read_bytes()))
   }
@@ -80,7 +82,7 @@ impl StagingEncoder {
   }
 
   pub fn write_iter<T: ReadBytes, I>(&mut self, gx: &impl WgxDevice, target: &Buffer, offset: BufferAddress, data: I)
-    where I: ExactSizeIterator<Item=T>
+    where I: TrustedLen<Item=T>
   {
     self.staging_belt.write_iter(gx, &mut self.encoder, target, offset, data)
   }
