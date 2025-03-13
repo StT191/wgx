@@ -4,7 +4,7 @@ use crate::*;
 use anyhow::{Result as Res};
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TextureLot {
     pub texture: wgpu::Texture,
     pub descriptor: TexDsc,
@@ -224,7 +224,7 @@ impl SurfaceTarget {
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TextureTarget {
     pub texture: wgpu::Texture,
     pub descriptor: TexDsc,

@@ -16,24 +16,24 @@ egui = ["dep:egui", "dep:egui-winit", "dep:egui_extras"]
 [dependencies]
 platform = { workspace = true, features = ["web_clipboard"] }
 wgx = { workspace = true }
-epaint = { version = "0.30" }
-egui-wgpu = { version = "0.30", default-features = false }
+epaint = { version = "0.31" }
+egui-wgpu = { version = "0.31", default-features = false }
 
-egui = { version = "0.30", optional = true }
-egui_extras = { version = "0.30", optional = true } # without features
+egui = { version = "0.31", optional = true }
+egui_extras = { version = "0.31", optional = true } # without features
 
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
-egui-winit = { version = "0.30", optional = true }
+egui-winit = { version = "0.31", optional = true }
 
 [target.'cfg(target_family = "wasm")'.dependencies]
-egui-winit = { version = "0.30", default-features = false, features = ["links"], optional = true }
+egui-winit = { version = "0.31", default-features = false, features = ["links"], optional = true }
 
 
 [dev-dependencies]
 platform = { workspace = true, features = ["frame_pacing", "timeout", "auto_wake_lock"] }
 
-# egui_extras = { version = "0.30", features = ["image"] } # with features
+# egui_extras = { version = "0.31", features = ["image"] } # with features
 # image = { version = "0.24", default-features = false, features = ["png"] }
 
 
