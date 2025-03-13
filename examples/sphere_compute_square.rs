@@ -55,7 +55,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
   let bg_color = Color::from([0x00, 0x00, 0x00, 0xCC]);
 
   let color_texture = TextureLot::new_2d_with_data(&gx, [1, 1, 1], 1, TexFmt::Rgba8UnormSrgb, None, TexUse::TEXTURE_BINDING, [255u8, 0, 0, 255]);
-  let sampler = gx.default_sampler();
+  let sampler = gx.std_sampler();
 
   // compute vertices
   type Vertex = [[f32;3];3];

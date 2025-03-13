@@ -35,7 +35,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
     );
 
     // sampler
-    let sampler = gx.default_sampler();
+    let sampler = gx.std_sampler();
 
     #[repr(C)]
     #[derive(Clone, Copy)]
