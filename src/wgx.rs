@@ -17,7 +17,7 @@ pub struct Wgx {
 
 impl Wgx {
     pub fn instance() -> wgpu::Instance {
-        wgpu::Instance::new(Default::default())
+        wgpu::Instance::new(&Default::default())
     }
 
     pub async fn request_adapter<W: Into<wgpu::SurfaceTarget<'static>>>(
@@ -101,23 +101,18 @@ pub trait WgxDevice {
         self.device().create_sampler(descriptor)
     }
 
-    fn default_sampler(&self) -> wgpu::Sampler {
-        self.device().create_sampler(&wgpu::SamplerDescriptor {
-            label: None,
-            border_color: None,
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
+    fn std_sampler_descriptor() -> wgpu::SamplerDescriptor<'static> {
+       wgpu::SamplerDescriptor {
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
             mipmap_filter: wgpu::FilterMode::Linear,
-            lod_min_clamp: 0.0,
-            lod_max_clamp: 100.0,
-            compare: None, // Some(wgpu::CompareFunction::LessEqual),
-            anisotropy_clamp: 1,
-        })
+            ..wgpu::SamplerDescriptor::default()
+        }
     }
 
+    fn std_sampler(&self) -> wgpu::Sampler {
+        self.device().create_sampler(&Self::std_sampler_descriptor())
+    }
 
     // buffer
 
@@ -289,8 +284,8 @@ pub trait WgxQueue {
     fn queue(&self) -> &wgpu::Queue;
 
     fn write_texture<'a, T: ReadBytes>(&self,
-        copy_texture: impl ToImageCopyTexture<'a>,
-        (data, data_layout):(T, impl ToImageDataLayout),
+        copy_texture: impl ToTexelCopyTextureInfo<'a>,
+        (data, data_layout):(T, impl ToTexelCopyBufferLayout),
         extent: impl ToExtent3d,
     ) {
         self.queue().write_texture(copy_texture.to(), data.read_bytes(), data_layout.to(), extent.to())
