@@ -33,6 +33,9 @@ pub use color::*;
 mod wgx;
 pub use wgx::*;
 
+mod pipeline_config;
+pub use pipeline_config::*;
+
 mod render_extension;
 pub use render_extension::*;
 
