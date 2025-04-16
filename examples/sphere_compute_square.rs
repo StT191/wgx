@@ -38,24 +38,28 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
 
   let constants = shader_constants!{LL_m: 0.01, LL_ml: 0.06};
 
-  let pipeline = target.render_pipeline(&gx,
-    None, &[
-      vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x3, 2 => Float32x3),
-      vertex_dsc!(Instance, 3 => Float32x4, 4 => Float32x4, 5 => Float32x4, 6 => Float32x4)
-    ],
-    (&shader, "vs_main", Some(&constants), Primitive {
-      cull_mode: Some(Face::Back),
-      polygon_mode: Polygon::Fill,
-      ..Primitive::default()
-    }),
-    (&shader, "fs_main", Some(&constants), blending),
-  );
+  let pipeline = RenderPipelineConfig::new(
+      &[
+        vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x3, 2 => Float32x3),
+        vertex_dsc!(Instance, 3 => Float32x4, 4 => Float32x4, 5 => Float32x4, 6 => Float32x4)
+      ],
+      &shader, "vs_main", Primitive {
+        cull_mode: Some(Face::Back),
+        polygon_mode: Polygon::Fill,
+        ..Primitive::default()
+      },
+    )
+    .fragment(&shader, "fs_main").fragment_shader_constants(&constants)
+    .render_target::<1>(&target, blending, Default::default())
+    .pipeline(&gx)
+  ;
+
 
   // colors
   let bg_color = Color::from([0x00, 0x00, 0x00, 0xCC]);
 
   let color_texture = TextureLot::new_2d_with_data(&gx, [1, 1, 1], 1, TexFmt::Rgba8UnormSrgb, None, TexUse::TEXTURE_BINDING, [255u8, 0, 0, 255]);
-  let sampler = gx.std_sampler();
+  let sampler = gx.sampler(&std_sampler_descriptor());
 
   // compute vertices
   type Vertex = [[f32;3];3];
@@ -77,7 +81,10 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
 
   let cp_shader = gx.load_wgsl(wgsl_modules::include!("common/shaders/compute_sphere_square.wgsl"));
 
-  let cp_pipeline = gx.compute_pipeline(Some((&[], &[&layout])), (&cp_shader, "cp_main", None));
+  let cp_pipeline = ComputePipelineConfig::new(&cp_shader, "cp_main")
+    .pipeline_layout(&gx, &[], &[&layout])
+    .pipeline(&gx)
+  ;
 
   let binding_cp = gx.bind(&layout, &[bind!(0, Buffer, &vertex_buffer)]);
 
@@ -159,7 +166,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
   ]);
 
   // render bundles
-  let bundles = [target.render_bundle(&gx, |rpass| {
+  let bundles = [target.render_bundle(&gx, |_| {}, |rpass| {
     rpass.set_pipeline(&pipeline);
     rpass.set_bind_group(0, &binding, &[]);
     rpass.set_vertex_buffer(0, vertex_buffer.slice(..));

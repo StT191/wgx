@@ -28,14 +28,17 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
     let shader = gx.load_wgsl(wgsl_modules::include!("common/shaders/shader_flat_text.wgsl"));
 
     // pipeline
-    let pipeline = target.render_pipeline(&gx,
-        None, &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        (&shader, "vs_main", None, Primitive { topology: Topology::TriangleStrip, ..Primitive::default() }),
-        (&shader, "fs_main", None, blending),
-    );
+    let pipeline = RenderPipelineConfig::new(
+            &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
+            &shader, "vs_main", Primitive { topology: Topology::TriangleStrip, ..Primitive::default() },
+        )
+        .fragment(&shader, "fs_main")
+        .render_target::<1>(&target, blending, Default::default())
+        .pipeline(&gx)
+    ;
 
     // sampler
-    let sampler = gx.std_sampler();
+    let sampler = gx.sampler(&std_sampler_descriptor());
 
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -68,15 +71,16 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
     let draw_target = TextureTarget::new(&gx, window.inner_size(), DRAW_MSAA, None, TexFmt::Rgba8UnormSrgb, None, TexUse::TEXTURE_BINDING);
     // let draw_target2 = TextureTarget::new(&gx, window.inner_size(), DRAW_MSAA, None, TexFmt::Rgba8UnormSrgb, None, TexUse::TEXTURE_BINDING);
 
-    let draw_pipeline = gx.render_pipeline(
-        DRAW_MSAA, None, None,
-        &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        (&shader, "vs_main", None, Primitive { topology: Topology::TriangleStrip, ..Primitive::default() }),
-        Some((&shader, "fs_main", None, &[
-            (draw_target.format(), blending),
-            // (draw_target2.format(), blending),
-        ])),
-    );
+    let draw_pipeline = RenderPipelineConfig::new(
+            &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
+            &shader, "vs_main", Primitive { topology: Topology::TriangleStrip, ..Primitive::default() },
+        )
+        .fragment(&shader, "fs_main")
+        .target::<1>((draw_target.format(), blending).target())
+        // .target::<2>((draw_target2.format(), blending).target())
+        .msaa(DRAW_MSAA)
+        .pipeline(&gx)
+    ;
 
     let draw_binding = gx.bind(&draw_pipeline.get_bind_group_layout(0), &[
         bind!(0, TextureView, &color_texture.view),

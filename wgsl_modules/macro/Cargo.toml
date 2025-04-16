@@ -4,14 +4,14 @@ version.workspace = true
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
+rust-version = "1.88"
 
 [lib]
 name = "wgsl_modules_macro"
 proc-macro = true
 
 [dependencies]
-proc-macro2 = "1"
-syn = { version = "2", features = ["full"] }
+syn = { version = "2", default-features = false, features = ["parsing", "proc-macro"] }
 quote = "1"
 anyhow = { workspace = true }
 wgsl_modules_loader = { workspace = true }
