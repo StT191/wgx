@@ -3,7 +3,7 @@ use std::{
     collections::{hash_map::Entry}, ops::Range, borrow::Cow,
     path::{Path, PathBuf}, fs:: read_to_string, sync::LazyLock,
 };
-use regex_lite::Regex;
+use regex::Regex;
 use naga::{FastHashMap, FastHashSet};
 use naga::{front::wgsl, valid::{ValidationFlags, Validator, Capabilities, ModuleInfo}};
 use anyhow::{Result as Res, Context, anyhow, bail};

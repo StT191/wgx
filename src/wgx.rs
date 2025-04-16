@@ -1,5 +1,4 @@
 
-use arrayvec::ArrayVec;
 use wgpu::util::{DeviceExt, TextureDataOrder};
 use std::{ops::{RangeBounds, Bound}, borrow::Cow};
 use crate::*;
@@ -17,7 +16,7 @@ pub struct Wgx {
 
 impl Wgx {
     pub fn instance() -> wgpu::Instance {
-        wgpu::Instance::new(&Default::default())
+        wgpu::Instance::new(&wgpu::InstanceDescriptor::from_env_or_default())
     }
 
     pub async fn request_adapter<W: Into<wgpu::SurfaceTarget<'static>>>(
@@ -86,6 +85,30 @@ impl Wgx {
 }
 
 
+
+// helper
+pub fn render_bundle_encoder_descriptor<'a>(msaa:u32, depth_testing:Option<TexFmt>, formats: &'a [Option<TexFmt>]) -> wgpu::RenderBundleEncoderDescriptor<'a> {
+    wgpu::RenderBundleEncoderDescriptor {
+        label: None,
+        color_formats: formats,
+        depth_stencil: depth_testing.map(|format| wgpu::RenderBundleDepthStencil {
+            format, depth_read_only: false, stencil_read_only: true,
+        }),
+        sample_count: msaa,
+        multiview: None,
+    }
+}
+
+pub fn std_sampler_descriptor() -> wgpu::SamplerDescriptor<'static> {
+   wgpu::SamplerDescriptor {
+        mag_filter: wgpu::FilterMode::Linear,
+        min_filter: wgpu::FilterMode::Linear,
+        mipmap_filter: wgpu::FilterMode::Linear,
+        ..wgpu::SamplerDescriptor::default()
+    }
+}
+
+
 // device methods
 pub trait WgxDevice {
 
@@ -99,19 +122,6 @@ pub trait WgxDevice {
 
     fn sampler(&self, descriptor: &wgpu::SamplerDescriptor) -> wgpu::Sampler {
         self.device().create_sampler(descriptor)
-    }
-
-    fn std_sampler_descriptor() -> wgpu::SamplerDescriptor<'static> {
-       wgpu::SamplerDescriptor {
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::FilterMode::Linear,
-            ..wgpu::SamplerDescriptor::default()
-        }
-    }
-
-    fn std_sampler(&self) -> wgpu::Sampler {
-        self.device().create_sampler(&Self::std_sampler_descriptor())
     }
 
     // buffer
@@ -128,12 +138,18 @@ pub trait WgxDevice {
 
 
     // shader
-
-    fn load_wgsl<'a>(&self, code: impl Into<Cow<'a, str>>) -> wgpu::ShaderModule {
-        let source = wgpu::ShaderSource::Wgsl(code.into());
+    fn shader<'a>(&self, source: wgpu::ShaderSource<'a>) -> wgpu::ShaderModule {
         self.device().create_shader_module(wgpu::ShaderModuleDescriptor { label: None, source })
     }
 
+    fn load_wgsl<'a>(&self, code: impl Into<Cow<'a, str>>) -> wgpu::ShaderModule {
+        self.shader(wgpu::ShaderSource::Wgsl(code.into()))
+    }
+
+    #[cfg(feature = "wgsl_modules_loader")]
+    fn load_naga(&self, module: wgpu::naga::Module) -> wgpu::ShaderModule {
+        self.shader(wgpu::ShaderSource::Naga(Cow::Owned(module)))
+    }
 
     // bind group
 
@@ -156,26 +172,20 @@ pub trait WgxDevice {
 
 
     // render bundle
-
-    fn render_bundle_encoder(&self, formats: &[Option<TexFmt>], depth_testing:Option<TexFmt>, msaa:u32) -> wgpu::RenderBundleEncoder {
-        self.device().create_render_bundle_encoder(&wgpu::RenderBundleEncoderDescriptor {
-            label: None,
-            color_formats: formats,
-            depth_stencil: depth_testing.map(|format| wgpu::RenderBundleDepthStencil {
-                format, depth_read_only: false, stencil_read_only: true,
-            }),
-            sample_count: msaa,
-            multiview: None,
-        })
+    fn render_bundle_encoder<'a>(&self,
+        mut descriptor: wgpu::RenderBundleEncoderDescriptor<'a>,
+        config_fn: impl FnOnce(&mut wgpu::RenderBundleEncoderDescriptor)
+    ) -> wgpu::RenderBundleEncoder {
+        config_fn(&mut descriptor);
+        self.device().create_render_bundle_encoder(&descriptor)
     }
 
     fn render_bundle<'a>(&'a self,
-        formats: &[Option<TexFmt>], depth_testing:Option<TexFmt>, msaa:u32,
-        handler: impl FnOnce(&mut wgpu::RenderBundleEncoder<'a>),
-    )
-        -> wgpu::RenderBundle
-    {
-        self.render_bundle_encoder(formats, depth_testing, msaa).record(handler)
+        descriptor: wgpu::RenderBundleEncoderDescriptor,
+        config_fn: impl FnOnce(&mut wgpu::RenderBundleEncoderDescriptor),
+        handler: impl FnOnce(&mut wgpu::RenderBundleEncoder<'a>)
+    ) -> wgpu::RenderBundle {
+        self.render_bundle_encoder(descriptor, config_fn).record(handler)
     }
 
 
@@ -187,93 +197,12 @@ pub trait WgxDevice {
         })
     }
 
-
-    fn compute_pipeline(
-        &self,
-        layout:Option<(&[wgpu::PushConstantRange], &[&wgpu::BindGroupLayout])>,
-        (module, entry_point, constants):(&wgpu::ShaderModule, &str, Option<&ShaderConstants>),
-    ) -> wgpu::ComputePipeline {
-        self.device().create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label: None,
-            cache: None,
-            layout: layout.map(|(c, b)| self.pipeline_layout(c, b)).as_ref(),
-            module,
-            entry_point: if entry_point.is_empty() { None } else { Some(entry_point) },
-            compilation_options: wgpu::PipelineCompilationOptions {
-                zero_initialize_workgroup_memory: false,
-                constants: constants.unwrap_or(wgpu::PipelineCompilationOptions::default().constants),
-            },
-        })
+    fn render_pipeline<const N: usize>(&self, config: &RenderPipelineConfig<'_, N>) -> wgpu::RenderPipeline {
+        self.device().create_render_pipeline(&config.descriptor())
     }
 
-
-    fn render_pipeline<const S: usize>(
-        &self,
-        msaa: u32, depth_testing: Option<TexFmt>,
-        layout: Option<(&[wgpu::PushConstantRange], &[&wgpu::BindGroupLayout])>,
-        buffers: &[wgpu::VertexBufferLayout],
-        (module, entry_point, vtx_constants, primitive): (&wgpu::ShaderModule, &str, Option<&ShaderConstants>, wgpu::PrimitiveState),
-        fragment: Option<(&wgpu::ShaderModule, &str, Option<&ShaderConstants>, &[(TexFmt, Option<Blend>); S])>,
-    ) -> wgpu::RenderPipeline {
-
-        // cache temporar values
-        let targets: ArrayVec<_, S>;
-
-        self.device().create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-
-            label: None,
-            cache: None,
-
-            layout: layout.map(|(c, b)| self.pipeline_layout(c, b)).as_ref(),
-
-            vertex: wgpu::VertexState {
-                module,
-                entry_point: if entry_point.is_empty() { None } else { Some(entry_point) },
-                buffers,
-                compilation_options: wgpu::PipelineCompilationOptions {
-                    zero_initialize_workgroup_memory: false,
-                    constants: vtx_constants.unwrap_or(wgpu::PipelineCompilationOptions::default().constants),
-                },
-            },
-
-            primitive,
-
-            fragment: if let Some((module, entry_point, frag_constants, formats)) = fragment {
-
-                targets = formats.iter().map(|(format, blend)| Some(wgpu::ColorTargetState {
-                    format: *format,
-                    blend: *blend,
-                    write_mask: wgpu::ColorWrites::ALL,
-                })).collect();
-
-                Some(wgpu::FragmentState {
-                    module,
-                    entry_point: if entry_point.is_empty() { None } else { Some(entry_point) },
-                    targets: &targets,
-                    compilation_options: wgpu::PipelineCompilationOptions {
-                        zero_initialize_workgroup_memory: false,
-                        constants: frag_constants.unwrap_or(wgpu::PipelineCompilationOptions::default().constants),
-                    },
-
-                })
-            }
-            else {None},
-
-            depth_stencil: depth_testing.map(|format| wgpu::DepthStencilState {
-                format,
-                depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::LessEqual,
-                stencil: wgpu::StencilState::default(),
-                bias: wgpu::DepthBiasState::default(),
-            }),
-
-            multisample: wgpu::MultisampleState {
-                count: msaa, mask: !0, alpha_to_coverage_enabled: false,
-            },
-
-            multiview: None,
-
-        })
+    fn compute_pipeline(&self, config: &ComputePipelineConfig) -> wgpu::ComputePipeline {
+        self.device().create_compute_pipeline(&config.descriptor())
     }
 }
 
