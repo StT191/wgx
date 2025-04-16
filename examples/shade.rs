@@ -50,11 +50,13 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
     }
   }));
 
-  let pipeline = target.render_pipeline(&gx,
-    None, &[],
-    (&shader, "vs_main", None, Primitive {topology: Topology::TriangleStrip, ..Primitive::default()}),
-    (&shader, "fs_main", None, Some(Blend::ALPHA_BLENDING)),
-  );
+  let pipeline = RenderPipelineConfig::new(
+      &[], &shader, "vs_main", Primitive {topology: Topology::TriangleStrip, ..Primitive::default()},
+    )
+    .fragment(&shader, "fs_main")
+    .render_target::<1>(&target, Some(Blend::ALPHA_BLENDING), Default::default())
+    .pipeline(&gx)
+  ;
 
   move |_ctx, event| match event {
 

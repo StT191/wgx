@@ -40,7 +40,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
         [[255u8, 0, 0, 255], [0, 255, 0, 255], [0, 0, 255, 255]]
     );
 
-    let sampler = gx.std_sampler();
+    let sampler = gx.sampler(&std_sampler_descriptor());
 
     // binding
     let binding = gx.bind(&layout, &[
@@ -56,11 +56,14 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
 
 
     // triangle pipeline
-    let t_pipeline = target.render_pipeline(&gx,
-        Some((&[], &[&layout])), &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        (&shader, "vs_main", None, Primitive { topology: Topology::TriangleStrip, ..Primitive::default() }),
-        (&shader, "fs_main", None, blending),
-    );
+    let t_pipeline = RenderPipelineConfig::new(
+            &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
+            &shader, "vs_main", Primitive {topology: Topology::TriangleStrip, ..Primitive::default()},
+        )
+        .pipeline_layout(&gx, &[], &[&layout])
+        .fragment(&shader, "fs_main").render_target::<1>(&target, blending, Default::default())
+        .pipeline(&gx)
+    ;
 
     let t_data = [
         Vtx([ 0.5,  0.5, 0.0f32], [0.0, 0.0f32]),
@@ -73,11 +76,14 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
 
 
     // lines pipeline
-    let l_pipeline = target.render_pipeline(&gx,
-        Some((&[], &[&layout])), &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        (&shader, "vs_main", None, Primitive { topology: Topology::LineStrip, ..Primitive::default() }),
-        (&shader, "fs_main", None, blending),
-    );
+    let l_pipeline = RenderPipelineConfig::new(
+            &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
+            &shader, "vs_main", Primitive {topology: Topology::LineStrip, ..Primitive::default()},
+        )
+        .pipeline_layout(&gx, &[], &[&layout])
+        .fragment(&shader, "fs_main").render_target::<1>(&target, blending, Default::default())
+        .pipeline(&gx)
+    ;
 
     let l_data = [
         Vtx([ 0.5,  0.5, 0.0f32], [1.0, 0.0f32]),
@@ -92,11 +98,14 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
 
 
     // points pipeline
-    let p_pipeline = target.render_pipeline(&gx,
-        Some((&[], &[&layout])), &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        (&shader, "vs_main", None, Primitive { topology: Topology::PointList, ..Primitive::default() }),
-        (&shader, "fs_main", None, blending),
-    );
+    let p_pipeline = RenderPipelineConfig::new(
+            &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
+            &shader, "vs_main", Primitive {topology: Topology::PointList, ..Primitive::default()},
+        )
+        .pipeline_layout(&gx, &[], &[&layout])
+        .fragment(&shader, "fs_main").render_target::<1>(&target, blending, Default::default())
+        .pipeline(&gx)
+    ;
 
     let p_data = [
         Vtx([ 0.25,  0.25, 0.0f32], [1.0, 0.0f32]),
@@ -124,11 +133,14 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
     ]);
 
 
-    let i_pipeline = target.render_pipeline(&gx,
-        Some((&[], &[&layout])), &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        (&shader, "vs_main", None, Primitive { topology: Topology::TriangleStrip, ..Primitive::default() }),
-        (&shader, "fs_main", None, blending),
-    );
+    let i_pipeline = RenderPipelineConfig::new(
+            &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
+            &shader, "vs_main", Primitive {topology: Topology::TriangleStrip, ..Primitive::default()},
+        )
+        .pipeline_layout(&gx, &[], &[&layout])
+        .fragment(&shader, "fs_main").render_target::<1>(&target, blending, Default::default())
+        .pipeline(&gx)
+    ;
 
     let i_data = [
         Vtx([ 0.25,  0.25, 0.0f32], [1.0, 0.0f32]),
@@ -141,7 +153,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
 
 
     // render bundles
-    let bundles = [target.render_bundle(&gx, |rpass| {
+    let bundles = [target.render_bundle(&gx, |_| {}, |rpass| {
 
         rpass.set_bind_group(0, &binding, &[]);
 

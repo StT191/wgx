@@ -95,25 +95,20 @@ pub trait RenderTarget {
         self.format().block_copy_size(None).map(|bytes| bytes * self.size()[0])
     }
 
-    fn render_bundle_encoder<'a>(&self, gx: &'a impl WgxDevice) -> wgpu::RenderBundleEncoder<'a> {
-        gx.render_bundle_encoder(&[Some(self.format())], self.depth_testing(), self.msaa())
-    }
-
-    fn render_bundle<'a>(&self, gx: &'a impl WgxDevice, handler: impl FnOnce(&mut wgpu::RenderBundleEncoder<'a>)) -> wgpu::RenderBundle {
-        self.render_bundle_encoder(gx).record(handler)
-    }
-
-    fn render_pipeline(
-        &self, gx: &impl WgxDevice,
-        layout: Option<(&[wgpu::PushConstantRange], &[&wgpu::BindGroupLayout])>,
-        buffers: &[wgpu::VertexBufferLayout],
-        vertex_state: (&wgpu::ShaderModule, &str, Option<&ShaderConstants>, Primitive),
-        (fs_module, fs_entry_point, fs_constants, blend): (&wgpu::ShaderModule, &str, Option<&ShaderConstants>, Option<Blend>),
-    ) -> wgpu::RenderPipeline {
-        gx.render_pipeline(
-            self.msaa(), self.depth_testing(), layout, buffers, vertex_state,
-            Some((fs_module, fs_entry_point, fs_constants, &[(self.format(), blend)])),
+    fn render_bundle_encoder<'a>(&self, gx: &'a impl WgxDevice, config_fn: impl FnOnce(&mut wgpu::RenderBundleEncoderDescriptor))
+        -> wgpu::RenderBundleEncoder<'a>
+    {
+        gx.render_bundle_encoder(
+            render_bundle_encoder_descriptor(self.msaa(), self.depth_testing(), &[Some(self.format())]),
+            config_fn,
         )
+    }
+
+    fn render_bundle<'a>(&self, gx: &'a impl WgxDevice,
+        config_fn: impl FnOnce(&mut wgpu::RenderBundleEncoderDescriptor),
+        handler: impl FnOnce(&mut wgpu::RenderBundleEncoder<'a>),
+    ) -> wgpu::RenderBundle {
+        self.render_bundle_encoder(gx, config_fn).record(handler)
     }
 }
 

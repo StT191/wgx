@@ -1,6 +1,6 @@
 #![feature(proc_macro_span, track_path)]
 
-use std::{cell::RefCell, path::Path};
+use std::{cell::RefCell, path::{Path, PathBuf}};
 use wgsl_modules_loader::{Module, ModuleCache, naga::valid::{ValidationFlags, Capabilities}};
 
 use proc_macro::{TokenStream, TokenTree, Literal, Span, tracked_path};
@@ -47,7 +47,7 @@ fn handle_result(res: Res<&Module>, path: &Path) -> TokenStream {
 #[proc_macro]
 pub fn include(input: TokenStream) -> TokenStream {
 
-    let dir_path = Span::call_site().source_file().path().parent().unwrap().to_owned();
+    let dir_path = PathBuf::from(Span::call_site().file()).parent().unwrap().to_owned();
     let path = dir_path.join(parse_macro_input!(input as LitStr).value());
 
     CACHE.with_borrow_mut(|cache| {
@@ -80,7 +80,7 @@ macro_rules! next {
 #[proc_macro]
 pub fn inline(input: TokenStream) -> TokenStream {
 
-    let dir_path = Span::call_site().source_file().path().parent().unwrap().to_owned();
+    let dir_path = PathBuf::from(Span::call_site().file()).parent().unwrap().to_owned();
 
     let mut input = input.into_iter();
     let mut span = Span::call_site();

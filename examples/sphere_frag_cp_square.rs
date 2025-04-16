@@ -38,24 +38,27 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
 
   let constants = shader_constants!{LL_m: 0.01, LL_ml: 0.06};
 
-  let pipeline = target.render_pipeline(&gx,
-    None, &[
-      vertex_dsc!(Vertex, 0 => Float32x4), vertex_dsc!(Vertex, 1 => Float32x2), vertex_dsc!(Vertex, 2 => Float32x4),
-      vertex_dsc!(Instance, 3 => Float32x4, 4 => Float32x4, 5 => Float32x4, 6 => Float32x4)
-    ],
-    (&shader, "vs_main", Some(&constants), Primitive {
-      cull_mode: None,//Some(Face::Back),
-      polygon_mode: Polygon::Fill,
-      ..Primitive::default()
-    }),
-    (&shader, "fs_main", Some(&constants), blending),
-  );
+  let pipeline = RenderPipelineConfig::new(
+      &[
+        vertex_dsc!(Vertex, 0 => Float32x4), vertex_dsc!(Vertex, 1 => Float32x2), vertex_dsc!(Vertex, 2 => Float32x4),
+        vertex_dsc!(Instance, 3 => Float32x4, 4 => Float32x4, 5 => Float32x4, 6 => Float32x4),
+      ],
+      &shader, "vs_main", Primitive {
+        cull_mode: None, // Some(Face::Back),
+        polygon_mode: Polygon::Fill,
+        ..Primitive::default()
+      },
+    )
+    .fragment(&shader, "fs_main").fragment_shader_constants(&constants)
+    .render_target::<1>(&target, blending, Default::default())
+    .pipeline(&gx)
+  ;
 
   // colors
   let bg_color = Color::from([0x00, 0x00, 0x00, 0xCC]);
 
   let color_texture = TextureLot::new_2d_with_data(&gx, [1, 1, 1], 1, TexFmt::Rgba8UnormSrgb, None, TexUse::TEXTURE_BINDING, [255u8, 0, 0, 255]);
-  let sampler = gx.std_sampler();
+  let sampler = gx.sampler(&std_sampler_descriptor());
 
   // compute vertices
 
@@ -91,11 +94,20 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
     step_da: std::f32::consts::FRAC_PI_2 / 2.0 / steps as f32 // delta angle per step
   };
 
-  let cp_pipeline = gx.render_pipeline(
+  /*let cp_pipeline = gx.render_pipeline(
     1, None, None, &[],
     (&cp_shader, "vs_main", Some(&consts), Primitive { topology: Topology::TriangleStrip, ..Primitive::default() }),
     Some((&cp_shader, "fs_main", Some(&consts), &[(TexFmt::Rgba32Float, None), (TexFmt::Rgba32Float, None)])),
-  );
+  );*/
+
+  let cp_pipeline = RenderPipelineConfig::new(
+      &[], &cp_shader, "vs_main",  Primitive { topology: Topology::TriangleStrip, ..Primitive::default() },
+    ).vertex_shader_constants(&consts)
+    .fragment(&cp_shader, "fs_main").fragment_shader_constants(&consts)
+    .target::<1>(TexFmt::Rgba32Float.target())
+    .target::<2>(TexFmt::Rgba32Float.target())
+    .pipeline(&gx)
+  ;
 
   let compute_tex = TextureLot::new_2d(&gx,
     [row_len, row_num, 1], 1, TexFmt::Rgba32Float, None, TexUse::RENDER_ATTACHMENT | TexUse::COPY_SRC,
@@ -203,7 +215,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
   ]);
 
   // render bundles
-  let bundles = [target.render_bundle(&gx, |rpass| {
+  let bundles = [target.render_bundle(&gx, |_| {}, |rpass| {
     rpass.set_pipeline(&pipeline);
     rpass.set_bind_group(0, &binding, &[]);
     rpass.set_vertex_buffer(0, vertex_buffer.slice(..));

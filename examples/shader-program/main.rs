@@ -42,12 +42,22 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
     binding!(0, Stage::VERTEX_FRAGMENT, UniformBuffer, 16),
   ]);
 
-  let pipeline = target.render_pipeline(&gx,
+  /*let pipeline = target.render_pipeline(&gx,
     Some((push_constants![0..4 => Stage::FRAGMENT], &[&layout])),
     &[vertex_dsc!(Vertex, 0 => Float32x2)],
     (&shader, "vs_main", None, Primitive::default()),
     (&shader, "fs_main", None, blending),
-  );
+  );*/
+
+  let pipeline = RenderPipelineConfig::new(
+      &[vertex_dsc!(Vertex, 0 => Float32x2)],
+      &shader, "vs_main", Primitive::default(),
+    )
+    .pipeline_layout(&gx, push_constants![0..4 => Stage::FRAGMENT], &[&layout])
+    .fragment(&shader, "fs_main")
+    .render_target::<1>(&target, blending, Default::default())
+    .pipeline(&gx)
+  ;
 
   // vertices
   let vertex_data = [

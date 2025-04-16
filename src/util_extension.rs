@@ -119,3 +119,47 @@ impl<'a> ToTexelCopyBufferInfo<'a> for (&'a Buffer, u64, (TextureFormat, u32), O
         TexelCopyBufferInfo { buffer: self.0, layout: (self.1, self.2, self.3).to() }
     }
 }
+
+
+
+use wgpu::{ColorTargetState, ColorWrites};
+use crate::Blend;
+
+pub trait AsColorTarget {
+    fn target(self) -> Option<ColorTargetState>;
+}
+impl AsColorTarget for ColorTargetState {
+    fn target(self) -> Option<ColorTargetState> { Some(self) }
+}
+
+impl AsColorTarget for TextureFormat {
+    fn target(self) -> Option<ColorTargetState> {
+        Some(ColorTargetState {
+            format: self,
+            blend: None,
+            write_mask: ColorWrites::all(),
+        })
+    }
+}
+
+impl AsColorTarget for (TextureFormat, Option<Blend>, ColorWrites) {
+    fn target(self) -> Option<ColorTargetState> {
+        Some(ColorTargetState {
+            format: self.0,
+            blend: self.1,
+            write_mask: self.2,
+        })
+    }
+}
+
+impl AsColorTarget for (TextureFormat, Option<Blend>) {
+    fn target(self) -> Option<ColorTargetState> {
+        (self.0, self.1, ColorWrites::all()).target()
+    }
+}
+
+impl AsColorTarget for (TextureFormat, Blend) {
+    fn target(self) -> Option<ColorTargetState> {
+        (self.0, Some(self.1)).target()
+    }
+}
