@@ -27,11 +27,14 @@ fn main() {
     // global pipeline
     let shader = gx.load_wgsl(wgsl_modules::include!("common/shaders/shader_flat_text.wgsl"));
 
-    let pipeline = target.render_pipeline(&gx,
-        None, &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        (&shader, "vs_main", None, Primitive::default()),
-        (&shader, "fs_main", None, blending),
-    );
+    let pipeline = RenderPipelineConfig::new(
+            &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
+            &shader, "vs_main", Primitive::default(),
+        )
+        .fragment(&shader, "fs_main")
+        .render_target::<1>(&target, blending, Default::default())
+        .pipeline(&gx)
+    ;
 
     // colors
     let texture = TextureLot::new_2d_with_data(&gx,
@@ -62,7 +65,7 @@ fn main() {
 
 
     // texture + sampler
-    let sampler = gx.std_sampler();
+    let sampler = gx.sampler(&std_sampler_descriptor());
 
     let binding = gx.bind(&pipeline.get_bind_group_layout(0), &[
         bind!(0, TextureView, &texture.view),
@@ -71,7 +74,7 @@ fn main() {
 
 
     // render bundles
-    let bundles = [target.render_bundle(&gx, |rpass| {
+    let bundles = [target.render_bundle(&gx, |_| {}, |rpass| {
         rpass.set_pipeline(&pipeline);
         rpass.set_bind_group(0, &binding, &[]);
         rpass.set_vertex_buffer(0, vertices.slice(..));
