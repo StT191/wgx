@@ -5,7 +5,7 @@ edition = "2024"
 license = "MIT"
 
 [workspace]
-members = ["wgsl_modules", "wgsl_modules/loader", "wgsl_modules/macro", "egui", "iced"]
+members = ["wgsl_modules", "wgsl_modules/loader", "wgsl_modules/macro", "egui", "iced", "examples/vello"]
 
 [workspace.dependencies]
 wgpu = { version = "24", default-features = false }
