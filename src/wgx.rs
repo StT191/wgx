@@ -213,7 +213,7 @@ pub trait WgxQueue {
     fn queue(&self) -> &wgpu::Queue;
 
     fn write_texture<'a, T: ReadBytes>(&self,
-        copy_texture: impl ToTexelCopyTextureInfo<'a>,
+        copy_texture: impl ToTexelCopyTextureInfo<&'a Texture>,
         (data, data_layout):(T, impl ToTexelCopyBufferLayout),
         extent: impl ToExtent3d,
     ) {

@@ -1,7 +1,7 @@
 
 use wgpu::{
-    Extent3d, Origin3d, Texture, TextureFormat, Buffer,
-    TexelCopyBufferLayout, TexelCopyTextureInfo, TexelCopyBufferInfo,
+    Extent3d, Origin3d, TextureFormat,
+    TexelCopyBufferLayout, TexelCopyTextureInfoBase, TexelCopyBufferInfoBase,
 };
 
 
@@ -74,18 +74,19 @@ impl ToTexelCopyBufferLayout for (u64, (TextureFormat, u32), Option<u32>) {
 }
 
 
-pub trait ToTexelCopyTextureInfo<'a> {
-    fn to(self) -> TexelCopyTextureInfo<'a>;
-}
-impl<'a> ToTexelCopyTextureInfo<'a> for TexelCopyTextureInfo<'a> {
-    fn to(self) -> TexelCopyTextureInfo<'a> { self }
+pub trait ToTexelCopyTextureInfo<T> {
+    fn to(self) -> TexelCopyTextureInfoBase<T>;
 }
 
+impl<T> ToTexelCopyTextureInfo<T> for TexelCopyTextureInfoBase<T> {
+    fn to(self) -> Self { self }
+}
 
-impl<'a> ToTexelCopyTextureInfo<'a> for (&'a Texture, u32, [u32; 3]) {
-    fn to(self) -> TexelCopyTextureInfo<'a> {
-        TexelCopyTextureInfo {
-            texture: self.0, mip_level: self.1,
+impl<T> ToTexelCopyTextureInfo<T> for (T, u32, [u32; 3]) {
+    fn to(self) -> TexelCopyTextureInfoBase<T> {
+        TexelCopyTextureInfoBase {
+            texture: self.0,
+            mip_level: self.1,
             origin: ToOrigin3d::to(self.2),
             aspect: wgpu::TextureAspect::All,
         }
@@ -94,29 +95,29 @@ impl<'a> ToTexelCopyTextureInfo<'a> for (&'a Texture, u32, [u32; 3]) {
 
 
 
-pub trait ToTexelCopyBufferInfo<'a> {
-    fn to(self) -> TexelCopyBufferInfo<'a>;
-}
-impl<'a> ToTexelCopyBufferInfo<'a> for TexelCopyBufferInfo<'a> {
-    fn to(self) -> TexelCopyBufferInfo<'a> { self }
+pub trait ToTexelCopyBufferInfo<T> {
+    fn to(self) -> TexelCopyBufferInfoBase<T>;
 }
 
+impl<T> ToTexelCopyBufferInfo<T> for TexelCopyBufferInfoBase<T> {
+    fn to(self) -> Self { self }
+}
 
-impl<'a, L: ToTexelCopyBufferLayout> ToTexelCopyBufferInfo<'a> for (&'a Buffer, L) {
-    fn to(self) -> TexelCopyBufferInfo<'a> {
-        TexelCopyBufferInfo { buffer: self.0, layout: self.1.to() }
+impl<T, L: ToTexelCopyBufferLayout> ToTexelCopyBufferInfo<T> for (T, L) {
+    fn to(self) -> TexelCopyBufferInfoBase<T> {
+        TexelCopyBufferInfoBase { buffer: self.0, layout: self.1.to() }
     }
 }
 
-impl<'a> ToTexelCopyBufferInfo<'a> for (&'a Buffer, u64, Option<u32>, Option<u32>) {
-    fn to(self) -> TexelCopyBufferInfo<'a> {
-        TexelCopyBufferInfo { buffer: self.0, layout: (self.1, self.2, self.3).to() }
+impl<T> ToTexelCopyBufferInfo<T> for (T, u64, Option<u32>, Option<u32>) {
+    fn to(self) -> TexelCopyBufferInfoBase<T> {
+        TexelCopyBufferInfoBase { buffer: self.0, layout: (self.1, self.2, self.3).to() }
     }
 }
 
-impl<'a> ToTexelCopyBufferInfo<'a> for (&'a Buffer, u64, (TextureFormat, u32), Option<u32>) {
-    fn to(self) -> TexelCopyBufferInfo<'a> {
-        TexelCopyBufferInfo { buffer: self.0, layout: (self.1, self.2, self.3).to() }
+impl<T> ToTexelCopyBufferInfo<T> for (T, u64, (TextureFormat, u32), Option<u32>) {
+    fn to(self) -> TexelCopyBufferInfoBase<T> {
+        TexelCopyBufferInfoBase { buffer: self.0, layout: (self.1, self.2, self.3).to() }
     }
 }
 
