@@ -22,12 +22,12 @@ impl<T, O: TryFrom<T>> TryToRange<O, <O as TryFrom<T>>::Error> for Range<T>
 }
 
 
-pub trait MapRange<T> {
-  fn map_range<U>(self, map_fn: impl FnMut(T) -> U) -> Range<U>;
+pub trait MapRangeBounds<T> {
+  fn map_bounds<U>(self, map_fn: impl FnMut(T) -> U) -> Range<U>;
 }
 
-impl<T> MapRange<T> for Range<T> {
-  fn map_range<U>(self, mut map_fn: impl FnMut(T) -> U) -> Range<U> {
+impl<T> MapRangeBounds<T> for Range<T> {
+  fn map_bounds<U>(self, mut map_fn: impl FnMut(T) -> U) -> Range<U> {
     Range { start: map_fn(self.start), end: map_fn(self.end) }
   }
 }

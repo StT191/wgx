@@ -94,7 +94,7 @@ impl Program for Ui {
         Task::none()
     }
 
-    fn view(&self) -> Element<Msg, Theme, Renderer> {
+    fn view(&self) -> Element<'_, Msg, Theme, Renderer> {
         let bg_color = self.bg_color;
 
         let column = Column::new()

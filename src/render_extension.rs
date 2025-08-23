@@ -119,16 +119,16 @@ pub trait RenderAttachable {
     fn depth_view(&self) -> Option<(&wgpu::TextureView, wgpu::TextureFormat)>;
 
     // provided
-    fn color_attachment(&self, clear_color: Option<Color>) -> ColorAttachment {
+    fn color_attachment(&self, clear_color: Option<Color>) -> ColorAttachment<'_> {
         let (view, format, msaa) = self.color_views();
         ColorAttachment { view, msaa, format, clear: clear_color }
     }
 
-    fn depth_attachment(&self, clear_depth: Option<f32>, clear_stencil: Option<u32>) -> Option<DepthAttachment> {
+    fn depth_attachment(&self, clear_depth: Option<f32>, clear_stencil: Option<u32>) -> Option<DepthAttachment<'_>> {
         self.depth_view().map(|(view, format)| DepthAttachment { view, format, clear_depth, clear_stencil })
     }
 
-    fn attachments(&self, clear_color: Option<Color>, clear_depth: Option<f32>, clear_stencil: Option<u32>) -> RenderAttachments<1> {
+    fn attachments(&self, clear_color: Option<Color>, clear_depth: Option<f32>, clear_stencil: Option<u32>) -> RenderAttachments<'_, 1> {
         ([Some(self.color_attachment(clear_color).into())], self.depth_attachment(clear_depth, clear_stencil).map(|a| a.into()))
     }
 }
@@ -180,7 +180,7 @@ impl RenderBundleEncoderExtension for wgpu::RenderBundleEncoder<'_> {
 
 pub trait EncoderExtension {
 
-    fn compute_pass(&mut self) -> wgpu::ComputePass;
+    fn compute_pass(&mut self) -> wgpu::ComputePass<'_>;
 
     fn with_compute_pass<'a, T>(&mut self, handler: impl FnOnce(&mut wgpu::ComputePass<'a>) -> T) -> T;
 
@@ -199,7 +199,7 @@ pub trait EncoderExtension {
 
 impl EncoderExtension for wgpu::CommandEncoder {
 
-    fn compute_pass(&mut self) -> wgpu::ComputePass {
+    fn compute_pass(&mut self) -> wgpu::ComputePass<'_> {
         self.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: None,
             timestamp_writes: None,

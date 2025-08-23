@@ -68,7 +68,7 @@ impl Module {
         }
     }
 
-    fn load_source(path: &Path) -> Res<Cow<str>> {
+    fn load_source(path: &Path) -> Res<Cow<'_, str>> {
 
         // fetch source
         let source = read_to_string(path).with_context(
