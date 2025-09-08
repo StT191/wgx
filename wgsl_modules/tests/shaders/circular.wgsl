@@ -1,5 +1,5 @@
 
-/* & include "../../wgsl_modules/shaders/circular.wgsl" */
+/* & include "../../../wgsl_modules/tests/shaders/circular.wgsl" */
 
 @vertex
 fn vs_main(

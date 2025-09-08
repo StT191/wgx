@@ -20,8 +20,8 @@ macro_rules! tokens_eq {
 #[test]
 fn loading_from_path() {
 
-    let composed = Module::load_from_path("shaders/shader_all.wgsl").unwrap();
-    let concatenated = include_str!("../shaders/concatenated.wgsl");
+    let composed = Module::load_from_path("tests/shaders/shader_all.wgsl").unwrap();
+    let concatenated = include_str!("shaders/concatenated.wgsl");
 
     tokens_eq!(composed.code(), concatenated);
 }
@@ -30,8 +30,8 @@ fn loading_from_path() {
 #[test]
 fn including_from_path() {
 
-    let composed = wgsl_modules::include!("../shaders/shader_all.wgsl");
-    let concatenated = include_str!("../shaders/concatenated.wgsl");
+    let composed = wgsl_modules::include!("shaders/shader_all.wgsl");
+    let concatenated = include_str!("shaders/concatenated.wgsl");
 
     tokens_eq!(composed, concatenated);
 }
@@ -40,7 +40,7 @@ fn including_from_path() {
 #[test]
 fn circular_includes() {
 
-    let res = Module::load_from_path("../wgsl_modules/shaders/circular.wgsl");
+    let res = Module::load_from_path("../wgsl_modules/tests/shaders/circular.wgsl");
 
     assert_matches!(res, Err(err) if err.to_string().starts_with("circular dependency"));
 }
@@ -79,7 +79,7 @@ fn inline_loading_into_cache() {
         &include "inline::util";
     }).unwrap();
 
-    tokens_eq!(module.code(), include_str!("../shaders/util.wgsl"));
+    tokens_eq!(module.code(), include_str!("shaders/util.wgsl"));
 }
 
 
@@ -96,7 +96,7 @@ fn inline_registering() {
         &include '../$inline/$util';
     ");
 
-    tokens_eq!(module_src, include_str!("../shaders/util.wgsl"));
+    tokens_eq!(module_src, include_str!("shaders/util.wgsl"));
 }
 
 
@@ -104,7 +104,7 @@ fn inline_registering() {
 fn inline_including() {
 
     let module_src = inline!("$module" <= {
-        &include "../shaders/util.wgsl";
+        &include "shaders/util.wgsl";
     });
 
     tokens_eq!(module_src, stringify!{
@@ -145,7 +145,7 @@ fn naga_parsing_failing() {
 #[test]
 fn naga_validation_failing() {
 
-    let res = Module::load("$module", include_str!("../shaders/invalid.wgsl")).and_then(|module| {
+    let res = Module::load("$module", include_str!("shaders/invalid.wgsl")).and_then(|module| {
         // parse and validate naga
         module.naga_module(Some(Default::default()))
     });

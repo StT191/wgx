@@ -30,7 +30,7 @@ impl Wgx {
         else { None };
 
         let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions {
-            power_preference: wgpu::PowerPreference::HighPerformance,
+            power_preference: wgpu::PowerPreference::from_env().unwrap_or(wgpu::PowerPreference::HighPerformance),
             force_fallback_adapter: false,
             compatible_surface: surface.as_ref(),
         }).await.context("couldn't get adapter")?;
@@ -51,15 +51,13 @@ impl Wgx {
             ..limits
         };
 
-        adapter.request_device(
-            &wgpu::DeviceDescriptor {
-                label: None,
-                required_features: features,
-                required_limits: limits,
-                memory_hints: Default::default(),
-            },
-            None,
-        ).await.map_err(|err| anyhow!("{err:?}"))
+        adapter.request_device(&wgpu::DeviceDescriptor {
+            label: None,
+            required_features: features,
+            required_limits: limits,
+            memory_hints: Default::default(),
+            trace: Default::default(),
+        }).await.map_err(|err| anyhow!("{err:?}"))
     }
 
     pub async fn new<W: Into<wgpu::SurfaceTarget<'static>>>(

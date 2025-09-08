@@ -12,8 +12,8 @@ name = "wgsl_modules"
 loader = ["dep:wgsl_modules_loader"]
 
 [dependencies]
-wgsl_modules_macro = { workspace = true }
-wgsl_modules_loader = { workspace = true, optional = true }
+wgsl_modules_macro = { path = "macro" }
+wgsl_modules_loader = { path = "loader", optional = true }
 
 [dev-dependencies]
 proc-macro2 = "1"

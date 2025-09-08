@@ -47,7 +47,7 @@ impl<'a> RenderPipelineConfig<'a, 0> {
                 buffers,
                 compilation_options: wgpu::PipelineCompilationOptions {
                     zero_initialize_workgroup_memory: false,
-                    constants: wgpu::PipelineCompilationOptions::default().constants,
+                    constants: Default::default(),
                 },
             },
             primitive,
@@ -78,11 +78,11 @@ impl<'a, const N: usize> RenderPipelineConfig<'a, N> {
 
     pub fn msaa(mut self, msaa: u32) -> Self { self.multisample.count = msaa; self }
 
-    pub fn vertex_shader_constants (self, constants: &'a ShaderConstants) -> Self {
+    pub fn vertex_shader_constants (self, constants: &'a ShaderConstants<'a>) -> Self {
         self.conf(|conf| conf.vertex.compilation_options.constants = constants)
     }
 
-    pub fn fragment_shader_constants (mut self, constants: &'a ShaderConstants) -> Self {
+    pub fn fragment_shader_constants (mut self, constants: &'a ShaderConstants<'a>) -> Self {
         if let Some(fragment) = self.fragment.as_mut() {
             fragment.compilation_options.constants = constants;
         }
@@ -116,7 +116,7 @@ impl<'a, const N: usize> RenderPipelineConfig<'a, N> {
             targets: [const { None }; N],
             compilation_options: wgpu::PipelineCompilationOptions {
                 zero_initialize_workgroup_memory: false,
-                constants: wgpu::PipelineCompilationOptions::default().constants,
+                constants: Default::default(),
             },
         });
         self
@@ -206,7 +206,7 @@ impl<'a> ComputePipelineConfig<'a> {
             module, entry_point,
             compilation_options: wgpu::PipelineCompilationOptions {
                 zero_initialize_workgroup_memory: false,
-                constants: wgpu::PipelineCompilationOptions::default().constants,
+                constants: Default::default(),
             },
         }
     }
@@ -219,7 +219,7 @@ impl<'a> ComputePipelineConfig<'a> {
         self.layout(gx.pipeline_layout(constants, bind_groups))
     }
 
-    pub fn shader_constants(&mut self, constants: &'a ShaderConstants) -> &mut Self {
+    pub fn shader_constants(&mut self, constants: &'a ShaderConstants<'a>) -> &mut Self {
         self.conf(|conf| conf.compilation_options.constants = constants)
     }
 

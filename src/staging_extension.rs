@@ -109,7 +109,7 @@ impl WithMapSync for Buffer {
         let _ = sender.send(result);
       });
 
-      gx.device().poll(wgpu::Maintain::Wait); // poll blocking
+      gx.device().poll(wgpu::PollType::Wait)?; // poll blocking
 
       receiver.recv()??;
 

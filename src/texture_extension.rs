@@ -98,7 +98,7 @@ impl TexDsc {
 // to / from TextureDescriptor
 use wgpu::Label;
 
-type TextureDescriptor<'a> = wgpu_types::TextureDescriptor<Label<'static>, &'a [TextureFormat]>;
+type TextureDescriptor<'a> = wgpu::wgt::TextureDescriptor<Label<'static>, &'a [TextureFormat]>;
 
 
 impl<'a> From<&'a TexDsc> for TextureDescriptor<'a> {

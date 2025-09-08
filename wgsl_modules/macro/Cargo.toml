@@ -14,4 +14,4 @@ proc-macro = true
 syn = { version = "2", default-features = false, features = ["parsing", "proc-macro"] }
 quote = "1"
 anyhow = { workspace = true }
-wgsl_modules_loader = { workspace = true }
+wgsl_modules_loader = { path = "../loader" }
