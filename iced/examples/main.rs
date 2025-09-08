@@ -24,9 +24,9 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
   log::warn!("{:?}", gx.adapter.get_info());
 
 
-  let mut engine = Engine::new_wgx(&gx, target.format(), 4);
+  let renderer = Engine::new_wgx(&gx, target.format(), 4).renderer();
 
-  let mut gui = Gui::new(ctx, engine.renderer(&gx), ui::Ui::default(), ui::theme());
+  let mut gui = Gui::new(ctx, renderer, ui::Ui::default(), ui::theme());
 
 
   let mut frame_counter = timer::IntervalCounter::from_secs(5.0);
@@ -42,6 +42,10 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
 
     match event {
 
+      Event::Timeout {id: 0, ..} => {
+        ctx.request_frame()
+      },
+
       Event::WindowEvent(WindowEvent::Resized(size)) => {
         target.update(&gx, size);
       },
@@ -49,15 +53,22 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
       Event::WindowEvent(WindowEvent::RedrawRequested) => {
 
         // gui handling
-        gui.update(ctx);
+        let repaint_delay = gui.update(ctx);
 
         // draw
-        target.with_frame(None, |frame| engine.with_encoder(&gx, |engine, encoder| {
+        target.with_frame(None, |frame| {
 
-          let bg_color = gui.program().bg_color;
-          gui.draw(&gx, engine, encoder, frame, Some(bg_color));
+          let bg_color = gui.program.bg_color;
+          gui.draw(frame, Some(bg_color));
 
-        })).expect("frame error");
+        }).expect("frame error");
+
+        if repaint_delay <= ctx.frame_duration() {
+          ctx.request_frame();
+        }
+        else if let Some(next_frame) = ctx.frame_time().checked_add(repaint_delay) {
+          ctx.set_timeout(0, next_frame);
+        }
 
         frame_counter.add();
         if let Some(counted) = frame_counter.count() { println!("{:?}", counted) }

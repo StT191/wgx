@@ -5,7 +5,7 @@ use crate::*;
 
 use epaint::{
   Rect, Fonts, text::{FontDefinitions, /*FontId*/}, TextureId, Shape, ClippedShape, ClippedPrimitive,
-  Tessellator, TessellationOptions, ImageData, TextureManager, TextureAtlas,
+  Tessellator, TessellationOptions, TextureManager, TextureAtlas,
 };
 
 
@@ -28,10 +28,10 @@ impl EpaintCtx {
 
     let mut texture_manager = TextureManager::default();
 
-    let fonts = Fonts::new(screen_dsc.pixels_per_point, max_texture_side, font_defs);
+    let fonts = Fonts::new(screen_dsc.pixels_per_point, max_texture_side, Default::default(), font_defs);
 
     assert_eq!(
-      texture_manager.alloc("font_texture".to_string(), ImageData::Font(fonts.image()), TextureAtlas::texture_options()),
+      texture_manager.alloc("font_texture".to_string(), fonts.image().into(), TextureAtlas::texture_options()),
       TextureId::default(),
     );
 
@@ -43,7 +43,7 @@ impl EpaintCtx {
       self.screen_dsc = screen_dsc;
     }
     let max_texture_side = max_texture_side.unwrap_or(self.fonts.max_texture_side());
-    self.fonts.begin_pass(self.screen_dsc.pixels_per_point, max_texture_side);
+    self.fonts.begin_pass(self.screen_dsc.pixels_per_point, max_texture_side, Default::default());
   }
 
   pub fn clip_shapes(&self, shapes: impl IntoIterator<Item=Shape>, clip_rect: Option<Rect>) -> impl Iterator<Item=ClippedShape> {

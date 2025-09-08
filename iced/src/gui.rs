@@ -1,17 +1,17 @@
 
 use platform::winit::{dpi::PhysicalPosition, event::WindowEvent, keyboard::ModifiersState};
 
-use platform::{AppCtx, Event};
-use wgx::wgpu::{CommandEncoder, TextureFormat};
-use wgx::{Wgx, WgxDevice, WgxDeviceQueue, ImplicitControlFlow, RenderAttachable, Color};
+use platform::{AppCtx, Event, time::*};
+use wgx::wgpu::TextureFormat;
+use wgx::{Wgx, RenderAttachable, Color};
 
 use iced_wgpu::{Renderer};
 pub use iced_wgpu::{Engine};
 
 use iced_winit::{
   graphics::{Viewport, Antialiasing},
-  runtime::{program::{Program, State}, Task, Debug},
-  core::{Event as IcedEvent, mouse::{Interaction, Cursor}, Pixels, Size, Font, renderer::Style},
+  runtime::{user_interface::{UserInterface, Cache, State}},
+  core::{Event as IcedEvent, Element, mouse::{Interaction, Cursor}, Pixels, Size, Font, renderer::Style, window::RedrawRequest},
   conversion,
 };
 
@@ -24,16 +24,16 @@ use iced_winit::{
 use super::{Clipboard, IntoIcedCoreColor};
 
 
-// render engine
+// render engine constructor trait
 pub trait RenderEngine {
   fn new_wgx(gx: &Wgx, format: TextureFormat, msaa: u32) -> Self;
-  fn renderer(&self, gx: &impl WgxDevice) -> Renderer;
-  fn with_encoder<T: ImplicitControlFlow>(&mut self, gx: &impl WgxDeviceQueue, handler: impl FnOnce(&mut Self, &mut CommandEncoder) -> T) -> T;
+  fn renderer(self) -> Renderer;
 }
 
 impl RenderEngine for Engine {
 
   fn new_wgx(gx: &Wgx, format: TextureFormat, msaa: u32) -> Self {
+
     let antialiasing = match msaa {
       1 => None,
       2 => Some(Antialiasing::MSAAx2),
@@ -42,68 +42,68 @@ impl RenderEngine for Engine {
       16 => Some(Antialiasing::MSAAx16),
       _ => panic!("RenderEngine: unsupported msaa value of {:?}", msaa),
     };
-    Engine::new(&gx.adapter, &gx.device, &gx.queue, format, antialiasing)
+
+    Engine::new(&gx.adapter, gx.device.clone(), gx.queue.clone(), format, antialiasing)
   }
 
-  fn renderer(&self, gx: &impl WgxDevice) -> Renderer {
-    Renderer::new(gx.device(), self, Font::DEFAULT, Pixels(12.0))
+  fn renderer(self) -> Renderer {
+    Renderer::new(self, Font::DEFAULT, Pixels(12.0))
   }
+}
 
-  fn with_encoder<T: ImplicitControlFlow>(&mut self, gx: &impl WgxDeviceQueue, handler: impl FnOnce(&mut Self, &mut CommandEncoder) -> T) -> T {
-    let mut encoder = gx.command_encoder();
-    let res = handler(self, &mut encoder);
-    if res.should_continue() {
-      self.submit(gx.queue(), encoder);
-    }
-    res
-  }
+
+// gui program trait
+pub trait Program {
+  type Theme;
+  type Message;
+
+  fn update(&mut self, message: Self::Message);
+
+  fn view(&self) -> Element<'_, Self::Message, Self::Theme, Renderer>;
 }
 
 
 // Gui
-pub struct Gui<P: 'static + Program<Renderer=Renderer>> {
-  pub renderer: Renderer,
-  pub state: State<P>,
+pub struct Gui<P: Program> {
+  renderer: Renderer,
+  pub program: P,
+  cache: Cache,
+  pub event_queue: Vec<IcedEvent>,
+  pub message_queue: Vec<P::Message>,
   pub viewport: Viewport,
-  pub cursor: PhysicalPosition<f64>,
-  pub interaction: Interaction,
-  pub modifiers: ModifiersState,
+  cursor_position: PhysicalPosition<f64>,
+  interaction: Interaction,
+  modifiers: ModifiersState,
   pub theme: P::Theme,
   pub style: Style,
   pub clipboard: Clipboard,
-  pub debug: Debug,
 }
 
+impl<P: Program> Gui<P> {
 
-impl<P: 'static + Program<Renderer=Renderer>> Gui<P> {
-
-  pub fn new(app_ctx: &AppCtx, mut renderer: Renderer, program: P, theme: P::Theme) -> Self {
-
-    let mut debug = Debug::new();
+  pub fn new(app_ctx: &AppCtx, renderer: Renderer, program: P, theme: P::Theme) -> Self {
 
     let size = app_ctx.window().inner_size();
-    let scale_factor = app_ctx.window().scale_factor();
+    let scale_factor = app_ctx.window().scale_factor() as f32;
 
     let viewport = Viewport::with_physical_size(Size::new(size.width, size.height), scale_factor);
-
-    let cursor = PhysicalPosition::new(-1.0, -1.0);
-
-    let state = State::new(program, viewport.logical_size(), &mut renderer, &mut debug);
-
-    let interaction = state.mouse_interaction();
 
     #[cfg(not(target_family = "wasm"))] let clipboard = Clipboard::connect(app_ctx.window_clone());
     #[cfg(target_family = "wasm")] let clipboard = Clipboard::connect(app_ctx);
 
     Self {
-      renderer, state, viewport, cursor, interaction,
+      renderer, program,
+      cache: Cache::new(),
+      event_queue: Vec::new(),
+      message_queue: Vec::new(),
+      viewport,
+      cursor_position: PhysicalPosition::new(-1.0, -1.0),
+      interaction: Interaction::default(),
       modifiers: ModifiersState::default(), theme,
       style: Style::default(),
       clipboard,
-      debug,
     }
   }
-
 
   pub fn event(&mut self, _app_ctx: &AppCtx, app_event: &Event) -> bool {
     match app_event {
@@ -112,7 +112,7 @@ impl<P: 'static + Program<Renderer=Renderer>> Gui<P> {
 
         match window_event {
           WindowEvent::CursorMoved { position, .. } => {
-            self.cursor = *position;
+            self.cursor_position = *position;
           }
 
           WindowEvent::ModifiersChanged(modifiers) => {
@@ -142,7 +142,7 @@ impl<P: 'static + Program<Renderer=Renderer>> Gui<P> {
           WindowEvent::ScaleFactorChanged { scale_factor, ..} => {
             self.viewport = Viewport::with_physical_size(
               Size::new(self.viewport.physical_width(), self.viewport.physical_height()),
-              *scale_factor,
+              *scale_factor as f32,
             );
           }
 
@@ -152,7 +152,7 @@ impl<P: 'static + Program<Renderer=Renderer>> Gui<P> {
         if let Some(iced_event) = conversion::window_event(
           window_event.clone(), self.viewport.scale_factor(), self.modifiers,
         ) {
-          self.state.queue_event(iced_event);
+          self.event_queue.push(iced_event);
           true
         }
         else { false }
@@ -160,7 +160,7 @@ impl<P: 'static + Program<Renderer=Renderer>> Gui<P> {
 
       #[cfg(target_family="wasm")]
       Event::ClipboardPaste | Event::ClipboardFetch => {
-        self.state.queue_event(IcedEvent::Keyboard(keyboard::Event::KeyPressed {
+        self.event_queue.push(IcedEvent::Keyboard(keyboard::Event::KeyPressed {
           key: key::Key::Character("v".into()),
           modified_key: key::Key::Character("v".into()),
           physical_key: key::Physical::Code(key::Code::KeyV),
@@ -175,54 +175,91 @@ impl<P: 'static + Program<Renderer=Renderer>> Gui<P> {
     }
   }
 
+  pub fn update(&mut self, app_ctx: &AppCtx) -> Duration {
 
-  pub fn program(&mut self) -> &P {
-    self.state.program()
-  }
-
-
-  pub fn update(&mut self, app_ctx: &AppCtx) -> (Vec<IcedEvent>, Option<Task<P::Message>>) {
-
-    let res = self.state.update(
+    let mut user_interface = UserInterface::build(
+      self.program.view(),
       self.viewport.logical_size(),
+      std::mem::take(&mut self.cache),
+      &mut self.renderer,
+    );
+
+    // Update the user interface
+    let (state, _event_statuses) = user_interface.update(
+      &self.event_queue,
       Cursor::Available(conversion::cursor_position(
-        self.cursor,
+        self.cursor_position,
         self.viewport.scale_factor(),
       )),
       &mut self.renderer,
-      &self.theme,
-      &self.style,
       &mut self.clipboard,
-      &mut self.debug,
+      &mut self.message_queue,
     );
 
-    let interaction = self.state.mouse_interaction();
+    self.cache = user_interface.into_cache();
 
-    if self.interaction != interaction {
-      app_ctx.window().set_cursor(conversion::mouse_interaction(interaction));
-      self.interaction = interaction;
+    self.event_queue.clear();
+
+    for message in self.message_queue.drain(..) {
+      self.program.update(message);
     }
 
-    res
+    // handle redraw state
+    match state {
+      State::Updated { mouse_interaction, redraw_request, .. } => {
+
+        // handle mouse interaction
+        if mouse_interaction != self.interaction {
+          app_ctx.window().set_cursor(conversion::mouse_interaction(mouse_interaction));
+          self.interaction = mouse_interaction;
+        }
+
+        match redraw_request {
+          RedrawRequest::NextFrame => Duration::ZERO,
+          RedrawRequest::Wait => Duration::MAX,
+          RedrawRequest::At(instant) => instant.saturating_duration_since(Instant::now()),
+        }
+      },
+
+      State::Outdated => Duration::MAX, // should't occur normaly
+    }
   }
 
+  pub fn draw(&mut self, target: &impl RenderAttachable, clear_color: Option<Color>) {
 
-  pub fn draw(
-    &mut self, gx: &impl WgxDeviceQueue, engine: &mut Engine, encoder: &mut CommandEncoder,
-    target: &impl RenderAttachable, clear_color: Option<Color>,
-  ) {
+    // draw user interface
+    let mut user_interface = UserInterface::build(
+      self.program.view(),
+      self.viewport.logical_size(),
+      std::mem::take(&mut self.cache),
+      &mut self.renderer,
+    );
+
+    user_interface.draw(
+      &mut self.renderer,
+      &self.theme,
+      &self.style,
+      Cursor::Available(conversion::cursor_position(
+        self.cursor_position,
+        self.viewport.scale_factor(),
+      )),
+    );
+
+    self.cache = user_interface.into_cache();
+
+    // render to target
     let (view, format, _) = target.color_views();
+
     self.renderer.present(
-      engine,
-      gx.device(),
-      gx.queue(),
-      encoder,
       clear_color.map(|cl| cl.iced_core()),
       format,
       view,
       &self.viewport,
-      &self.debug.overlay(),
     );
+  }
+
+  pub fn screenshot(&mut self, color: Color) -> Vec<u8> {
+    self.renderer.screenshot(&self.viewport, color.iced_core())
   }
 
 }

@@ -82,6 +82,4 @@ impl<B, C> ImplicitControlFlow for std::ops::ControlFlow<B, C> {
 
 
 // shader_constants
-use std::collections::HashMap;
-
-pub type ShaderConstants = HashMap<String, f64>;
+pub type ShaderConstants<'a> = [(&'a str, f64)];

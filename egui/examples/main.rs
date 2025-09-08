@@ -127,9 +127,19 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
           ctx.set_timeout(0, next_frame);
         }
 
+        // show viewport events
+        for event in output.viewport_events {
+          log::warn!("ViewportEvent: {:#?}", event);
+        }
+
+        // handle actions
+        for action in output.actions_requested {
+          log::warn!("ActionReqested: {:#?}", action);
+        }
+
         // handle other commands
         for command in output.commands {
-          log::warn!("Cmd: {:#?}", command);
+          log::warn!("ViewportCommand: {:#?}", command);
           if command == ViewportCommand::Close {
             ctx.exit = true;
           }

@@ -16,26 +16,30 @@ egui = ["dep:egui", "dep:egui-winit", "dep:egui_extras"]
 [dependencies]
 platform = { workspace = true, features = ["web_clipboard"] }
 wgx = { workspace = true }
-epaint = { version = "0.31" }
-egui-wgpu = { version = "0.31", default-features = false }
+# epaint = { version = "0.32" }
+epaint = { tag = "v0.32.1-wgpu26", git = "https://github.com/StT191/egui" }
+# egui-wgpu = { version = "0.32", default-features = false }
+egui-wgpu = { tag = "v0.32.1-wgpu26", git = "https://github.com/StT191/egui", default-features = false }
 
-egui = { version = "0.31", optional = true }
-egui_extras = { version = "0.31", optional = true } # without features
+# egui = { version = "0.32", optional = true }
+egui = { git = "https://github.com/StT191/egui", optional = true }
+# egui_extras = { version = "0.32", optional = true } # without features
+egui_extras = { tag = "v0.32.1-wgpu26", git = "https://github.com/StT191/egui", optional = true } # without features
 
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
-egui-winit = { version = "0.31", optional = true }
+# egui-winit = { version = "0.32", optional = true }
+egui-winit = { tag = "v0.32.1-wgpu26", git = "https://github.com/StT191/egui", optional = true }
 
 [target.'cfg(target_family = "wasm")'.dependencies]
-egui-winit = { version = "0.31", default-features = false, features = ["links"], optional = true }
+# egui-winit = { version = "0.32", default-features = false, features = ["links"], optional = true }
+egui-winit = { tag = "v0.32.1-wgpu26", git = "https://github.com/StT191/egui", default-features = false, features = ["links"], optional = true }
 
 
 [dev-dependencies]
 platform = { workspace = true, features = ["frame_pacing", "timeout", "auto_wake_lock"] }
+wgpu = { workspace = true, default-features = false, features = ["vulkan", "webgpu", "webgl"] }
 
-# egui_extras = { version = "0.31", features = ["image"] } # with features
+# egui_extras = { version = "0.32", features = ["image"] } # with features
+# egui_extras { tag = "v0.32.1-wgpu26", git = "https://github.com/StT191/egui", features = ["image"] } # with features
 # image = { version = "0.24", default-features = false, features = ["png"] }
-
-
-[target.'cfg(target_family = "wasm")'.dev-dependencies]
-wgpu = { workspace = true, default-features = false, features = ["webgpu", "webgl"] }

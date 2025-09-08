@@ -86,6 +86,8 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
   let vertex_buffer = gx.buffer(BufUse::VERTEX | BufUse::COPY_DST | BufUse::COPY_SRC, mesh_size, false);
   let normal_buffer = gx.buffer(BufUse::VERTEX | BufUse::COPY_DST, mesh_size, false);
 
+  let texcoord_buffer = gx.buffer(BufUse::VERTEX, mesh_size/2, false); // empty buffer to satisfy wgpu quirk
+
   // cp pipeline
   let cp_shader = gx.load_wgsl(wgsl_modules::include!("common/shaders/frag_compute_sphere_square.wgsl"));
 
@@ -219,7 +221,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
     rpass.set_pipeline(&pipeline);
     rpass.set_bind_group(0, &binding, &[]);
     rpass.set_vertex_buffer(0, vertex_buffer.slice(..));
-    // rpass.set_vertex_buffer(1, texcoord_buffer.slice(..));
+    rpass.set_vertex_buffer(1, texcoord_buffer.slice(..)); // bind empty buffer to satisfy wgpu quirk
     rpass.set_vertex_buffer(2, normal_buffer.slice(..));
     rpass.set_vertex_buffer(3, instance_buffer.slice(..));
     rpass.draw(0..mesh_len as u32, 0..instance_data.len() as u32);

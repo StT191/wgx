@@ -1,14 +1,13 @@
 
 use iced_wgpu::Renderer;
 
-use iced_winit::{
-    runtime::{Task, Program},
-    core::{Alignment, Element, Length, Rectangle, mouse::Cursor, Font},
-    core::theme::{Theme, Custom, Palette},
+use iced_winit::core::{
+    Alignment, Element, Length, Rectangle, mouse::Cursor, Font,
+    theme::{Theme, Custom, Palette},
 };
 
-use wgx_iced::{*};
-use wgx::{Color};
+use wgx_iced::*;
+use wgx::*;
 
 use iced_widget::{
     Canvas, canvas::{self, Geometry, Frame, Path},
@@ -81,17 +80,15 @@ impl canvas::Program<Msg, Theme, Renderer> for Circle {
 
 
 impl Program for Ui {
-    type Renderer = Renderer;
     type Theme = Theme;
     type Message = Msg;
 
-    fn update(&mut self, message: Msg) -> Task<Msg> {
+    fn update(&mut self, message: Msg) {
         match message {
             Msg::BgColor(color) => { self.bg_color = color; }
             Msg::Text(text) => { self.text = text; }
             // _ => {}
         }
-        Task::none()
     }
 
     fn view(&self) -> Element<'_, Msg, Theme, Renderer> {

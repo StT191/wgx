@@ -11,4 +11,5 @@ name = "wgsl_modules_loader"
 [dependencies]
 regex = { version = "1.0" }
 naga = { workspace = true }
+hashbrown = { version = "0.15", default-features = false }
 anyhow = { workspace = true }

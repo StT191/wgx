@@ -1,5 +1,5 @@
 [workspace.package]
-version = "0.24.3"
+version = "26.0.0"
 authors = ["Stefan Tammer <st.tammer@gmail.com>"]
 edition = "2024"
 license = "MIT"
@@ -8,14 +8,14 @@ license = "MIT"
 members = ["wgsl_modules", "wgsl_modules/loader", "wgsl_modules/macro", "egui", "iced", "vello"]
 
 [workspace.dependencies]
-wgpu = { version = "24", default-features = false }
-wgpu-types = "24"
-naga = { version = "24", features = ["wgsl-in"] }
+wgpu = { version = "26", default-features = false, features = ["std", "parking_lot", "web"] }
+wgpu-types = "26"
+naga = { version = "26", features = ["wgsl-in"] }
 wgx = { path = ".", default-features = false }
 wgsl_modules = { path = "wgsl_modules" }
 wgsl_modules_macro = { path = "wgsl_modules/macro" }
 wgsl_modules_loader = { path = "wgsl_modules/loader" }
-platform = { version = "1.4.0", tag = "v1.4.0", git = "https://github.com/StT191/platform" }
+platform = { version = "~1.4", tag = "v1.4", git = "https://github.com/StT191/platform" }
 log = "0"
 anyhow = "1"
 
@@ -55,6 +55,6 @@ wgsl_modules = { workspace = true, optional = true }
 
 [dev-dependencies]
 platform = { workspace = true }
+wgpu = { workspace = true, features = ["vulkan", "webgpu", "webgl"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
-wgpu = { workspace = true, features = ["webgpu", "webgl"] }
 serde_json = "1.0"

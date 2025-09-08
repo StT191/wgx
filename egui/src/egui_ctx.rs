@@ -5,9 +5,8 @@ use platform::{time::Duration, AppCtx, Event};
 #[cfg(target_family="wasm")]
 use platform::{WebClipboard, log};
 
-use epaint::ahash::HashSet;
 use egui::{Context, ClippedPrimitive, TexturesDelta, ViewportCommand, ViewportInfo, ViewportId};
-use egui_winit::{State, update_viewport_info, process_viewport_commands};
+use egui_winit::{State, update_viewport_info, process_viewport_commands, ActionRequested};
 
 use wgx::{WgxDeviceQueue, wgpu::{CommandEncoder, RenderPass}};
 use crate::*;
@@ -112,22 +111,30 @@ impl EguiCtx {
     let mut output = self.context.run(input, ui_fn);
 
     #[cfg(target_family="wasm")]
-    if !output.platform_output.copied_text.is_empty() {
-      let copied = std::mem::take(&mut output.platform_output.copied_text);
-      self.web_clipboard.write(copied);
-    }
+    output.platform_output.commands.retain_mut(|command| {
+      match command {
+        OutputCommand::CopyText(text) => {
+          self.web_clipboard.write(std::mem::take(text));
+          false
+        },
+        _ => true,
+      }
+    });
 
     self.state.handle_platform_output(app_ctx.window(), output.platform_output);
 
     let viewport_output = output.viewport_output.remove(&viewport_id).unwrap();
 
+    let mut viewport_info = ViewportInfo::default();
+    let mut actions_requested = Vec::new();
+
     if !viewport_output.commands.is_empty() {
       process_viewport_commands(
         &self.context,
-        &mut ViewportInfo::default(),
+        &mut viewport_info,
         viewport_output.commands.iter().cloned(),
         app_ctx.window(),
-        &mut HashSet::default(),
+        &mut actions_requested,
       );
     }
 
@@ -135,7 +142,9 @@ impl EguiCtx {
       clipped_primitives: self.context.tessellate(output.shapes, output.pixels_per_point),
       textures_delta: output.textures_delta,
       screen_dsc: self.screen_dsc.clone(),
+      viewport_events: viewport_info.events,
       commands: viewport_output.commands,
+      actions_requested,
       repaint_delay: viewport_output.repaint_delay,
     }
   }
@@ -146,7 +155,9 @@ pub struct FrameOutput {
   pub clipped_primitives: Vec<ClippedPrimitive>,
   pub textures_delta: TexturesDelta,
   pub screen_dsc: ScreenDescriptor,
+  pub viewport_events: Vec<ViewportEvent>,
   pub commands: Vec<ViewportCommand>,
+  pub actions_requested: Vec<ActionRequested>,
   pub repaint_delay: Duration,
 }
 

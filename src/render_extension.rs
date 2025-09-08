@@ -28,7 +28,8 @@ impl<'a> From<ColorAttachment<'a>> for wgpu::RenderPassColorAttachment<'a> {
                     None => wgpu::LoadOp::Load,
                 },
                 store: StoreOp::Store,
-            }
+            },
+            depth_slice: None,
         }
     }
 }

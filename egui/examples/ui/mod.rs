@@ -11,7 +11,7 @@ pub fn new() -> impl FnMut(&Context) -> () {
 
     TopBottomPanel::top("top_panel").show(ctx, |ui| {
       // The top panel is often a good place for a menu bar:
-      menu::bar(ui, |ui| {
+      MenuBar::new().ui(ui, |ui| {
         ui.menu_button("File", |ui| {
 
           if ui.button("Settings").clicked() {

@@ -170,7 +170,7 @@ macro_rules! vertex_dsc {
         $crate::wgpu::VertexBufferLayout {
             array_stride: ($($crate::wgpu::VertexFormat::$fmt.size() + )* 0) as $crate::wgpu::BufferAddress,
             step_mode: $crate::wgpu::VertexStepMode::$step,
-            attributes: &$crate::wgpu::vertex_attr_array!([] ; 0; $($loc => $fmt ,)*),
+            attributes: &$crate::wgpu::vertex_attr_array!( $($loc => $fmt ,)*),
         }
     };
 }
@@ -179,7 +179,7 @@ macro_rules! vertex_dsc {
 #[macro_export]
 macro_rules! push_constants {
     ($($range:expr => $stage:expr),*) => {
-        &[$($crate::wgpu::PushConstantRange {
+        [$($crate::wgpu::PushConstantRange {
             stages: $stage,
             range: $range,
         },)*]
@@ -189,10 +189,7 @@ macro_rules! push_constants {
 
 #[macro_export]
 macro_rules! shader_constants {
-    ($($const:ident: $value:expr),*) => {{
-        let capacity = 0 $( + {let _ = $value; 1} )*;
-        let mut hash_map = ::std::collections::HashMap::<String, f64>::with_capacity(capacity);
-        $(hash_map.insert(::std::stringify!($const).to_string(), $value as f64);)*
-        hash_map
-    }};
+    ($($const:ident: $value:expr),*) => {
+        [$( (::std::stringify!($const), $value as f64), )*]
+    };
 }
