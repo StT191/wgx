@@ -10,7 +10,7 @@ pub trait StagingBeltExtension {
   fn stage(
     &mut self, gx: &impl WgxDevice, encoder: &mut CommandEncoder,
     target: &Buffer, byte_range: impl RangeBounds<BufferAddress>,
-  ) -> BufferViewMut;
+  ) -> BufferViewMut<'_>;
 
   fn write_data<T: ReadBytes>(
     &mut self, gx: &impl WgxDevice, encoder: &mut CommandEncoder, target: &Buffer, offset: BufferAddress, data: T,
@@ -27,7 +27,7 @@ impl StagingBeltExtension for StagingBelt {
   fn stage(
     &mut self, gx: &impl WgxDevice, encoder: &mut CommandEncoder,
     target: &Buffer, byte_range: impl RangeBounds<BufferAddress>,
-  ) -> BufferViewMut {
+  ) -> BufferViewMut<'_> {
     let byte_range = byte_range.map_into(0..target.size()).expect("byte-range can not exceed the target size");
     let byte_size = BufferSize::new(byte_range.end-byte_range.start).expect("write-buffer size can not be zero");
     self.write_buffer(encoder, target, byte_range.start, byte_size, gx.device())
@@ -74,7 +74,7 @@ impl StagingEncoder {
     self.staging_belt.recall();
   }
 
-  pub fn stage(&mut self, gx: &impl WgxDevice, target: &Buffer, range: impl RangeBounds<BufferAddress>) -> BufferViewMut {
+  pub fn stage(&mut self, gx: &impl WgxDevice, target: &Buffer, range: impl RangeBounds<BufferAddress>) -> BufferViewMut<'_> {
     self.staging_belt.stage(gx, &mut self.encoder, target, range)
   }
 

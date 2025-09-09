@@ -1,5 +1,5 @@
 [workspace.package]
-version = "0.24.2"
+version = "0.24.3"
 authors = ["Stefan Tammer <st.tammer@gmail.com>"]
 edition = "2024"
 license = "MIT"
@@ -12,10 +12,10 @@ wgpu = { version = "24", default-features = false }
 wgpu-types = "24"
 naga = { version = "24", features = ["wgsl-in"] }
 wgx = { path = ".", default-features = false }
-wgsl_modules = { version = "~0.24.2", path = "wgsl_modules" }
-wgsl_modules_macro = { version = "~0.24.2", path = "wgsl_modules/macro" }
-wgsl_modules_loader = { version = "~0.24.2", path = "wgsl_modules/loader" }
-platform = { version = "1.3.0", tag = "v1.3.0", git = "https://github.com/StT191/platform" }
+wgsl_modules = { path = "wgsl_modules" }
+wgsl_modules_macro = { path = "wgsl_modules/macro" }
+wgsl_modules_loader = { path = "wgsl_modules/loader" }
+platform = { version = "1.4.0", tag = "v1.4.0", git = "https://github.com/StT191/platform" }
 log = "0"
 anyhow = "1"
 
@@ -54,7 +54,7 @@ wgsl_modules = { workspace = true, optional = true }
 
 
 [dev-dependencies]
-platform = { workspace = true, features = ["timeout"] }
+platform = { workspace = true }
 image = { version = "0.25", default-features = false, features = ["png"] }
 wgpu = { workspace = true, features = ["webgpu", "webgl"] }
 serde_json = "1.0"

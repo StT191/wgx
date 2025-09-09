@@ -1,4 +1,4 @@
-#![feature(proc_macro_span, track_path)]
+#![feature(track_path)]
 
 use std::{cell::RefCell, path::{Path, PathBuf}};
 use wgsl_modules_loader::{Module, ModuleCache, naga::valid::{ValidationFlags, Capabilities}};

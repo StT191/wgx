@@ -175,7 +175,7 @@ pub trait WgxDevice {
     fn render_bundle_encoder<'a>(&self,
         mut descriptor: wgpu::RenderBundleEncoderDescriptor<'a>,
         config_fn: impl FnOnce(&mut wgpu::RenderBundleEncoderDescriptor)
-    ) -> wgpu::RenderBundleEncoder {
+    ) -> wgpu::RenderBundleEncoder<'_> {
         config_fn(&mut descriptor);
         self.device().create_render_bundle_encoder(&descriptor)
     }
