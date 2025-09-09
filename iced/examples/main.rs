@@ -59,8 +59,9 @@ async fn init_app(app_ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
 
         })).expect("frame error");
 
-        /*frame_counter.add();
-        if let Some(counted) = frame_counter.count() { println!("{:?}", counted) }*/
+        // frame_counter.add();
+        // if let Some(counted) = frame_counter.count() { println!("{:?}", counted) }
+        // window.request_redraw();
 
       },
 

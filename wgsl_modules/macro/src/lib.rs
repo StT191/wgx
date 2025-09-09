@@ -58,7 +58,7 @@ pub fn include(input: TokenStream) -> TokenStream {
 
 
 use quote::quote_spanned;
-use syn::token::Le;
+use syn::{token::Le, parse::{self, ParseBuffer, Error}};
 use proc_macro::{Delimiter};
 
 
@@ -98,13 +98,26 @@ pub fn inline(input: TokenStream) -> TokenStream {
 
     let source = match &source_token {
         TokenTree::Group(group) if group.delimiter() == Delimiter::Brace => {
-            format!("{}", group.stream())
+            group.stream().to_string()
         },
         _ => {
+            let parse_lit_str = |input: &ParseBuffer<'_>| -> parse::Result<String> {
+                if input.peek(LitStr) {
+                    let lit_str: LitStr = input.parse()?;
+                    if lit_str.suffix() == "" { Ok(lit_str.value()) }
+                    else { Err(Error::new(lit_str.span(), "unexpected suffix")) }
+                }
+                else { Err(input.error("expected block or string literal")) }
+            };
             let source_token = source_token.into();
-            parse_macro_input!(source_token as LitStr).value()
+            parse_macro_input!(source_token with parse_lit_str)
         },
     };
+
+    // assert end of input
+    if let Some(token) = input.next() {
+        return quote_spanned!{token.span().into()=>compile_error!("unexpected token")}.into()
+    }
 
     CACHE.with_borrow_mut(|cache| {
         handle_result(cache.load(&path, source), &path)

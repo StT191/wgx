@@ -10,7 +10,7 @@ name = "wgx_iced"
 
 
 [dependencies]
-platform = { tag = "v1.0.0-winit-iced", git = "https://github.com/StT191/platform", features = ["web_clipboard"] }
+platform = { tag = "v1.1.0-winit-iced", git = "https://github.com/StT191/platform", features = ["web_clipboard"] }
 wgx = { workspace = true }
 
 # iced_winit = { version = "0.14-dev" }
@@ -24,7 +24,7 @@ web-sys = { version = "0.3", features = ["Navigator", "Clipboard", "ClipboardEve
 
 
 [dev-dependencies]
-platform = { tag = "v1.0.0-winit-iced", git = "https://github.com/StT191/platform", features = ["frame_timer", "auto_wake_lock"]}
+platform = { tag = "v1.1.0-winit-iced", git = "https://github.com/StT191/platform", features = ["frame_timer", "auto_wake_lock"]}
 
 # iced_widget = { version = "0.14-dev", features = ["canvas", "wgpu"] }
 iced_widget = { rev = "c217500", git = "https://github.com/iced-rs/iced", features = ["canvas", "wgpu"] }

@@ -86,11 +86,11 @@ fn inline_loading_into_cache() {
 #[test]
 fn inline_registering() {
 
-    inline!("$inline//$util" <= {
+    inline!("$inline//$util" <= "
         fn normal_2d(v:vec2f) -> vec2f {
             return vec2f(v.y, -v.x);
         }
-    });
+    ");
 
     let module_src = inline!("$module/$module" <= {
         &include "../$inline/$util";
