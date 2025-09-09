@@ -210,7 +210,7 @@ mod math_color_conversion {
         pub const fn vec3p(self) -> Vec3P { Vec3P::new(Vec3::from_array(self.f32_rgb())) }
         pub const fn from_vec3(vec3: Vec3) -> Self { Self::from_f32_rgb(vec3.to_array()) }
         pub const fn from_vec3a(vec3a: Vec3A) -> Self { Self::from_f32_rgb(vec3a.to_array()) }
-        pub const fn from_vec3p(vec3p: Vec3P) -> Self { Self::from_f32_rgb(vec3p.vec3.to_array()) }
+        pub const fn from_vec3p(vec3p: Vec3P) -> Self { Self::from_f32_rgb(vec3p.vec3().to_array()) }
 
         pub const fn dvec4(self) -> DVec4 { DVec4::from_array(self.f64()) }
         pub const fn from_dvec4(dvec4: DVec4) -> Self { Self::from_f64(dvec4.to_array()) }
