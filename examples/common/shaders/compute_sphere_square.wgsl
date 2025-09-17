@@ -10,10 +10,6 @@ struct Vertex { x: f32, y: f32, z: f32, tx: f32, ty: f32, tz: f32, nx: f32, ny: 
 // consts
 const FRAC_PI_4 = 0.7853981633974483;
 
-const t = vec3f(-1.0, -1.0, -1.0); // texture coordinates
-
-
-
 @compute @workgroup_size(8, 8, 3)
 fn cp_main(
     @builtin(global_invocation_id) global_id: vec3<u32>,
@@ -58,18 +54,11 @@ fn cp_main(
     c = normalize(c);
     d = normalize(d);
 
-
-    let d_v0 = 0.004; let p_v0 = 88.0;
-    let d_v1 = 0.003; let p_v1 = 11.0;
-    let d_h0 = 0.005; let p_h0 = 124.0;
-    let d_h1 = 0.004; let p_h1 = 05.0;
-
-    let z = 1.0 - (d_v0 + d_v1 + d_h0 + d_h1);
-
-    a = a * height(v0, h0);
+    // height-map
+    /*a = a * height(v0, h0);
     b = b * height(v0, h1);
     c = c * height(v1, h1);
-    d = d * height(v1, h0);
+    d = d * height(v1, h0);*/
 
     // index
     let size_f = 6u; // size of field

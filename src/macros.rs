@@ -27,60 +27,107 @@ macro_rules! binding {
         $crate::binding!($loc, $stage, UniformBuffer, $min_size, [0])
     };
     ($loc:expr, $stage:expr, UniformBuffer, $min_size:expr, [$count:expr]) => {
-        $crate::wgpu::BindGroupLayoutEntry {
-            binding: $loc,
-            visibility: $stage,
-            ty: $crate::wgpu::BindingType::Buffer {
+        $crate::binding!($loc, $stage,
+            $crate::wgpu::BindingType::Buffer {
                 ty: $crate::wgpu::BufferBindingType::Uniform,
                 has_dynamic_offset: false,
                 min_binding_size: ::core::num::NonZeroU64::new($min_size),
             },
-            count: ::core::num::NonZeroU32::new($count),
-        }
+            [$count]
+        )
     };
     ($loc:expr, $stage:expr, StorageBuffer, $min_size:expr, $ro:expr) => {
         $crate::binding!($loc, $stage, StorageBuffer, $min_size, $ro, [0])
     };
     ($loc:expr, $stage:expr, StorageBuffer, $min_size:expr, $ro:expr, [$count:expr]) => {
-        $crate::wgpu::BindGroupLayoutEntry {
-            binding: $loc,
-            visibility: $stage,
-            ty: $crate::wgpu::BindingType::Buffer {
+        $crate::binding!($loc, $stage,
+            $crate::wgpu::BindingType::Buffer {
                 ty: $crate::wgpu::BufferBindingType::Storage { read_only: $ro },
                 has_dynamic_offset: false,
                 min_binding_size: ::core::num::NonZeroU64::new($min_size),
             },
-            count: ::core::num::NonZeroU32::new($count),
-        }
+            [$count]
+        )
     };
-    ($loc:expr, $stage:expr, Texture, $dim:ident) => {
-        $crate::binding!($loc, $stage, Texture, $dim, [0])
+    ($loc:expr, $stage:expr, Texture, $dim:ident, $sample_type:ident) => {
+        $crate::binding!($loc, $stage, Texture, $dim, $sample_type, [0])
     };
-    ($loc:expr, $stage:expr, Texture, $dim:ident, [$count:expr]) => {
-        $crate::wgpu::BindGroupLayoutEntry {
-            binding: $loc,
-            visibility: $stage,
-            ty: $crate::wgpu::BindingType::Texture {
-                sample_type: $crate::wgpu::TextureSampleType::Float { filterable: true },
+    ($loc:expr, $stage:expr, Texture, $dim:ident, Float, [$count:expr]) => {
+        $crate::binding!($loc, $stage, Texture, $dim, $crate::wgpu::TextureSampleType::Float { filterable: true }, false, [0])
+    };
+    ($loc:expr, $stage:expr, Texture, $dim:ident, $sample_type:ident, [$count:expr]) => {
+        $crate::binding!($loc, $stage, Texture, $dim, $crate::wgpu::TextureSampleType::$sample_type, false, [0])
+    };
+    ($loc:expr, $stage:expr, MultisampledTexture, $dim:ident, $sample_type:ident) => {
+        $crate::binding!($loc, $stage, MultisampledTexture, $dim, $sample_type, [0])
+    };
+    ($loc:expr, $stage:expr, MultisampledTexture, $dim:ident, Float, [$count:expr]) => {
+        $crate::binding!($loc, $stage, Texture, $dim, $crate::wgpu::TextureSampleType::Float { filterable: true }, true, [0])
+    };
+    ($loc:expr, $stage:expr, MultisampledTexture, $dim:ident, $sample_type:ident, [$count:expr]) => {
+        $crate::binding!($loc, $stage, Texture, $dim, $crate::wgpu::TextureSampleType::$sample_type, true, [0])
+    };
+    ($loc:expr, $stage:expr, Texture, $dim:ident, $sample_type:expr, $multisampled:expr, [$count:expr]) => {
+        $crate::binding!($loc, $stage,
+            $crate::wgpu::BindingType::Texture {
                 view_dimension: $crate::wgpu::TextureViewDimension::$dim,
-                multisampled: false,
+                sample_type: $sample_type,
+                multisampled: $multisampled,
             },
-            count: ::core::num::NonZeroU32::new($count),
-        }
+            [$count]
+        )
     };
-    ($loc:expr, $stage:expr, Sampler) => {
-        $crate::binding!($loc, $stage, Sampler, [0])
+    ($loc:expr, $stage:expr, StorageTexture, $dim:ident, $format:expr, $access:ident) => {
+        $crate::binding!($loc, $stage, StorageTexture, $dim, $format, $access, [0])
     };
-    ($loc:expr, $stage:expr, Sampler, [$count:expr]) => {
+    ($loc:expr, $stage:expr, StorageTexture, $dim:ident, $format:expr, $access:ident, [$count:expr]) => {
+        $crate::binding!($loc, $stage,
+            $crate::wgpu::BindingType::StorageTexture {
+                view_dimension: $crate::wgpu::TextureViewDimension::$dim,
+                format: $format,
+                access: $crate::wgpu::StorageTextureAccess::$access,
+            },
+            [$count]
+        )
+    };
+    ($loc:expr, $stage:expr, Sampler, $binding_type:ident) => {
+        $crate::binding!($loc, $stage, Sampler, $binding_type, [0])
+    };
+    ($loc:expr, $stage:expr, Sampler, $binding_type:ident, [$count:expr]) => {
+        $crate::binding!($loc, $stage,
+            $crate::wgpu::BindingType::Sampler($crate::wgpu::SamplerBindingType::$binding_type),
+            [$count]
+        )
+    };
+    ($loc:expr, $stage:expr, AccelerationStructure) => {
+        $crate::binding!($loc, $stage, Sampler, $binding_type, [0])
+    };
+    ($loc:expr, $stage:expr, AccelerationStructure, [$count:expr]) => {
+        $crate::binding!($loc, $stage,
+            $crate::wgpu::BindingType::AccelerationStructure,
+            [$count]
+        )
+    };
+    ($loc:expr, $stage:expr, $ty:expr) => {
+        $crate::binding!($loc, $stage, $ty, [0])
+    };
+    ($loc:expr, $stage:expr, $ty:expr, [$count:expr]) => {
         $crate::wgpu::BindGroupLayoutEntry {
-            binding: $loc,
-            visibility: $stage,
-            ty: $crate::wgpu::BindingType::Sampler($crate::wgpu::SamplerBindingType::Filtering),
+            binding: $loc, visibility: $stage, ty: $ty,
             count: ::core::num::NonZeroU32::new($count),
         }
     };
 }
 
+#[macro_export]
+macro_rules! bind_buffer {
+    ($buffer:expr) => {
+        $buffer.as_entire_buffer_binding()
+    };
+    ($buffer:expr, $offset:expr, $size:expr) => {
+        $crate::wgpu::BufferBinding { buffer: $buffer, offset: $offset, size: $size }
+    };
+}
 
 #[macro_export]
 macro_rules! bind {
@@ -93,11 +140,7 @@ macro_rules! bind {
     ($loc:expr, Buffer, $buffer:expr, $offset:expr, $size:expr) => {
         $crate::wgpu::BindGroupEntry {
             binding: $loc,
-            resource: $crate::wgpu::BindingResource::Buffer($crate::wgpu::BufferBinding {
-                buffer: $buffer,
-                offset: $offset,
-                size: $size,
-            }),
+            resource: $crate::wgpu::BindingResource::Buffer($crate::bind_buffer!($buffer, $offset, $size)),
         }
     };
     ($loc:expr, $ty:ident, $value:expr) => {
@@ -131,3 +174,13 @@ macro_rules! push_constants {
     };
 }
 
+
+#[macro_export]
+macro_rules! shader_constants {
+    ($($const:ident: $value:expr),*) => {{
+        let capacity = 0 $( + {let _ = $value; 1} )*;
+        let mut hash_map = ::std::collections::HashMap::<String, f64>::with_capacity(capacity);
+        $(hash_map.insert(::std::stringify!($const).to_string(), $value as f64);)*
+        hash_map
+    }};
+}

@@ -50,12 +50,12 @@ pub trait FromUniformScaleExtension {
 
 impl FromUniformScaleExtension for Mat4 {
     type F = f32;
-    fn from_uniform_scale(f: f32) -> Self { Self::from_scale([f, f, f].into()) }
+    fn from_uniform_scale(f: f32) -> Self { Self::from_scale([f; 3].into()) }
 }
 
 impl FromUniformScaleExtension for DMat4 {
     type F = f64;
-    fn from_uniform_scale(f: f64) -> Self { Self::from_scale([f, f, f].into()) }
+    fn from_uniform_scale(f: f64) -> Self { Self::from_scale([f; 3].into()) }
 }
 
 
@@ -164,16 +164,18 @@ mod padding_types {
     use std::{borrow::*, mem::transmute};
     use super::{*};
 
-    #[derive(Debug, Clone, Copy, Default)]
+    #[derive(Debug, Default, Clone, Copy, PartialEq)]
     #[repr(C)]
     pub struct Vec3P {
         pub vec3: Vec3,
         _padding: f32,
     }
 
-    impl<T: Into<Vec3>> From<T> for Vec3P {
-        fn from(value: T) -> Self { Self { vec3: value.into(), _padding: 0.0 } }
+    impl Vec3P {
+        pub const fn new(vec3: Vec3) -> Self { Self { vec3, _padding: 0.0 } }
     }
+
+    impl<T: Into<Vec3>> From<T> for Vec3P { fn from(value: T) -> Self { Self::new(value.into()) } }
 
     impl Borrow<Vec3> for Vec3P { fn borrow(&self) -> &Vec3 { &self.vec3 } }
     impl BorrowMut<Vec3> for Vec3P { fn borrow_mut(&mut self) -> &mut Vec3 { &mut self.vec3 } }
@@ -185,7 +187,7 @@ mod padding_types {
     impl AsRef<Vec3A> for Vec3P { fn as_ref(&self) -> &Vec3A { unsafe {transmute(self)} } }
 
 
-    #[derive(Debug, Clone, Copy, Default)]
+    #[derive(Debug, Default, Clone, Copy, PartialEq)]
     #[repr(C)]
     pub struct Mat3P {
         pub x_axis: Vec3P,
@@ -194,21 +196,21 @@ mod padding_types {
     }
 
     impl Mat3P {
+
+        pub const fn new(mat3: Mat3) -> Self {
+            Self {
+                x_axis: Vec3P::new(mat3.x_axis),
+                y_axis: Vec3P::new(mat3.y_axis),
+                z_axis: Vec3P::new(mat3.z_axis),
+            }
+        }
+
         pub fn mat3(self) -> Mat3 {
             Mat3::from_cols(self.x_axis.vec3, self.y_axis.vec3, self.z_axis.vec3)
         }
     }
 
-    impl<T: Into<Mat3>> From<T> for Mat3P {
-        fn from(value: T) -> Self {
-            let mat3 = value.into();
-            Self {
-                x_axis: mat3.x_axis.into(),
-                y_axis: mat3.y_axis.into(),
-                z_axis: mat3.z_axis.into(),
-            }
-        }
-    }
+    impl<T: Into<Mat3>> From<T> for Mat3P { fn from(value: T) -> Self { Self::new(value.into()) } }
 
     impl From<Mat3P> for Mat3A { fn from(other: Mat3P) -> Self { unsafe {transmute(other)} } }
     impl Borrow<Mat3A> for Mat3P { fn borrow(&self) -> &Mat3A { unsafe {transmute(self)} } }

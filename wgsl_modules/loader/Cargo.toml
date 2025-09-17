@@ -9,7 +9,6 @@ license.workspace = true
 name = "wgsl_modules_loader"
 
 [dependencies]
-lazy_static = "1"
 regex-lite = { version = "0.1" }
 naga = { workspace = true }
 anyhow = { workspace = true }

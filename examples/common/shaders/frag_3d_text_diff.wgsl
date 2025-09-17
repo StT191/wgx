@@ -14,10 +14,12 @@ struct VertexData {
 @group(0) @binding(3) var color_sampler: sampler;
 
 
-const LL = vec2f(0.01, 0.06); // light levels (min, min lit)
+override LL_m = 0.01; // light level min
+override LL_ml = 0.06; // light level min lit
+
+
 const hL = 0.15; // highlights
 const hlPow = 5.0; // highlight power
-
 
 fn highlight(Rd: vec3f, N: vec3f, Ln: vec3f) -> f32 {
     let Lr = Ln - 2.0*dot(Ln, N) * N;
@@ -33,10 +35,10 @@ fn fs_main(in: VertexData) -> @location(0) vec4f {
     var lf: f32;
 
     if (in.lf > 0.0) {
-        lf = mix(LL.y, 1.0, in.lf);
+        lf = mix(LL_ml, 1.0, in.lf);
     }
     else {
-        lf = mix(LL.x, LL.y, 1.0 + in.lf);
+        lf = mix(LL_m, LL_ml, 1.0 + in.lf);
     }
 
     return vec4f(color.xyz * lf, 1.0);

@@ -3,12 +3,6 @@ use std::slice;
 use wgpu::{TextureFormat, TextureDimension, TextureViewDimension, TextureViewDescriptor, TextureAspect};
 use crate::*;
 
-// default Texture Formats
-
-pub const DEFAULT_SRGB: TextureFormat = TextureFormat::Rgba8UnormSrgb;
-pub const DEFAULT_LINEAR: TextureFormat = TextureFormat::Rgba8Unorm;
-pub const DEFAULT_DEPTH: TextureFormat = TextureFormat::Depth32Float;
-
 
 // extend Texture
 fn dimension_to_view(dim: TextureDimension, depth: u32) -> TextureViewDimension {

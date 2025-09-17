@@ -19,7 +19,7 @@ fn main() {
 
     let srgb = true;
     let msaa = 4;
-    let depth_testing = Some(DEFAULT_DEPTH);
+    let depth_testing = Some(TexFmt::Depth32Float);
     let blending = Some(Blend::ALPHA_BLENDING);
 
     let (gx, mut target) = Wgx::new_with_target(window.clone(), features!(), limits!{}, window.inner_size(), srgb, msaa, depth_testing).block_on().unwrap();
@@ -29,13 +29,13 @@ fn main() {
 
     let pipeline = target.render_pipeline(&gx,
         None, &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
-        (&shader, "vs_main", Primitive::default()),
-        (&shader, "fs_main", blending),
+        (&shader, "vs_main", None, Primitive::default()),
+        (&shader, "fs_main", None, blending),
     );
 
     // colors
     let texture = TextureLot::new_2d_with_data(&gx,
-        [2, 1, 1], 1, DEFAULT_SRGB, None, /*TexUse::COPY_SRC |*/ TexUse::TEXTURE_BINDING,
+        [2, 1, 1], 1, TexFmt::Rgba8UnormSrgb, None, /*TexUse::COPY_SRC |*/ TexUse::TEXTURE_BINDING,
         [[255u8, 0, 0, 255], [0, 0, 255, 50]]
     );
 

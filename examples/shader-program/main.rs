@@ -45,8 +45,8 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, &AppEvent) {
   let pipeline = target.render_pipeline(&gx,
     Some((push_constants![0..4 => Stage::FRAGMENT], &[&layout])),
     &[vertex_dsc!(Vertex, 0 => Float32x2)],
-    (&shader, "vs_main", Primitive::default()),
-    (&shader, "fs_main", blending),
+    (&shader, "vs_main", None, Primitive::default()),
+    (&shader, "fs_main", None, blending),
   );
 
   // vertices

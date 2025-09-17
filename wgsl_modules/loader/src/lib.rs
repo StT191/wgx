@@ -1,9 +1,8 @@
 
 use std::{
     collections::{hash_map::Entry}, ops::Range, borrow::Cow,
-    path::{Path, PathBuf}, fs:: read_to_string,
+    path::{Path, PathBuf}, fs:: read_to_string, sync::LazyLock,
 };
-use lazy_static::lazy_static;
 use regex_lite::Regex;
 use naga::{FastHashMap, FastHashSet};
 use naga::{front::wgsl, valid::{ValidationFlags, Validator, Capabilities}};
@@ -25,13 +24,10 @@ pub struct Module {
 }
 
 
-// import regexes
-lazy_static! {
-    static ref TEST_REGEXES: [Regex; 2] = [
-        Regex::new(r#"(\n|}|;|^)(\s*)(?://)?\s*&\s*include\s+(?:"|')(.+?)(?:"|')\s*(;|\n)"#).unwrap(),
-        Regex::new(r#"(\n|}|;|^)(\s*)/\*\s*&\s*include\s+(?:"|')(.+?)(?:"|')\s*;?\s*\*/()"#).unwrap(),
-    ];
-}
+static TEST_REGEXES: LazyLock<[Regex; 2]> = LazyLock::new(|| [
+    Regex::new(r#"(\n|}|;|^)(\s*)(?://)?\s*&\s*include\s+(?:"|')(.+?)(?:"|')\s*(;|\n)"#).unwrap(), // \n|}|; // & include "<path>" ;|\n
+    Regex::new(r#"(\n|}|;|^)(\s*)/\*\s*&\s*include\s+(?:"|')(.+?)(?:"|')\s*;?\s*\*/()"#).unwrap(), // \n|}|; /* & include "<path>" ;? */
+]);
 
 impl Module {
 

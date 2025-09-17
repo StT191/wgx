@@ -2,7 +2,7 @@
 use arrayvec::ArrayVec;
 use wgpu::util::{DeviceExt, TextureDataOrder};
 use std::{ops::{RangeBounds, Bound}, borrow::Cow};
-use crate::{*};
+use crate::*;
 use anyhow::{Result as Res, Context, anyhow};
 
 
@@ -43,7 +43,7 @@ impl Wgx {
 
         #[cfg(target_family = "wasm")] let limits = limits.using_resolution(adapter.limits());
 
-        Ok(adapter.request_device(
+        adapter.request_device(
             &wgpu::DeviceDescriptor {
                 label: None,
                 required_features: features,
@@ -51,7 +51,7 @@ impl Wgx {
                 memory_hints: Default::default(),
             },
             None,
-        ).await.map_err(|err| anyhow!("{err:?}"))?)
+        ).await.map_err(|err| anyhow!("{err:?}"))
     }
 
     pub async fn new<W: Into<wgpu::SurfaceTarget<'static>>>(
@@ -66,7 +66,7 @@ impl Wgx {
     }
 
     pub async fn new_with_target<W: Into<wgpu::SurfaceTarget<'static>>>(
-        window: W, features:wgpu::Features, limits:wgpu::Limits, window_size:impl Into<[u32; 2]>, srgb: bool, msaa:u32, depth_testing:Option<TextureFormat>,
+        window: W, features:wgpu::Features, limits:wgpu::Limits, window_size:impl Into<[u32; 2]>, srgb: bool, msaa:u32, depth_testing:Option<TexFmt>,
     )
         -> Res<(Self, SurfaceTarget)>
     {
@@ -154,7 +154,7 @@ pub trait WgxDevice {
     // render bundle
 
     fn render_bundle<'a>(&'a self,
-        formats: &[Option<wgpu::TextureFormat>], depth_testing:Option<wgpu::TextureFormat>, msaa:u32,
+        formats: &[Option<TexFmt>], depth_testing:Option<TexFmt>, msaa:u32,
         handler: impl FnOnce(&mut wgpu::RenderBundleEncoder<'a>),
     )
         -> wgpu::RenderBundle
@@ -175,69 +175,65 @@ pub trait WgxDevice {
     }
 
 
-    // compute pipeline
+    // pipelines
 
-    fn compute_pipeline(
-        &self,
-        layout:Option<(&[wgpu::PushConstantRange], &[&wgpu::BindGroupLayout])>,
-        (module, entry_point):(&wgpu::ShaderModule, &str),
-    ) -> wgpu::ComputePipeline {
-
-        let layout = layout.map(|(push_constant_ranges, bind_group_layouts)|
-            self.device().create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: None, push_constant_ranges, bind_group_layouts,
-            })
-        );
-
-        self.device().create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label: None,
-            layout: layout.as_ref(),
-            module, entry_point,
-            compilation_options: wgpu::PipelineCompilationOptions::default(),
-            cache: None,
+    fn pipeline_layout(&self, constants: &[wgpu::PushConstantRange], bind_groups: &[&wgpu::BindGroupLayout]) -> wgpu::PipelineLayout {
+        self.device().create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: None, push_constant_ranges: constants, bind_group_layouts: bind_groups,
         })
     }
 
 
-    // render pipeline
+    fn compute_pipeline(
+        &self,
+        layout:Option<(&[wgpu::PushConstantRange], &[&wgpu::BindGroupLayout])>,
+        (module, entry_point, constants):(&wgpu::ShaderModule, &str, Option<&ShaderConstants>),
+    ) -> wgpu::ComputePipeline {
+        self.device().create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: None,
+            cache: None,
+            layout: layout.map(|(c, b)| self.pipeline_layout(c, b)).as_ref(),
+            module, entry_point,
+            compilation_options: wgpu::PipelineCompilationOptions {
+                zero_initialize_workgroup_memory: false,
+                vertex_pulling_transform: false,
+                constants: constants.unwrap_or(wgpu::PipelineCompilationOptions::default().constants),
+            },
+        })
+    }
+
 
     fn render_pipeline<const S: usize>(
         &self,
-        msaa: u32, depth_testing: Option<wgpu::TextureFormat>,
+        msaa: u32, depth_testing: Option<TexFmt>,
         layout: Option<(&[wgpu::PushConstantRange], &[&wgpu::BindGroupLayout])>,
         buffers: &[wgpu::VertexBufferLayout],
-        (module, entry_point, primitive): (&wgpu::ShaderModule, &str, wgpu::PrimitiveState),
-        fragment: Option<(&wgpu::ShaderModule, &str, &[(wgpu::TextureFormat, Option<Blend>); S])>,
+        (module, entry_point, vtx_constants, primitive): (&wgpu::ShaderModule, &str, Option<&ShaderConstants>, wgpu::PrimitiveState),
+        fragment: Option<(&wgpu::ShaderModule, &str, Option<&ShaderConstants>, &[(TexFmt, Option<Blend>); S])>,
     ) -> wgpu::RenderPipeline {
 
         // cache temporar values
-        let pipeline_layout;
         let targets: ArrayVec<_, S>;
-
 
         self.device().create_render_pipeline(&wgpu::RenderPipelineDescriptor {
 
             label: None,
             cache: None,
 
-            layout: if let Some((push_constant_ranges, bind_group_layouts)) = layout {
-
-                pipeline_layout = self.device().create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: None, push_constant_ranges, bind_group_layouts,
-                });
-
-                Some(&pipeline_layout)
-            }
-            else { None },
+            layout: layout.map(|(c, b)| self.pipeline_layout(c, b)).as_ref(),
 
             vertex: wgpu::VertexState {
                 module, entry_point, buffers,
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
+                compilation_options: wgpu::PipelineCompilationOptions {
+                    zero_initialize_workgroup_memory: false,
+                    vertex_pulling_transform: false,
+                    constants: vtx_constants.unwrap_or(wgpu::PipelineCompilationOptions::default().constants),
+                },
             },
 
             primitive,
 
-            fragment: if let Some((module, entry_point, formats)) = fragment {
+            fragment: if let Some((module, entry_point, frag_constants, formats)) = fragment {
 
                 targets = formats.iter().map(|(format, blend)| Some(wgpu::ColorTargetState {
                     format: *format,
@@ -247,7 +243,13 @@ pub trait WgxDevice {
 
                 Some(wgpu::FragmentState {
                     module, entry_point, targets: &targets,
-                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+
+                    compilation_options: wgpu::PipelineCompilationOptions {
+                        zero_initialize_workgroup_memory: false,
+                        vertex_pulling_transform: false,
+                        constants: frag_constants.unwrap_or(wgpu::PipelineCompilationOptions::default().constants),
+                    },
+
                 })
             }
             else {None},
