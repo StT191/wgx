@@ -4,6 +4,7 @@ use std::{
     path::{Path, PathBuf}, fs:: read_to_string, sync::LazyLock,
 };
 use regex::Regex;
+use memchr::memchr;
 use naga::{FastHashMap, FastHashSet};
 use naga::{front::wgsl, valid::{ValidationFlags, Validator, Capabilities, ModuleInfo}};
 use hashbrown::hash_map::Entry;
@@ -26,11 +27,9 @@ pub struct Module {
     code: Box<str>,
 }
 
-
-static TEST_REGEXES: LazyLock<[Regex; 2]> = LazyLock::new(|| [
-    Regex::new(r#"(\n|}|;|^)([\t ]*)(?://)?[\t ]*&[\t ]*include[\t ]+(?:"|')(.+?)(?:"|')[\t ]*(;|\n|$)"#).unwrap(), // \n|}|; // & include "<path>" ;|\n
-    Regex::new(r#"(\n|}|;|^)(\s*)/\*\s*&\s*include\s+(?:"|')(.+?)(?:"|')\s*;?\s*\*/()"#).unwrap(), // \n|}|; /* & include "<path>" ;? */
-]);
+static START_REGEX: LazyLock<Regex> = LazyLock::new(||
+    Regex::new(r#"#\s*include\s+("|')"#).unwrap() // # include "<path>"
+);
 
 impl Module {
 
@@ -38,29 +37,47 @@ impl Module {
 
         let mut includes = Vec::new();
 
-        for test_regex in TEST_REGEXES.iter() {
+        let mut from = 0;
 
-            let mut from = 0;
+        'search: while let Some(captures) = START_REGEX.captures_at(&source, from) {
 
-            while let Some(captures) = test_regex.captures_at(&source, from) {
+            let matched = captures.get(0).unwrap();
 
-                let path: Box<Path> = AsRef::<Path>::as_ref(&captures[3]).into();
+            let source_start = matched.start();
+            let path_start = matched.end();
 
-                let matched = captures.get(0).unwrap();
+            let (needle, escaped, unescaped) = match &captures[1] {
+                "\"" => (b'"', "\\\"", "\""),
+                "'" => (b'\'', "\\'", "'"),
+                _ => unreachable!(),
+            };
 
-                let prefix = &captures[1];
+            let mut source_end = path_start;
 
-                let start =
-                    matched.start() + prefix.len() +
-                    if prefix == "}" || prefix == ";" { captures[2].len() } else { 0 }
-                ;
+            while let Some(index) = memchr(needle, source[source_end..].as_bytes()) {
 
-                let end = matched.end() - if &captures[4] == "\n" { 1 } else { 0 };
+                let path_end = source_end + index;
+                source_end = path_end + 1;
 
-                includes.push(Include { path, source_range: start..end });
+                let mut t = 1; // search back for escape sequence
+                while source.as_bytes()[path_end-t] == b'\\' {
+                    t += 1;
+                }
 
-                from = matched.end() - captures[4].len();
+                if t % 2 == 0 { continue; } // if escaped
+
+                let path = &source[path_start..path_end];
+                let path = path.replace(escaped, unescaped);
+                let path = path.replace("\\\\", "\\");
+                let path = AsRef::<Path>::as_ref(&path).into();
+
+                includes.push(Include {path, source_range: source_start..source_end});
+
+                from = source_end;
+                continue 'search;
             }
+
+            break; // end of file reached
         }
 
         Self {

@@ -76,7 +76,7 @@ fn inline_loading_into_cache() {
     }).unwrap();
 
     let module = modules.load("inline::module", stringify!{
-        &include "inline::util";
+        #include "inline::util"
     }).unwrap();
 
     tokens_eq!(module.code(), include_str!("shaders/util.wgsl"));
@@ -93,7 +93,7 @@ fn inline_registering() {
     ");
 
     let module_src = inline!("$inline//$util" <= r"
-        &include '../$inline/$util';
+        #include '../$inline/$util'
     ");
 
     tokens_eq!(module_src, include_str!("shaders/util.wgsl"));
@@ -104,12 +104,31 @@ fn inline_registering() {
 fn inline_including() {
 
     let module_src = inline!("$module" <= {
-        &include "shaders/util.wgsl";
+        #include "shaders/util.wgsl"
     });
 
     tokens_eq!(module_src, stringify!{
         fn normal_2d(v:vec2f) -> vec2f { return vec2f(v.y, -v.x); }
     });
+}
+
+
+#[test]
+fn escaped() {
+
+    let mut modules = ModuleCache::new();
+
+    let source0 = modules.load("$strange\\'module", stringify!{
+        fn normal_2d(v:vec2f) -> vec2f {
+            return vec2f(v.y, -v.x);
+        }
+    }).unwrap().code().to_string();
+
+    let source1 = modules.load("$other", r#"
+        #include '$strange\\\'module'
+    "#).unwrap().code().to_string();
+
+    tokens_eq!(&source0, &source1);
 }
 
 
@@ -119,7 +138,7 @@ mod inner;
 fn inline_inner_including() {
 
     let module_src = inline!("$module" <= {
-        &include "./inner/$src";
+        #include "./inner/$src"
     });
 
     tokens_eq!(module_src, stringify!{

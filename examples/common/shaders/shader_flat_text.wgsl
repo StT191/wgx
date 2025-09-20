@@ -1,5 +1,5 @@
 
-/* &include "frag_flat_text.wgsl" */
+#include "frag_flat_text.wgsl"
 
 @vertex
 fn vs_main(

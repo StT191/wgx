@@ -1,6 +1,6 @@
 
- & include "fragment.wgsl"
- // &include "../shaders/util.wgsl";
+# include "fragment.wgsl"
+#include '../shaders/util.wgsl'
 
 @vertex
 fn vs_main(

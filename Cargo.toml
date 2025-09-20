@@ -1,5 +1,5 @@
 [workspace.package]
-version = "26.0.0"
+version = "26.1.0"
 authors = ["Stefan Tammer <st.tammer@gmail.com>"]
 edition = "2024"
 license = "MIT"
@@ -9,7 +9,7 @@ members = ["wgsl_modules", "wgsl_modules/loader", "wgsl_modules/macro"]
 
 [workspace.dependencies]
 wgpu = { version = "26", default-features = false }
-naga = { version = "26", features = ["wgsl-in"] }
+naga = { version = "26", default-features = false }
 anyhow = "1"
 
 

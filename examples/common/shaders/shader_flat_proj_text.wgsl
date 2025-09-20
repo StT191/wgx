@@ -1,7 +1,7 @@
 
 @group(0) @binding(0) var<uniform> projection: mat4x4f;
 
-/* &include "frag_flat_text.wgsl" */
+#include "frag_flat_text.wgsl"
 
 @vertex
 fn vs_main(
