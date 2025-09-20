@@ -2,12 +2,17 @@
 /// # Safety
 /// must be guaranteed by implementor
 pub unsafe trait ReadBytes {
+
     fn read_bytes(&self) -> &[u8] where Self: Sized {
         // SAFETY: must be guaranteed by implementor
         unsafe { core::slice::from_raw_parts(
             self as *const Self as *const u8,
             core::mem::size_of::<Self>(),
         ) }
+    }
+
+    fn write_iter(dest: &mut[u8], data: impl Iterator<Item=Self>) where Self: Sized {
+      dest.chunks_mut(size_of::<Self>()).zip(data).for_each(|(c, d)| c.copy_from_slice(d.read_bytes()))
     }
 }
 

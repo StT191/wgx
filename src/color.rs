@@ -42,8 +42,11 @@ impl Color {
     pub const fn u8(self) -> [u8; 4] { [(self.r*F) as u8, (self.g*F) as u8, (self.b*F) as u8, (self.a*F) as u8] }
     pub const fn u8_rgb(self) -> [u8; 3] { [(self.r*F) as u8, (self.g*F) as u8, (self.b*F) as u8] }
 
-    pub const fn u32(self) -> u32 { u32::from_be_bytes(self.u8()) } // packed u32
-    pub const fn u32_rgb(self) -> u32 { u32::from_be_bytes(self.u8()) >> 8 } // packed u32_rgb
+    pub const fn u32(self) -> u32 { u32::from_le_bytes(self.u8()) } // packed u32 little endian
+    pub const fn u32_rgb(self) -> u32 { u32::from_le_bytes(self.u8()) & !(0xFF << 24) } // packed rgb u32 little endian
+    pub const fn u32_ne(self) -> u32 { u32::from_ne_bytes(self.u8()) } // packed u32 native endian
+    pub const fn u32_be(self) -> u32 { u32::from_be_bytes(self.u8()) } // packed u32 big endian
+    pub const fn u32_be_rgb(self) -> u32 { u32::from_be_bytes(self.u8()) >> 8 } // packed rgb u32 big endian
 
     pub const fn wgpu(self) -> wgpu::Color { wgpu::Color {r: self.r as f64, g: self.g as f64, b: self.b as f64, a: self.a as f64} }
 
@@ -60,8 +63,11 @@ impl Color {
     pub const fn from_u8([r, g, b, a]:[u8; 4]) -> Self { Self::new((r as f32)/F, (g as f32)/F, (b as f32)/F, (a as f32)/F) }
     pub const fn from_u8_rgb([r, g, b]:[u8; 3]) -> Self { Self::new_rgb((r as f32)/F, (g as f32)/F, (b as f32)/F) }
 
-    pub const fn from_u32(c: u32) -> Self { Self::from_u8(c.to_be_bytes()) } // packed u32
-    pub const fn from_u32_rgb(c: u32) -> Self { Self::from_u8((c << 8 | 0xFF).to_be_bytes()) } // packed u32
+    pub const fn from_u32(c: u32) -> Self { Self::from_u8(c.to_le_bytes()) } // packed u32 little endian
+    pub const fn from_u32_rgb(c: u32) -> Self { Self::from_u8((c | 0xFF << 24).to_le_bytes()) } // packed rgb u32 little endian
+    pub const fn from_u32_ne(c: u32) -> Self { Self::from_u8(c.to_ne_bytes()) } // packed u32 native endian
+    pub const fn from_u32_be(c: u32) -> Self { Self::from_u8(c.to_be_bytes()) } // packed u32 big endian
+    pub const fn from_u32_be_rgb(c: u32) -> Self { Self::from_u8((c << 8 | 0xFF).to_be_bytes()) } // packed rgb u32 big endian
 
     pub const fn from_wgpu(wgpu::Color {r, g, b, a}:wgpu::Color) -> Self { Self::from_f64([r, g, b, a]) }
 
@@ -70,14 +76,14 @@ impl Color {
     pub fn hex(self) -> ArrayString<8> {
         let mut hex = ArrayString::new();
         let cl = self.u8();
-        hex.write_fmt(format_args!("{:02x}{:02x}{:02x}{:02x}", cl[0], cl[1], cl[2], cl[3])).unwrap();
+        write!(&mut hex, "{:02x}{:02x}{:02x}{:02x}", cl[0], cl[1], cl[2], cl[3]).unwrap();
         hex
     }
 
     pub fn hex_rgb(self) -> ArrayString<6> {
         let mut hex = ArrayString::new();
         let cl = self.u8_rgb();
-        hex.write_fmt(format_args!("{:02x}{:02x}{:02x}", cl[0], cl[1], cl[2])).unwrap();
+        write!(&mut hex, "{:02x}{:02x}{:02x}", cl[0], cl[1], cl[2]).unwrap();
         hex
     }
 

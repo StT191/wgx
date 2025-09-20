@@ -44,11 +44,13 @@ impl StagingBeltExtension for StagingBelt {
     &mut self, gx: &impl WgxDevice, encoder: &mut CommandEncoder,
     target: &Buffer, offset: BufferAddress, data: I
   ) {
+
     let size_hint = data.size_hint();
     assert_eq!(Some(size_hint.0), size_hint.1, "data doesn't provide a trusted size_hint: {size_hint:?}");
     let size = (size_hint.0 * size_of::<T>()) as u64;
+
     let mut staging = self.stage(gx, encoder, target, offset..(offset + size));
-    staging.chunks_mut(size_of::<T>()).zip(data).for_each(|(c, d)| c.copy_from_slice(d.read_bytes()))
+    T::write_iter(&mut staging, data);
   }
 }
 
