@@ -1,5 +1,5 @@
 [workspace.package]
-version = "26.1.1"
+version = "26.1.2"
 authors = ["Stefan Tammer <st.tammer@gmail.com>"]
 edition = "2024"
 license = "MIT"
@@ -46,7 +46,7 @@ wgsl_modules = { path = "wgsl_modules", optional = true }
 
 
 [dev-dependencies]
-platform = { version = "~1.4", tag = "v1.4", git = "https://github.com/StT191/platform" }
+platform = { version = "~1.5", tag = "v1.5", git = "https://github.com/StT191/platform" }
 wgpu = { workspace = true, features = ["vulkan", "webgpu", "webgl"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 serde_json = "1.0"
