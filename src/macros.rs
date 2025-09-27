@@ -13,10 +13,7 @@ macro_rules! limits {
             $($key: $value, )*
             ..{
                 #[cfg(not(target_family = "wasm"))] let limits = $crate::wgpu::Limits::default();
-                #[cfg(target_family = "wasm")] let limits = $crate::wgpu::Limits {
-                    max_color_attachments: 4, // lower for some mobile browsers
-                    ..$crate::wgpu::Limits::downlevel_webgl2_defaults()
-                };
+                #[cfg(target_family = "wasm")] let limits = $crate::wgpu::Limits::downlevel_webgl2_defaults();
                 limits
             }
         }
@@ -28,13 +25,16 @@ macro_rules! limits {
 macro_rules! binding {
 
     ($loc:expr, $stage:expr, UniformBuffer, $min_size:expr) => {
-        $crate::binding!($loc, $stage, UniformBuffer, $min_size, [0])
+        $crate::binding!($loc, $stage, UniformBuffer, $min_size, [0], false)
     };
-    ($loc:expr, $stage:expr, UniformBuffer, $min_size:expr, [$count:expr]) => {
+    ($loc:expr, $stage:expr, UniformBuffer, $min_size:expr, dyn) => {
+        $crate::binding!($loc, $stage, UniformBuffer, $min_size, [0], true)
+    };
+    ($loc:expr, $stage:expr, UniformBuffer, $min_size:expr, [$count:expr], $dyn:expr) => {
         $crate::binding!($loc, $stage,
             $crate::wgpu::BindingType::Buffer {
                 ty: $crate::wgpu::BufferBindingType::Uniform,
-                has_dynamic_offset: false,
+                has_dynamic_offset: $dyn,
                 min_binding_size: ::core::num::NonZeroU64::new($min_size),
             },
             [$count]
@@ -42,13 +42,16 @@ macro_rules! binding {
     };
 
     ($loc:expr, $stage:expr, StorageBuffer, $min_size:expr, $ro:expr) => {
-        $crate::binding!($loc, $stage, StorageBuffer, $min_size, $ro, [0])
+        $crate::binding!($loc, $stage, StorageBuffer, $min_size, $ro, [0], false)
     };
-    ($loc:expr, $stage:expr, StorageBuffer, $min_size:expr, $ro:expr, [$count:expr]) => {
+    ($loc:expr, $stage:expr, StorageBuffer, $min_size:expr, $ro:expr, dyn) => {
+        $crate::binding!($loc, $stage, StorageBuffer, $min_size, $ro, [0], true)
+    };
+    ($loc:expr, $stage:expr, StorageBuffer, $min_size:expr, $ro:expr, [$count:expr], $dyn:expr) => {
         $crate::binding!($loc, $stage,
             $crate::wgpu::BindingType::Buffer {
                 ty: $crate::wgpu::BufferBindingType::Storage { read_only: $ro },
-                has_dynamic_offset: false,
+                has_dynamic_offset: $dyn,
                 min_binding_size: ::core::num::NonZeroU64::new($min_size),
             },
             [$count]

@@ -62,6 +62,7 @@ pub struct SurfaceTarget {
     pub config: SurfaceConfiguration,
     pub surface: Surface,
     pub frame: Option<SurfaceTexture>,
+    pub is_suboptimal: bool,
     pub view_format: TextureFormat,
     pub msaa: u32,
     pub msaa_opt: Option<TextureLot>,
@@ -160,7 +161,10 @@ impl SurfaceTarget {
     pub fn new(gx:&impl WgxDevice, surface:Surface, config:SurfaceConfiguration, view_format:TextureFormat, msaa:u32, depth_testing:Option<TextureFormat>)
         -> Self
     {
-        let mut target = Self { config, surface, frame: None, view_format, msaa, msaa_opt: None, depth_opt: None };
+        let mut target = Self {
+            config, surface, frame: None, is_suboptimal: false,
+            view_format, msaa, msaa_opt: None, depth_opt: None,
+        };
         target.configure(gx, depth_testing);
         target
     }
@@ -192,19 +196,18 @@ impl SurfaceTarget {
 
 
     pub fn request_frame(&mut self) -> Res<()> {
-        self.frame = Some(self.surface.get_current_texture()?);
+        let current_texture = self.surface.get_current_texture()?;
+        self.is_suboptimal = current_texture.suboptimal;
+        self.frame = Some(current_texture);
         Ok(())
     }
 
 
-    pub fn with_frame<T: ImplicitControlFlow>(
+    pub fn handle_surface_frame<T: ImplicitControlFlow>(
         &mut self, dsc: Option<&wgpu::TextureViewDescriptor>, handler: impl FnOnce(&SurfaceFrame) -> T
-    ) -> Res<T>
+    ) -> Option<T>
     {
-        let frame = match self.frame.take() {
-            Some(frame) => frame,
-            None => self.surface.get_current_texture()?,
-        };
+        let frame = self.frame.as_ref()?;
 
         let res = handler(&SurfaceFrame {
             view: if let Some(dsc) = dsc {
@@ -214,6 +217,27 @@ impl SurfaceTarget {
             },
             target: self,
         });
+
+        Some(res)
+    }
+
+
+    pub fn present(&mut self) -> Option<()> {
+        self.frame.take().map(|frame| frame.present())
+    }
+
+
+    pub fn with_frame<T: ImplicitControlFlow>(
+        &mut self, dsc: Option<&wgpu::TextureViewDescriptor>, handler: impl FnOnce(&SurfaceFrame) -> T
+    ) -> Res<T>
+    {
+        if self.frame.is_none() {
+            self.request_frame()?;
+        }
+
+        let res = self.handle_surface_frame(dsc, handler).unwrap();
+
+        let frame = self.frame.take().unwrap();
 
         if res.should_continue() {
             frame.present();

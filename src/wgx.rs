@@ -42,12 +42,21 @@ impl Wgx {
 
         let adapter_limits = adapter.limits();
 
-        #[cfg(target_family = "wasm")] let limits = limits.using_resolution(adapter_limits.clone());
+        macro_rules! set {
+            (max $attr:ident) => {limits.$attr.max(adapter_limits.$attr)};
+            (min $attr:ident) => {limits.$attr.min(adapter_limits.$attr)};
+        }
 
         let limits = wgpu::Limits {
+            // using max ...
+            max_texture_dimension_1d: set!(max max_texture_dimension_1d),
+            max_texture_dimension_2d: set!(max max_texture_dimension_2d),
+            max_texture_dimension_3d: set!(max max_texture_dimension_3d),
+
             // choose the smallest uniform offset alignment possible
-            min_uniform_buffer_offset_alignment: adapter_limits.min_uniform_buffer_offset_alignment,
-            min_storage_buffer_offset_alignment: adapter_limits.min_storage_buffer_offset_alignment,
+            min_uniform_buffer_offset_alignment: set!(min min_uniform_buffer_offset_alignment),
+            min_storage_buffer_offset_alignment: set!(min min_storage_buffer_offset_alignment),
+
             ..limits
         };
 
