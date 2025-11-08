@@ -71,6 +71,39 @@ impl Color {
 
     pub const fn from_wgpu(wgpu::Color {r, g, b, a}:wgpu::Color) -> Self { Self::from_f64([r, g, b, a]) }
 
+    // math
+    pub const fn mul(self, f: f32) -> Self {
+        Self::new(f*self.r, f*self.g, f*self.b, f*self.a)
+    }
+
+    pub const fn div(self, d: f32) -> Self {
+        Self::new(self.r/d, self.g/d, self.b/d, self.a/d)
+    }
+
+    pub const fn mul_rgb(self, f: f32) -> Self {
+        Self::new(f*self.r, f*self.g, f*self.b, self.a)
+    }
+
+    pub const fn div_rgb(self, d: f32) -> Self {
+        Self::new(self.r/d, self.g/d, self.b/d, self.a)
+    }
+
+    pub const fn add(self, other: Self) -> Self {
+        Self::new(self.r+other.r, self.g+other.g, self.b+other.b, self.a+other.a)
+    }
+
+    pub const fn sub(self, other: Self) -> Self {
+        Self::new(self.r-other.r, self.g-other.g, self.b-other.b, self.a-other.a)
+    }
+
+    pub const fn premul(self) -> Self {
+        self.mul_rgb(self.a)
+    }
+
+    pub const fn unmul(self) -> Self {
+        if self.a == 0.0 { self }
+        else { self.div_rgb(self.a) }
+    }
 
     // format string
     pub fn hex(self) -> ArrayString<8> {
@@ -106,13 +139,8 @@ impl Color {
         }
     }
 
-    pub const fn interpolate(self, Self {r, g, b, a}: Self, factor: f32) -> Self {
-        Self {
-            r: self.r + (r - self.r) * factor,
-            g: self.g + (g - self.g) * factor,
-            b: self.b + (b - self.b) * factor,
-            a: self.a + (a - self.a) * factor,
-        }
+    pub const fn interpolate(self, other: Self, factor: f32) -> Self {
+        self.add(other.sub(self).mul(factor))
     }
 
     // palette
@@ -266,6 +294,20 @@ mod math_color_conversion {
         fn from(color: Color) -> Self { color.dvec3() }
     }
 
+}
+
+
+#[cfg(feature = "mint")]
+mod color_mint_impl {
+    use super::Color;
+    use mint::*;
+
+    impl From<Color> for Vector4<f32> { fn from(cl: Color) -> Self { Self::from(cl.f32()) } }
+    impl IntoMint for Color { type MintType = Vector4<f32>; }
+    impl From<Vector4<f32>> for Color { fn from(vec4: Vector4<f32>) -> Self { Self::from_f32(vec4.into()) } }
+
+    impl From<Color> for Vector3<f32> { fn from(cl: Color) -> Self { Self::from(cl.f32_rgb()) } }
+    impl From<Vector3<f32>> for Color { fn from(vec3: Vector3<f32>) -> Self { Self::from_f32_rgb(vec3.into()) } }
 }
 
 

@@ -27,7 +27,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
   let msaa = 4;
   let depth_testing = Some(TexFmt::Depth32Float);
   let blending = None;
-  let features = features!(POLYGON_MODE_LINE, MULTI_DRAW_INDIRECT);
+  let features = features!(POLYGON_MODE_LINE);
 
   let (gx, mut target) = Wgx::new_with_target(window.clone(), features, limits!{}, window.inner_size(), srgb, msaa, depth_testing).await.unwrap();
 

@@ -12,5 +12,5 @@ name = "wgsl_modules_loader"
 regex = { version = "1.0", default-features = false, features = ["std", "perf", "unicode-perl"] }
 memchr = { version = "2", default-features = true }
 naga = { workspace = true, features = ["wgsl-in"] }
-hashbrown = { version = "0.15", default-features = false }
+hashbrown = { version = "0.16", default-features = false }
 anyhow = { workspace = true }

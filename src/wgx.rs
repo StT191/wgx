@@ -66,6 +66,7 @@ impl Wgx {
             required_limits: limits,
             memory_hints: Default::default(),
             trace: Default::default(),
+            experimental_features: Default::default(),
         }).await.map_err(|err| anyhow!("{err:?}"))
     }
 
@@ -231,7 +232,7 @@ pub trait WgxQueue {
         self.queue().write_buffer(buffer, offset, data.read_bytes());
     }
 
-    fn staging_view<'a>(&'a self, buffer:&'a wgpu::Buffer, range: impl RangeBounds<u64>) -> Option<wgpu::QueueWriteBufferView<'a>> {
+    fn staging_view(&self, buffer:&wgpu::Buffer, range: impl RangeBounds<u64>) -> Option<wgpu::QueueWriteBufferView> {
 
         let offset = match range.start_bound() {
             Bound::Included(start) => *start,
