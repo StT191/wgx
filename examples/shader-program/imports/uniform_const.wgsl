@@ -2,7 +2,7 @@
 // uniform
 @group(0) @binding(0) var<uniform> view: vec4f;
 
-var<push_constant> time: f32; // time in secs
+var<immediate> time: f32; // time in secs
 
 
 // math constants

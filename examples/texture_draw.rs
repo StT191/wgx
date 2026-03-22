@@ -4,7 +4,7 @@ use platform::winit::{
   dpi::PhysicalSize,
 };
 use platform::{*, time::*};
-use wgx::{*};
+use wgx::{*, math::*};
 
 
 main_app_closure! {
@@ -22,14 +22,14 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
     let depth_testing = None;
     let blending = None;
 
-    let (gx, mut target) = Wgx::new_with_target(window.clone(), features!(), limits!{}, window.inner_size(), srgb, msaa, depth_testing).await.unwrap();
+    let (gx, mut target) = Wgx::new_with_target(window.clone(), features!(ADDRESS_MODE_CLAMP_TO_BORDER), limits!{}, window.inner_size(), srgb, msaa, depth_testing).await.unwrap();
 
     // common/shaders
     let shader = gx.load_wgsl(wgsl_modules::include!("common/shaders/shader_flat_text.wgsl"));
 
     // pipeline
     let pipeline = RenderPipelineConfig::new(
-            &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
+            &[vertex_dsc!(Vertex, 0 => Float32x3), vertex_dsc!(Vertex, 1 => Float32x2)],
             &shader, "vs_main", Primitive { topology: Topology::TriangleStrip, ..Primitive::default() },
         )
         .fragment(&shader, "fs_main")
@@ -38,32 +38,39 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
     ;
 
     // sampler
-    let sampler = gx.sampler(&std_sampler_descriptor());
-
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    struct Vtx([f32;3], [f32;2]);
-    unsafe impl wgx::ReadBytes for Vtx {}
-
-    // vertices
-    let vertex_data = [
-        Vtx([ 0.5,  0.5, 0.0f32], [1.0, 0.0f32]),
-        Vtx([-0.5,  0.5, 0.0], [0.0, 0.0]),
-        Vtx([ 0.5, -0.5, 0.0], [1.0, 1.0]),
-        Vtx([-0.5, -0.5, 0.0], [0.0, 1.0]),
-    ];
-    let vertices = gx.buffer_from_data(BufUse::VERTEX, &vertex_data[..]);
-
+    let sampler = gx.sampler(&wgpu::SamplerDescriptor {
+        address_mode_u: wgpu::AddressMode::ClampToEdge,
+        address_mode_v: wgpu::AddressMode::ClampToEdge,
+        ..std_sampler_descriptor()
+    });
 
     // colors
     let color_texture = TextureLot::new_2d_with_data(&gx,
-        [1, 1, 1], 1, TexFmt::Rgba8UnormSrgb, None, TexUse::TEXTURE_BINDING,
-        Color::ORANGE.srgb().u8(),
+        [2, 2, 1], 1, TexFmt::Rgba8UnormSrgb, None, TexUse::TEXTURE_BINDING,
+        [
+            Color::GREEN.srgb().u8(), Color::ORANGE.srgb().u8(),
+            Color::RED.srgb().u8(), Color::BLUE.srgb().u8(),
+        ],
     );
+
+    // pixel-position in normalized u/v-space ...
+    let p_dim = Vec2::from(color_texture.size().map(|v| 1.0 / v as f32));
+    let pp = |[x, y]:[u32;2]| p_dim * (vec2(x as f32, y as f32) + 0.5);
+
+    // vertices
+    let vertex_data = [
+        vec3(-0.5, -0.5, 0.0),
+        vec3( 0.5, -0.5, 0.0),
+        vec3(-0.5,  0.5, 0.0),
+        vec3( 0.5,  0.5, 0.0),
+    ];
+    let vertices = gx.buffer_from_data(BufUse::VERTEX, &vertex_data[..]);
+
+    let tex_coords = [[0, 1], [1, 1], [0, 0], [1, 0]];
+    let draw_tex_coords = gx.buffer_from_data(BufUse::VERTEX, tex_coords.map(pp));
 
     let bg_color_draw_target = Color::ORANGE;
     let bg_color_target = Color::ORANGE;
-
 
     // draw target
     const DRAW_MSAA:u32 = 1;
@@ -72,7 +79,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
     // let draw_target2 = TextureTarget::new(&gx, window.inner_size(), DRAW_MSAA, None, TexFmt::Rgba8UnormSrgb, None, TexUse::TEXTURE_BINDING);
 
     let draw_pipeline = RenderPipelineConfig::new(
-            &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
+            &[vertex_dsc!(Vertex, 0 => Float32x3), vertex_dsc!(Vertex, 1 => Float32x2)],
             &shader, "vs_main", Primitive { topology: Topology::TriangleStrip, ..Primitive::default() },
         )
         .fragment(&shader, "fs_main")
@@ -97,11 +104,16 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
                 rpass.set_pipeline(&draw_pipeline);
                 rpass.set_bind_group(0, &draw_binding, &[]);
                 rpass.set_vertex_buffer(0, vertices.slice(..));
+                rpass.set_vertex_buffer(1, draw_tex_coords.slice(..));
                 rpass.draw(0..vertex_data.len() as u32, 0..1);
             }
         );
     });
 
+    let display_tex_coords = gx.buffer_from_data(
+        BufUse::VERTEX,
+        tex_coords.map(|[x, y]| [x as f32, y as f32]),
+    );
 
     // binding
     let binding = gx.bind(&pipeline.get_bind_group_layout(0), &[
@@ -134,6 +146,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
                         rpass.set_pipeline(&pipeline);
                         rpass.set_bind_group(0, &binding, &[]);
                         rpass.set_vertex_buffer(0, vertices.slice(..));
+                        rpass.set_vertex_buffer(1, display_tex_coords.slice(..));
                         rpass.draw(0..vertex_data.len() as u32, 0..1);
                     }
                 );

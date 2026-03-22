@@ -1,9 +1,9 @@
-#![feature(track_path)]
+#![feature(proc_macro_tracked_path)]
 
 use std::{cell::RefCell, path::{Path, PathBuf}};
 use wgsl_modules_loader::{Module, ModuleCache, naga::valid::{ValidationFlags, Capabilities}};
 
-use proc_macro::{TokenStream, TokenTree, Literal, Span, tracked_path};
+use proc_macro::{TokenStream, TokenTree, Literal, Span, tracked};
 use syn::{parse_macro_input, LitStr};
 use quote::quote;
 
@@ -23,13 +23,13 @@ fn handle_result(res: Res<&Module>, path: &Path) -> TokenStream {
         Ok(module) => {
             // track source code files
             if path.exists() {
-                tracked_path::path(path.to_str().unwrap());
+                tracked::path(path.to_str().unwrap());
             }
 
             for file_path in module.dependencies() {
                 // may be put in cache manually
                 if file_path.exists() {
-                    tracked_path::path(file_path.to_str().unwrap());
+                    tracked::path(file_path.to_str().unwrap());
                 }
             }
 

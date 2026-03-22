@@ -180,17 +180,6 @@ macro_rules! vertex_dsc {
 
 
 #[macro_export]
-macro_rules! push_constants {
-    ($($range:expr => $stage:expr),*) => {
-        [$($crate::wgpu::PushConstantRange {
-            stages: $stage,
-            range: $range,
-        },)*]
-    };
-}
-
-
-#[macro_export]
 macro_rules! shader_constants {
     ($($const:ident: $value:expr),*) => {
         [$( (::std::stringify!($const), $value as f64), )*]

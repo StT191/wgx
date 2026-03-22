@@ -203,7 +203,7 @@ impl Module {
 
     fn load_helper(cache: Option<&mut ModuleCache>, path: &Path, source_code: Option<Cow<str>>) -> Res<Module> {
 
-        let path = normpath(path.as_ref());
+        let path = normpath(path);
         let dir_path = parent_path(&path)?;
 
         let source_code = match source_code {
@@ -277,7 +277,7 @@ impl ModuleCache {
     }
 
     fn load_helper(&mut self, path: &Path, source_code: Option<Cow<str>>) -> Res<&Module> {
-        let module = Module::load_helper(Some(self), path.as_ref(), source_code)?;
+        let module = Module::load_helper(Some(self), path, source_code)?;
         let path = module.path.clone();
         Ok(self.insert_and_get(path, module))
     }

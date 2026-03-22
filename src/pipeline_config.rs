@@ -27,7 +27,7 @@ pub struct RenderPipelineConfig<'a, const N: usize> {
 
     pub fragment: Option<FragmentStateConfig<'a, N>>,
 
-    pub multiview: Option<NonZeroU32>,
+    pub multiview_mask: Option<NonZeroU32>,
 
     pub cache: Option<wgpu::PipelineCache>,
 }
@@ -54,7 +54,7 @@ impl<'a> RenderPipelineConfig<'a, 0> {
             fragment: None,
             depth_stencil: None,
             multisample: wgpu::MultisampleState { count: 1, mask: !0, alpha_to_coverage_enabled: false },
-            multiview: None,
+            multiview_mask: None,
             cache: None,
         }
     }
@@ -72,8 +72,8 @@ impl<'a, const N: usize> RenderPipelineConfig<'a, N> {
 
     pub fn layout(mut self, layout: wgpu::PipelineLayout) -> Self { self.layout = Some(layout); self }
 
-    pub fn pipeline_layout(self, gx: &impl WgxDevice, constants: &[wgpu::PushConstantRange], bind_groups: &[&wgpu::BindGroupLayout]) -> Self {
-        self.layout(gx.pipeline_layout(constants, bind_groups))
+    pub fn pipeline_layout(self, gx: &impl WgxDevice, immediate_size: u32, bind_groups: &[&wgpu::BindGroupLayout]) -> Self {
+        self.layout(gx.pipeline_layout(immediate_size, bind_groups))
     }
 
     pub fn msaa(mut self, msaa: u32) -> Self { self.multisample.count = msaa; self }
@@ -136,14 +136,14 @@ impl<'a, const N: usize> RenderPipelineConfig<'a, N> {
             primitive: self.primitive,
             depth_stencil: self.depth_stencil,
             multisample: self.multisample,
-            multiview: self.multiview,
+            multiview_mask: self.multiview_mask,
             fragment: self.fragment.map(|config| FragmentStateConfig {
                 module: config.module,
                 entry_point: config.entry_point,
                 compilation_options: config.compilation_options,
                 targets: {
                     let mut acc_targets = [const {None}; C];
-                    for i in 0..N { acc_targets[i] = config.targets[i].clone() }
+                    acc_targets[0..N].clone_from_slice(&config.targets);
                     acc_targets[N] = target;
                     acc_targets
                 },
@@ -171,7 +171,7 @@ impl<'a, const N: usize> RenderPipelineConfig<'a, N> {
             primitive: self.primitive,
             depth_stencil: self.depth_stencil.clone(),
             multisample: self.multisample,
-            multiview: self.multiview,
+            multiview_mask: self.multiview_mask,
             fragment: self.fragment.as_ref().map(|config| wgpu::FragmentState {
                 module: config.module,
                 entry_point: if config.entry_point.is_empty() { None } else { Some(config.entry_point) },
@@ -215,8 +215,8 @@ impl<'a> ComputePipelineConfig<'a> {
 
     pub fn layout(&mut self, layout: wgpu::PipelineLayout) -> &mut Self { self.layout = Some(layout); self }
 
-    pub fn pipeline_layout(&mut self, gx: &impl WgxDevice, constants: &[wgpu::PushConstantRange], bind_groups: &[&wgpu::BindGroupLayout]) -> &mut Self {
-        self.layout(gx.pipeline_layout(constants, bind_groups))
+    pub fn pipeline_layout(&mut self, gx: &impl WgxDevice, immediate_size: u32, bind_groups: &[&wgpu::BindGroupLayout]) -> &mut Self {
+        self.layout(gx.pipeline_layout(immediate_size, bind_groups))
     }
 
     pub fn shader_constants(&mut self, constants: &'a ShaderConstants<'a>) -> &mut Self {

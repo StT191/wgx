@@ -82,7 +82,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
   let cp_shader = gx.load_wgsl(wgsl_modules::include!("common/shaders/compute_sphere_square.wgsl"));
 
   let cp_pipeline = ComputePipelineConfig::new(&cp_shader, "cp_main")
-    .pipeline_layout(&gx, &[], &[&layout])
+    .pipeline_layout(&gx, 0, &[&layout])
     .pipeline(&gx)
   ;
 
@@ -147,11 +147,11 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
 
 
   // staging belt
-  let mut staging_belt = StagingBelt::new(4 * world.clip_buffer.size());
+  let mut staging_belt = StagingBelt::new(gx.device().clone(), 4 * world.clip_buffer.size());
 
   gx.with_encoder(|mut encoder| {
-    staging_belt.write_data(&gx, &mut encoder, &world.clip_buffer, 0, world.clip_matrix);
-    staging_belt.write_data(&gx, &mut encoder, &world.light_buffer, 0, world.light_matrix);
+    staging_belt.write_data(&mut encoder, &world.clip_buffer, 0, world.clip_matrix);
+    staging_belt.write_data(&mut encoder, &world.light_buffer, 0, world.light_matrix);
     staging_belt.finish();
   });
   staging_belt.recall();
@@ -186,8 +186,8 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
       world.light_matrix = light_matrix * world.rotation; // keep light
 
       gx.with_encoder(|mut encoder| {
-        staging_belt.write_data(&gx, &mut encoder, &world.clip_buffer, 0, world.clip_matrix);
-        staging_belt.write_data(&gx, &mut encoder, &world.light_buffer, 0, world.light_matrix);
+        staging_belt.write_data(&mut encoder, &world.clip_buffer, 0, world.clip_matrix);
+        staging_belt.write_data(&mut encoder, &world.light_buffer, 0, world.light_matrix);
         staging_belt.finish();
       });
       staging_belt.recall();
@@ -202,8 +202,8 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
         world.light_matrix = light_matrix * world.rotation; // keep light
 
         gx.with_encoder(|mut encoder| {
-          staging_belt.write_data(&gx, &mut encoder, &world.clip_buffer, 0, world.clip_matrix);
-          staging_belt.write_data(&gx, &mut encoder, &world.light_buffer, 0, world.light_matrix);
+          staging_belt.write_data(&mut encoder, &world.clip_buffer, 0, world.clip_matrix);
+          staging_belt.write_data(&mut encoder, &world.light_buffer, 0, world.light_matrix);
           staging_belt.finish();
         });
         staging_belt.recall();

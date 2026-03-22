@@ -221,6 +221,7 @@ impl EncoderExtension for wgpu::CommandEncoder {
             depth_stencil_attachment,
             timestamp_writes: None,
             occlusion_query_set: None,
+            multiview_mask: None,
         })
     }
 

@@ -111,7 +111,7 @@ pub fn std_sampler_descriptor() -> wgpu::SamplerDescriptor<'static> {
    wgpu::SamplerDescriptor {
         mag_filter: wgpu::FilterMode::Linear,
         min_filter: wgpu::FilterMode::Linear,
-        mipmap_filter: wgpu::FilterMode::Linear,
+        mipmap_filter: wgpu::MipmapFilterMode::Linear,
         ..wgpu::SamplerDescriptor::default()
     }
 }
@@ -199,9 +199,9 @@ pub trait WgxDevice {
 
     // pipelines
 
-    fn pipeline_layout(&self, constants: &[wgpu::PushConstantRange], bind_groups: &[&wgpu::BindGroupLayout]) -> wgpu::PipelineLayout {
+    fn pipeline_layout(&self, immediate_size: u32, bind_groups: &[&wgpu::BindGroupLayout]) -> wgpu::PipelineLayout {
         self.device().create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: None, push_constant_ranges: constants, bind_group_layouts: bind_groups,
+            label: None, immediate_size, bind_group_layouts: bind_groups,
         })
     }
 

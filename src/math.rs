@@ -1,3 +1,4 @@
+#![allow(clippy::from_over_into)]
 
 pub use glam::{self, *};
 

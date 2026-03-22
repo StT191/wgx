@@ -23,7 +23,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
   let blending = None;
 
   let (gx, mut target) = Wgx::new_with_target(
-    window.clone(), features!(PUSH_CONSTANTS), limits!{max_push_constant_size: 4},
+    window.clone(), features!(IMMEDIATES), limits!{max_immediate_size: 4},
     window.inner_size(), srgb, msaa, depth_testing,
   ).await.unwrap();
 
@@ -46,7 +46,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
       &[vertex_dsc!(Vertex, 0 => Float32x2)],
       &shader, "vs_main", Primitive::default(),
     )
-    .pipeline_layout(&gx, &push_constants![0..4 => Stage::FRAGMENT], &[&layout])
+    .pipeline_layout(&gx, 4, &[&layout])
     .fragment(&shader, "fs_main")
     .render_target::<1>(&target, blending, Default::default())
     .pipeline(&gx)
@@ -118,7 +118,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
           rpass.set_pipeline(&pipeline);
           rpass.set_bind_group(0, &binding, &[]);
           rpass.set_vertex_buffer(0, vertices.slice(..));
-          rpass.set_push_constants(Stage::FRAGMENT, 0, &time.elapsed().as_secs_f32().to_ne_bytes());
+          rpass.set_immediates(0, &time.elapsed().as_secs_f32().to_ne_bytes());
           rpass.draw(0..vertex_data.len() as u32, 0..1);
         });
       })).expect("frame error");

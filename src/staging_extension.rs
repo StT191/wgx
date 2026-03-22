@@ -8,40 +8,38 @@ use anyhow::{Result as Res};
 pub trait StagingBeltExtension {
 
   fn stage(
-    &mut self, gx: &impl WgxDevice, encoder: &mut CommandEncoder,
-    target: &Buffer, byte_range: impl RangeBounds<BufferAddress>,
+    &mut self, encoder: &mut CommandEncoder, target: &Buffer, byte_range: impl RangeBounds<BufferAddress>,
   ) -> BufferViewMut;
 
   fn write_data<T: ReadBytes>(
-    &mut self, gx: &impl WgxDevice, encoder: &mut CommandEncoder, target: &Buffer, offset: BufferAddress, data: T,
+    &mut self, encoder: &mut CommandEncoder, target: &Buffer, offset: BufferAddress, data: T,
   );
 
   fn write_iter<T: ReadBytes, I: TrustedLen<Item=T>>(
-    &mut self, gx: &impl WgxDevice, encoder: &mut CommandEncoder,
-    target: &Buffer, offset: BufferAddress, data: I
+    &mut self, encoder: &mut CommandEncoder, target: &Buffer, offset: BufferAddress, data: I
   );
 }
 
 impl StagingBeltExtension for StagingBelt {
 
   fn stage(
-    &mut self, gx: &impl WgxDevice, encoder: &mut CommandEncoder,
+    &mut self, encoder: &mut CommandEncoder,
     target: &Buffer, byte_range: impl RangeBounds<BufferAddress>,
   ) -> BufferViewMut {
     let byte_range = byte_range.map_into(0..target.size()).expect("byte-range can not exceed the target size");
     let byte_size = BufferSize::new(byte_range.end-byte_range.start).expect("write-buffer size can not be zero");
-    self.write_buffer(encoder, target, byte_range.start, byte_size, gx.device())
+    self.write_buffer(encoder, target, byte_range.start, byte_size)
   }
 
   fn write_data<T: ReadBytes>(
-    &mut self, gx: &impl WgxDevice, encoder: &mut CommandEncoder, target: &Buffer, offset: BufferAddress, data: T,
+    &mut self, encoder: &mut CommandEncoder, target: &Buffer, offset: BufferAddress, data: T,
   ) {
     let bytes = data.read_bytes();
-    self.stage(gx, encoder, target, offset..(bytes.len() as u64)).copy_from_slice(bytes);
+    self.stage(encoder, target, offset..(bytes.len() as u64)).copy_from_slice(bytes);
   }
 
   fn write_iter<T: ReadBytes, I: TrustedLen<Item=T>>(
-    &mut self, gx: &impl WgxDevice, encoder: &mut CommandEncoder,
+    &mut self, encoder: &mut CommandEncoder,
     target: &Buffer, offset: BufferAddress, data: I
   ) {
 
@@ -49,7 +47,7 @@ impl StagingBeltExtension for StagingBelt {
     assert_eq!(Some(size_hint.0), size_hint.1, "data doesn't provide a trusted size_hint: {size_hint:?}");
     let size = (size_hint.0 * size_of::<T>()) as u64;
 
-    let mut staging = self.stage(gx, encoder, target, offset..(offset + size));
+    let mut staging = self.stage(encoder, target, offset..(offset + size));
     T::write_iter(&mut staging, data);
   }
 }
@@ -66,7 +64,7 @@ impl StagingEncoder {
   pub fn new(gx: &impl WgxDevice, chunk_size: u64) -> Self {
     Self {
       encoder: gx.command_encoder(),
-      staging_belt: StagingBelt::new(chunk_size),
+      staging_belt: StagingBelt::new(gx.device().clone(), chunk_size),
     }
   }
 
@@ -76,18 +74,18 @@ impl StagingEncoder {
     self.staging_belt.recall();
   }
 
-  pub fn stage(&mut self, gx: &impl WgxDevice, target: &Buffer, range: impl RangeBounds<BufferAddress>) -> BufferViewMut {
-    self.staging_belt.stage(gx, &mut self.encoder, target, range)
+  pub fn stage(&mut self, target: &Buffer, range: impl RangeBounds<BufferAddress>) -> BufferViewMut {
+    self.staging_belt.stage(&mut self.encoder, target, range)
   }
 
-  pub fn write_data<T: ReadBytes>(&mut self, gx: &impl WgxDevice, target: &Buffer, offset: BufferAddress, data: T) {
-    self.staging_belt.write_data(gx, &mut self.encoder, target, offset, data)
+  pub fn write_data<T: ReadBytes>(&mut self, target: &Buffer, offset: BufferAddress, data: T) {
+    self.staging_belt.write_data(&mut self.encoder, target, offset, data)
   }
 
-  pub fn write_iter<T: ReadBytes, I>(&mut self, gx: &impl WgxDevice, target: &Buffer, offset: BufferAddress, data: I)
+  pub fn write_iter<T: ReadBytes, I>(&mut self, target: &Buffer, offset: BufferAddress, data: I)
     where I: TrustedLen<Item=T>
   {
-    self.staging_belt.write_iter(gx, &mut self.encoder, target, offset, data)
+    self.staging_belt.write_iter(&mut self.encoder, target, offset, data)
   }
 }
 
