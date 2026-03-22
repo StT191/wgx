@@ -72,7 +72,7 @@ impl<'a, const N: usize> RenderPipelineConfig<'a, N> {
 
     pub fn layout(mut self, layout: wgpu::PipelineLayout) -> Self { self.layout = Some(layout); self }
 
-    pub fn pipeline_layout(self, gx: &impl WgxDevice, immediate_size: u32, bind_groups: &[&wgpu::BindGroupLayout]) -> Self {
+    pub fn pipeline_layout(self, gx: &impl WgxDevice, immediate_size: u32, bind_groups: &[Option<&wgpu::BindGroupLayout>]) -> Self {
         self.layout(gx.pipeline_layout(immediate_size, bind_groups))
     }
 
@@ -95,8 +95,8 @@ impl<'a, const N: usize> RenderPipelineConfig<'a, N> {
         } else {
             self.depth_stencil = Some(wgpu::DepthStencilState {
                 format,
-                depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::LessEqual,
+                depth_write_enabled: Some(true),
+                depth_compare: Some(wgpu::CompareFunction::LessEqual),
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
             })
@@ -215,7 +215,7 @@ impl<'a> ComputePipelineConfig<'a> {
 
     pub fn layout(&mut self, layout: wgpu::PipelineLayout) -> &mut Self { self.layout = Some(layout); self }
 
-    pub fn pipeline_layout(&mut self, gx: &impl WgxDevice, immediate_size: u32, bind_groups: &[&wgpu::BindGroupLayout]) -> &mut Self {
+    pub fn pipeline_layout(&mut self, gx: &impl WgxDevice, immediate_size: u32, bind_groups: &[Option<&wgpu::BindGroupLayout>]) -> &mut Self {
         self.layout(gx.pipeline_layout(immediate_size, bind_groups))
     }
 

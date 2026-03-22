@@ -1,8 +1,34 @@
 
 use std::{sync::mpsc::sync_channel, ops::{RangeBounds}, iter::TrustedLen};
-use wgpu::{Buffer, BufferSlice, BufferAddress, BufferSize, BufferViewMut, util::StagingBelt, CommandEncoder};
+use wgpu::{Buffer, BufferSlice, BufferAddress, BufferSize, BufferViewMut, WriteOnly, util::StagingBelt, CommandEncoder};
 use crate::{*};
 use anyhow::{Result as Res};
+
+
+pub trait WriteOnlyExtension {
+  fn write_data<T: ReadBytes>(&mut self, data: T);
+  fn write_data_iter<T: ReadBytes, I: Iterator<Item=T>>(&mut self, data: I);
+}
+
+impl WriteOnlyExtension for WriteOnly<'_, [u8]> {
+
+  fn write_data<T: ReadBytes>(&mut self, data: T) {
+    self.copy_from_slice(data.read_bytes())
+  }
+
+  fn write_data_iter<T: ReadBytes, I: Iterator<Item=T>>(&mut self, data: I) {
+    for (i, chunk) in data.enumerate() {
+      let start = i * size_of::<T>();
+      let stop = start + size_of::<T>();
+
+      self.slice(start..stop).write_data(chunk);
+
+      if stop >= self.len() {
+        break;
+      }
+    }
+  }
+}
 
 
 pub trait StagingBeltExtension {
@@ -48,7 +74,7 @@ impl StagingBeltExtension for StagingBelt {
     let size = (size_hint.0 * size_of::<T>()) as u64;
 
     let mut staging = self.stage(encoder, target, offset..(offset + size));
-    T::write_iter(&mut staging, data);
+    staging.slice(..).write_data_iter(data);
   }
 }
 

@@ -16,7 +16,7 @@ pub struct Wgx {
 
 impl Wgx {
     pub fn instance() -> wgpu::Instance {
-        wgpu::Instance::new(&wgpu::InstanceDescriptor::from_env_or_default())
+        wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env())
     }
 
     pub async fn request_adapter<W: Into<wgpu::SurfaceTarget<'static>>>(
@@ -199,7 +199,7 @@ pub trait WgxDevice {
 
     // pipelines
 
-    fn pipeline_layout(&self, immediate_size: u32, bind_groups: &[&wgpu::BindGroupLayout]) -> wgpu::PipelineLayout {
+    fn pipeline_layout(&self, immediate_size: u32, bind_groups: &[Option<&wgpu::BindGroupLayout>]) -> wgpu::PipelineLayout {
         self.device().create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: None, immediate_size, bind_group_layouts: bind_groups,
         })

@@ -11,8 +11,12 @@ pub unsafe trait ReadBytes {
         ) }
     }
 
+    fn copy_bytes_to(&self, dest: &mut[u8]) where Self: Sized {
+      dest.copy_from_slice(self.read_bytes())
+    }
+
     fn write_iter(dest: &mut[u8], data: impl Iterator<Item=Self>) where Self: Sized {
-      dest.chunks_mut(size_of::<Self>()).zip(data).for_each(|(c, d)| c.copy_from_slice(d.read_bytes()))
+      dest.chunks_mut(size_of::<Self>()).zip(data).for_each(|(c, d)| d.copy_bytes_to(c))
     }
 }
 

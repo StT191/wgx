@@ -46,7 +46,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
       &[vertex_dsc!(Vertex, 0 => Float32x2)],
       &shader, "vs_main", Primitive::default(),
     )
-    .pipeline_layout(&gx, 4, &[&layout])
+    .pipeline_layout(&gx, 4, &[Some(&layout)])
     .fragment(&shader, "fs_main")
     .render_target::<1>(&target, blending, Default::default())
     .pipeline(&gx)
