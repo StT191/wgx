@@ -1,6 +1,5 @@
-#![feature(assert_matches)]
 
-use std::assert_matches::assert_matches;
+use std::assert_matches;
 use wgsl_modules::{Module, ModuleCache, inline};
 use proc_macro2::TokenStream;
 use std::str::FromStr;

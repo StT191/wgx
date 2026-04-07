@@ -14,17 +14,17 @@ pub use naga;
 
 
 #[derive(Debug)]
-struct Include { path: Box<Path>, source_range: Range<usize> }
+pub struct Include { pub path: PathBuf, pub source_range: Range<usize> }
 
 
 // module
 #[derive(Debug)]
 pub struct Module {
-    path: Box<Path>,
-    includes: Box<[Include]>,
-    dependencies: FastHashSet<Box<Path>>,
-    source: Box<str>,
-    code: Box<str>,
+    path: PathBuf,
+    includes: Vec<Include>,
+    dependencies: FastHashSet<PathBuf>,
+    source: String,
+    code: String,
 }
 
 static START_REGEX: LazyLock<Regex> = LazyLock::new(||
@@ -33,7 +33,7 @@ static START_REGEX: LazyLock<Regex> = LazyLock::new(||
 
 impl Module {
 
-    fn parse(path: Box<Path>, source: Cow<str>) -> Self {
+    fn parse(path: PathBuf, source: String) -> Self {
 
         let mut includes = Vec::new();
 
@@ -54,7 +54,7 @@ impl Module {
 
             let mut source_end = path_start;
 
-            while let Some(index) = memchr(needle, source[source_end..].as_bytes()) {
+            while let Some(index) = memchr(needle, &source.as_bytes()[source_end..]) {
 
                 let path_end = source_end + index;
                 source_end = path_end + 1;
@@ -71,7 +71,7 @@ impl Module {
                     .replace("\\\\", "\\")
                 ;
 
-                let path = AsRef::<Path>::as_ref(&path_string).into();
+                let path = path_string.into();
 
                 includes.push(Include {path, source_range: source_start..source_end});
 
@@ -83,19 +83,15 @@ impl Module {
         }
 
         Self {
-            path, includes: includes.into(), dependencies: FastHashSet::default(),
-            source: source.into(), code: "".into(),
+            path, includes, dependencies: FastHashSet::default(),
+            code: String::new(), source,
         }
     }
 
-    fn load_source(path: &Path) -> Res<Cow<'_, str>> {
-
-        // fetch source
-        let source = read_to_string(path).with_context(
-            || format!("failed loading module from path '{}'", path.display())
-        )?;
-
-        Ok(source.into())
+    fn load_source(path: &Path) -> Res<String> {
+        read_to_string(path).with_context(||
+            format!("failed loading module from path '{}'", path.display())
+        )
     }
 }
 
@@ -105,9 +101,9 @@ fn parent_path(path: &Path) -> Res<&Path> {
     path.parent().with_context(|| format!("invalid path '{}'", path.display()))
 }
 
-fn normpath(path: &Path) -> Box<Path> {
+fn normpath(path: &Path) -> PathBuf {
 
-    let mut normal = PathBuf::new();
+    let mut normal = PathBuf::with_capacity(path.as_os_str().len());
     let mut level: usize = 0;
 
     for part in path.iter() {
@@ -121,18 +117,21 @@ fn normpath(path: &Path) -> Box<Path> {
         }
     }
 
-    normal.into()
+    normal
 }
 
 
 // modules
 
 #[derive(Default)]
-pub struct ModuleCache { map: FastHashMap<Box<Path>, Module> }
+pub struct ModuleCache {
+    map: FastHashMap<PathBuf, Module>,
+}
+
 
 impl ModuleCache {
 
-    fn insert_and_get(&mut self, key: Box<Path>, module: Module) -> &Module {
+    fn insert_and_get(&mut self, key: PathBuf, module: Module) -> &Module {
         match self.map.entry(key) {
             Entry::Occupied(mut occupied) => {
                 occupied.insert(module);
@@ -142,9 +141,9 @@ impl ModuleCache {
         }
     }
 
-    fn resolve_module(&mut self, module_trace: &mut Vec<Box<Path>>, path: &Path) -> Res<&Module> {
+    fn resolve_module(&mut self, module_trace: &mut Vec<PathBuf>, path: &Path) -> Res<&Module> {
 
-        if module_trace.iter().any(|p| p.as_ref() == path) { bail!(
+        if module_trace.iter().any(|p| *p == path) { bail!(
             "circular dependency {} from {}",
             path.display(),
             module_trace.last().unwrap().display(),
@@ -152,12 +151,11 @@ impl ModuleCache {
 
         if !self.map.contains_key(path) {
             let code = Module::load_source(path)?;
-            let mut module = Module::parse(path.into(), code);
+            let mut module = Module::parse(path.to_owned(), code);
 
-            let dir_path = parent_path(path)?;
+            module_trace.push(path.to_owned());
 
-            module_trace.push(path.into());
-            module.resolve_includes(self, module_trace, dir_path)?;
+            module.resolve_includes(self, module_trace)?;
             let path = module_trace.pop().unwrap();
 
             Ok(self.insert_and_get(path, module))
@@ -172,9 +170,10 @@ impl ModuleCache {
 
 impl Module {
 
-    fn resolve_includes(&mut self, cache: &mut ModuleCache, module_trace: &mut Vec<Box<Path>>, dir_path: &Path) -> Res<()> {
+    fn resolve_includes(&mut self, cache: &mut ModuleCache, module_trace: &mut Vec<PathBuf>) -> Res<()> {
 
-        let mut code = self.source.to_string();
+        let dir_path = parent_path(&self.path)?;
+        let mut code = self.source.clone();
 
         for include in self.includes.iter().rev() {
 
@@ -183,9 +182,10 @@ impl Module {
 
             let module = cache.resolve_module(module_trace, &include_path)?;
 
-            for dependency in &module.dependencies {
-                let include_path = normpath(&include_dir_path.join(dependency));
-                self.dependencies.insert(include_path);
+            for dependency_path in &module.dependencies {
+                self.dependencies.insert(
+                    normpath(&include_dir_path.join(dependency_path))
+                );
             }
 
             self.dependencies.insert(include_path);
@@ -196,29 +196,29 @@ impl Module {
             );
         }
 
-        self.code = code.into();
+        self.code = code;
 
         Ok(())
     }
 
     // module loading
 
-    fn load_helper(cache: Option<&mut ModuleCache>, path: &Path, source_code: Option<Cow<str>>) -> Res<Module> {
+    fn load_helper(cache: Option<&mut ModuleCache>, path: &Path, source_code: Option<Cow<str>>) -> Res<Self> {
 
         let path = normpath(path);
-        let dir_path = parent_path(&path)?;
+        parent_path(&path)?; // test for validity
 
         let source_code = match source_code {
-            Some(code) => code,
-            None => Module::load_source(&path)?,
+            Some(code) => code.into_owned(),
+            None => Self::load_source(&path)?,
         };
 
-        let mut module = Module::parse(path.clone(), source_code);
+        let mut module = Self::parse(path, source_code);
 
         let mut temp_cache = ModuleCache::new();
         let cache = cache.unwrap_or(&mut temp_cache);
 
-        module.resolve_includes(cache, &mut Vec::new(), dir_path)?;
+        Self::resolve_includes(&mut module, cache, &mut Vec::new())?;
 
         Ok(module)
     }
@@ -231,14 +231,16 @@ impl Module {
         Self::load_helper(None, path.as_ref(), None)
     }
 
-    // accessors
+    pub fn path(&self) -> &Path { &self.path }
 
-    pub fn dependencies(&self) -> impl Iterator<Item=&Path> {
+    pub fn includes(&self) -> &[Include] { &self.includes }
+
+    pub fn dependencies(&self) -> impl ExactSizeIterator<Item=&Path> {
         self.dependencies.iter().map(|path| path.as_ref())
     }
 
-    pub fn source(&self) -> &str { self.source.as_ref() }
-    pub fn code(&self) -> &str { self.code.as_ref() }
+    pub fn source(&self) -> &str { &self.source }
+    pub fn code(&self) -> &str { &self.code }
 
     pub fn naga_module(&self, validate: Option<(ValidationFlags, Capabilities)>) -> Res<(naga::Module, Option<ModuleInfo>)> {
         let module = naga_module(&self.code, &self.path)?;
@@ -274,14 +276,13 @@ impl ModuleCache {
         self.map.get(path.as_ref())
     }
 
-    pub fn modules(&self) -> impl Iterator<Item=(&Path, &Module)> {
+    pub fn modules(&self) -> impl ExactSizeIterator<Item=(&Path, &Module)> {
         self.map.iter().map(|(key, module)| (key.as_ref(), module))
     }
 
     fn load_helper(&mut self, path: &Path, source_code: Option<Cow<str>>) -> Res<&Module> {
         let module = Module::load_helper(Some(self), path, source_code)?;
-        let path = module.path.clone();
-        Ok(self.insert_and_get(path, module))
+        Ok(self.insert_and_get(path.to_owned(), module))
     }
 
     pub fn load<'a>(&mut self, path: impl AsRef<Path>, source_code: impl Into<Cow<'a, str>>) -> Res<&Module> {
