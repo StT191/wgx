@@ -60,7 +60,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
             &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
             &shader, "vs_main", Primitive {topology: Topology::TriangleStrip, ..Primitive::default()},
         )
-        .pipeline_layout(&gx, 0, &[&layout])
+        .pipeline_layout(&gx, 0, &[Some(&layout)])
         .fragment(&shader, "fs_main").render_target::<1>(&target, blending, Default::default())
         .pipeline(&gx)
     ;
@@ -80,7 +80,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
             &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
             &shader, "vs_main", Primitive {topology: Topology::LineStrip, ..Primitive::default()},
         )
-        .pipeline_layout(&gx, 0, &[&layout])
+        .pipeline_layout(&gx, 0, &[Some(&layout)])
         .fragment(&shader, "fs_main").render_target::<1>(&target, blending, Default::default())
         .pipeline(&gx)
     ;
@@ -102,7 +102,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
             &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
             &shader, "vs_main", Primitive {topology: Topology::PointList, ..Primitive::default()},
         )
-        .pipeline_layout(&gx, 0, &[&layout])
+        .pipeline_layout(&gx, 0, &[Some(&layout)])
         .fragment(&shader, "fs_main").render_target::<1>(&target, blending, Default::default())
         .pipeline(&gx)
     ;
@@ -137,7 +137,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
             &[vertex_dsc!(Vertex, 0 => Float32x3, 1 => Float32x2)],
             &shader, "vs_main", Primitive {topology: Topology::TriangleStrip, ..Primitive::default()},
         )
-        .pipeline_layout(&gx, 0, &[&layout])
+        .pipeline_layout(&gx, 0, &[Some(&layout)])
         .fragment(&shader, "fs_main").render_target::<1>(&target, blending, Default::default())
         .pipeline(&gx)
     ;

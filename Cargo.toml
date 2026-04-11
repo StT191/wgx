@@ -1,5 +1,5 @@
 [workspace.package]
-version = "28.0.0"
+version = "29.0.0"
 authors = ["Stefan Tammer <st.tammer@gmail.com>"]
 edition = "2024"
 license = "MIT"
@@ -8,8 +8,8 @@ license = "MIT"
 members = ["wgsl_modules", "wgsl_modules/loader", "wgsl_modules/macro"]
 
 [workspace.dependencies]
-wgpu = { version = "28", default-features = false }
-naga = { version = "28", default-features = false }
+wgpu = { version = "29", default-features = false }
+naga = { version = "29", default-features = false }
 anyhow = "1"
 
 

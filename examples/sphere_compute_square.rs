@@ -82,7 +82,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
   let cp_shader = gx.load_wgsl(wgsl_modules::include!("common/shaders/compute_sphere_square.wgsl"));
 
   let cp_pipeline = ComputePipelineConfig::new(&cp_shader, "cp_main")
-    .pipeline_layout(&gx, 0, &[&layout])
+    .pipeline_layout(&gx, 0, &[Some(&layout)])
     .pipeline(&gx)
   ;
 

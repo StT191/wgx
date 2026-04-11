@@ -66,10 +66,12 @@ impl Module {
 
                 if t % 2 == 0 { continue; } // if escaped
 
-                let path = &source[path_start..path_end];
-                let path = path.replace(escaped, unescaped);
-                let path = path.replace("\\\\", "\\");
-                let path = AsRef::<Path>::as_ref(&path).into();
+                let path_string = source[path_start..path_end]
+                    .replace(escaped, unescaped)
+                    .replace("\\\\", "\\")
+                ;
+
+                let path = AsRef::<Path>::as_ref(&path_string).into();
 
                 includes.push(Include {path, source_range: source_start..source_end});
 

@@ -1,7 +1,7 @@
 
 use wgpu::{*, PresentMode as Prs};
 use crate::*;
-use anyhow::{Result as Res};
+use anyhow::{Result as Res, bail};
 
 
 #[derive(Debug, Clone)]
@@ -196,9 +196,19 @@ impl SurfaceTarget {
 
 
     pub fn request_frame(&mut self) -> Res<()> {
-        let current_texture = self.surface.get_current_texture()?;
-        self.is_suboptimal = current_texture.suboptimal;
-        self.frame = Some(current_texture);
+
+        use wgpu::CurrentSurfaceTexture::*;
+
+        match self.surface.get_current_texture() {
+            Success(texture) => { self.frame = Some(texture); self.is_suboptimal = false; },
+            Suboptimal(texture) => { self.frame = Some(texture); self.is_suboptimal = true; },
+            Timeout => bail!("SurfaceTexture: Timeout"),
+            Occluded => bail!("SurfaceTexture: Occluded"),
+            Outdated => bail!("SurfaceTexture: Outdated"),
+            Lost => bail!("SurfaceTexture: Lost"),
+            Validation => bail!("SurfaceTexture: Validation"),
+        };
+
         Ok(())
     }
 
