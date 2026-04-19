@@ -73,8 +73,9 @@ impl<'a> From<DepthAttachment<'a>> for wgpu::RenderPassDepthStencilAttachment<'a
 
 // render target
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TargetDsc {
+    pub size: [u32; 2],
     pub msaa: u32,
     pub depth_testing: Option<TextureFormat>,
     pub format: TextureFormat,
@@ -89,7 +90,7 @@ pub trait RenderTarget {
     fn format(&self) -> TextureFormat;
 
     fn target_dsc(&self) -> TargetDsc {
-        TargetDsc { msaa: self.msaa(), depth_testing: self.depth_testing(), format: self.format() }
+        TargetDsc { size: self.size(), msaa: self.msaa(), depth_testing: self.depth_testing(), format: self.format() }
     }
 
     fn bytes_per_row(&self) -> Option<u32> {
@@ -136,7 +137,7 @@ pub trait RenderAttachable {
 
 
 impl RenderTarget for TargetDsc {
-    fn size(&self) -> [u32; 2] { [0, 0] }
+    fn size(&self) -> [u32; 2] { self.size }
     fn msaa(&self) -> u32 { self.msaa }
     fn depth_testing(&self) -> Option<TextureFormat> { self.depth_testing }
     fn format(&self) -> TextureFormat { self.format }

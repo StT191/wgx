@@ -1,4 +1,4 @@
-#![feature(step_trait, trusted_len)]
+#![feature(step_trait)]
 
 // passs wgpu types
 pub use wgpu::{

@@ -78,7 +78,7 @@ fn ray_march(Ro: vec3f, Rd: vec3f, map_color: bool) -> RayHit {
         }
     }
 
-    return RayHit(vec3f(0.0, 0.0, 0.0), -1.0, vec4f(0.0, 0.0, 0.0, 0.0));
+    return RayHit(vec3f(0.0), -1.0, vec4f(0.0));
 }
 
 
