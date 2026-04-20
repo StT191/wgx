@@ -1,99 +1,68 @@
 
-/// # Safety
-/// must be guaranteed by implementor
-pub unsafe trait ReadBytes {
+use std::ops::Range;
+use bytemuck::Pod;
 
-    fn read_bytes(&self) -> &[u8] where Self: Sized {
-        // SAFETY: must be guaranteed by implementor
+/// # Safety
+/// Safety is guaranteed by the NoUninit binding.
+pub unsafe trait AsBytes: Pod {
+
+    fn as_bytes(&self) -> &[u8] {
+        // SAFETY: is guranteed by the NoUninit binding.
         unsafe { core::slice::from_raw_parts(
             self as *const Self as *const u8,
-            core::mem::size_of::<Self>(),
+            size_of::<Self>(),
         ) }
     }
 
-    fn copy_bytes_to(&self, dest: &mut[u8]) where Self: Sized {
+    fn write_iter(dest: &mut[u8], data: impl Iterator<Item=Self>) -> usize {
+
+        let Range { start: mut ptr, end } = dest.as_mut_ptr_range();
+        let mut count = 0;
+
+        // SAFETY: Check that we don't write past dest!
+        unsafe {
+            for chunk in data {
+
+                let stop = ptr.add(size_of::<Self>());
+                if stop > end { break; }
+
+                ptr.copy_from_nonoverlapping(
+                    &chunk as *const Self as *const u8,
+                    size_of::<Self>(),
+                );
+
+                count += 1;
+                ptr = stop;
+            }
+        }
+
+        count
+    }
+}
+
+
+unsafe impl<T: Pod> AsBytes for T {}
+
+
+pub trait ReadBytes {
+
+    fn read_bytes(&self) -> &[u8];
+
+    fn copy_bytes_to(&self, dest: &mut[u8]) {
       dest.copy_from_slice(self.read_bytes())
     }
-
-    fn write_iter(dest: &mut[u8], data: impl Iterator<Item=Self>) -> usize where Self: Sized {
-      dest.chunks_mut(size_of::<Self>()).zip(data).map(|(c, d)| d.copy_bytes_to(c)).count()
-    }
 }
 
-
-// impls
-
-unsafe impl<T: ReadBytes> ReadBytes for &T {
-    fn read_bytes(&self) -> &[u8] { (*self).read_bytes() }
+impl<T: AsBytes> ReadBytes for &T {
+    fn read_bytes(&self) -> &[u8] { (*self).as_bytes() }
 }
 
-
-// slice types
-
-unsafe impl<T: ReadBytes> ReadBytes for &[T] {
+impl<T: AsBytes> ReadBytes for &[T] {
     fn read_bytes(&self) -> &[u8] {
-        // SAFETY: guaranteed by ReadBytes binding
+        // SAFETY: guaranteed by AsBytes binding
         unsafe { core::slice::from_raw_parts(
             self.as_ptr() as *const u8,
             core::mem::size_of_val(*self),
         ) }
-    }
-}
-
-unsafe impl<T: ReadBytes, const N: usize> ReadBytes for [T; N] {
-    fn read_bytes(&self) -> &[u8] {
-        // SAFETY: guaranteed by ReadBytes binding
-        unsafe { core::slice::from_raw_parts(
-            self.as_ptr() as *const u8,
-            N * core::mem::size_of::<T>(),
-        ) }
-    }
-}
-
-
-// plain types
-
-macro_rules! impl_read_bytes {
-    ($($type:ty),+ => $tokens:tt) => { $( unsafe impl ReadBytes for $type $tokens )+ }
-}
-
-
-impl_read_bytes!{
-    (), crate::Color,
-    u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, f32, f64
-    => {}
-}
-
-
-use wgpu::util::{DrawIndirectArgs, DrawIndexedIndirectArgs, DispatchIndirectArgs};
-
-impl_read_bytes!{
-    DrawIndirectArgs, DrawIndexedIndirectArgs, DispatchIndirectArgs => {
-        fn read_bytes(&self) -> &[u8] { self.as_bytes() }
-    }
-}
-
-
-#[cfg(feature = "math")]
-mod impl_read_bytes_for_math_types {
-    use super::ReadBytes;
-
-    use crate::math::{Vec3P, Mat3P};
-    impl_read_bytes!{ Vec3P, Mat3P => {} }
-
-    use glam::*;
-    impl_read_bytes!{
-        Mat2, Mat3, Mat4, Quat,
-        Vec2, Vec3, Vec4,
-        DAffine2, DAffine3,
-        DMat2, DMat3, DMat4, DQuat,
-        DVec2, DVec3, DVec4,
-        I16Vec2, I16Vec3, I16Vec4,
-        U16Vec2, U16Vec3, U16Vec4,
-        IVec2, IVec3, IVec4,
-        UVec2, UVec3, UVec4,
-        I64Vec2, I64Vec3, I64Vec4,
-        U64Vec2, U64Vec3, U64Vec4
-        => {}
     }
 }

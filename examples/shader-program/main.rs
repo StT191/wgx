@@ -71,7 +71,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
 
 
   // buffer
-  let view_buffer = gx.buffer_from_data(BufUse::UNIFORM | BufUse::COPY_DST, [width, height, width/height, scale]);
+  let view_buffer = gx.buffer_from_data(BufUse::UNIFORM | BufUse::COPY_DST, &[width, height, width/height, scale]);
 
   // binding
   let binding = gx.bind(&layout, &[
@@ -90,7 +90,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
       height = size.height as f32;
 
       // write buffer
-      gx.write_buffer(&view_buffer, 0, [width, height, width/height, scale]);
+      gx.write_buffer(&view_buffer, 0, &[width, height, width/height, scale]);
     },
 
     Event::WindowEvent(WindowEvent::KeyboardInput { event: KeyEvent {
@@ -106,7 +106,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
 
         _ => { update = false; }
       } {
-        if update { gx.write_buffer(&view_buffer, 0, [width, height, width/height, scale]); }
+        if update { gx.write_buffer(&view_buffer, 0, &[width, height, width/height, scale]); }
       }
     },
 

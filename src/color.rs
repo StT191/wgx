@@ -1,7 +1,8 @@
 
 // wgpu::Color drop in
+use bytemuck::{Pod, Zeroable};
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd, Pod, Zeroable)]
 #[repr(C)]
 pub struct Color { pub r: f32, pub g: f32, pub b: f32, pub a: f32 }
 

@@ -1,31 +1,53 @@
 
-use std::{sync::mpsc::sync_channel, ops::{RangeBounds}};
+use std::{sync::mpsc::sync_channel, ops::RangeBounds};
 use wgpu::{Buffer, BufferSlice, BufferAddress, BufferSize, BufferViewMut, WriteOnly, util::StagingBelt, CommandEncoder};
 use crate::{*};
 use anyhow::{Result as Res};
 
 
 pub trait WriteOnlyExtension {
-  fn write_data<T: ReadBytes>(&mut self, data: T);
-  fn write_data_iter<T: ReadBytes, I: ExactSizeIterator<Item=T>>(&mut self, data: I);
+  fn write_data<T: ReadBytes>(&mut self, byte_offset: u64, data: T);
+  fn write_data_iter<T: AsBytes, I: Iterator<Item=T>>(&mut self, byte_offset: u64, data: I) -> usize;
 }
 
 impl WriteOnlyExtension for WriteOnly<'_, [u8]> {
 
-  fn write_data<T: ReadBytes>(&mut self, data: T) {
-    self.copy_from_slice(data.read_bytes())
+  fn write_data<T: ReadBytes>(&mut self, byte_offset: u64, data: T) {
+    let bytes = data.read_bytes();
+    if byte_offset == 0 && self.len() == bytes.len() {
+      self.copy_from_slice(bytes);
+    } else {
+      let start = byte_offset as usize;
+      self.slice(start..(start + bytes.len())).copy_from_slice(bytes);
+    }
   }
 
-  fn write_data_iter<T: ReadBytes, I: ExactSizeIterator<Item=T>>(&mut self, data: I) {
-    assert_eq!(data.len() * size_of::<T>(), self.len(), "the iterator needs to have the same len as the WriteOnly slice");
-    let mut stop = 0;
-    for (i, chunk) in data.enumerate() {
-      let start = i * size_of::<T>();
-      stop = start + size_of::<T>();
-      assert!(stop <= self.len(), "the iterator exceeds the WriteOnly slice");
-      self.slice(start..stop).write_data(chunk);
+  fn write_data_iter<T: AsBytes, I: Iterator<Item=T>>(&mut self, byte_offset: u64, data: I) -> usize {
+
+    let mut ptr = self.as_raw_element_ptr().as_ptr();
+    let mut count = 0;
+
+    // SAFETY: Check that we don't write past dest!
+    unsafe {
+      let end = ptr.add(self.len());
+      ptr = ptr.add(byte_offset as usize);
+
+      for chunk in data {
+
+        let stop = ptr.add(size_of::<T>());
+        if stop > end { break; }
+
+        ptr.copy_from_nonoverlapping(
+          &chunk as *const T as *const u8,
+          size_of::<T>(),
+        );
+
+        count += 1;
+        ptr = stop;
+      }
     }
-    assert_eq!(stop, self.len(), "the iterator didn't fill the WriteOnly slice")
+
+    count
   }
 }
 
@@ -37,12 +59,12 @@ pub trait StagingBeltExtension {
   ) -> BufferViewMut;
 
   fn write_data<T: ReadBytes>(
-    &mut self, encoder: &mut CommandEncoder, target: &Buffer, offset: BufferAddress, data: T,
+    &mut self, encoder: &mut CommandEncoder, target: &Buffer, byte_offset: BufferAddress, data: T,
   );
 
-  fn write_iter<T: ReadBytes, I: ExactSizeIterator<Item=T>>(
-    &mut self, encoder: &mut CommandEncoder, target: &Buffer, offset: BufferAddress, data: I
-  );
+  fn write_iter<T: AsBytes, I: Iterator<Item=T>>(
+    &mut self, encoder: &mut CommandEncoder, target: &Buffer, byte_offset: BufferAddress, data: I,
+  ) -> usize;
 }
 
 impl StagingBeltExtension for StagingBelt {
@@ -57,19 +79,20 @@ impl StagingBeltExtension for StagingBelt {
   }
 
   fn write_data<T: ReadBytes>(
-    &mut self, encoder: &mut CommandEncoder, target: &Buffer, offset: BufferAddress, data: T,
+    &mut self, encoder: &mut CommandEncoder, target: &Buffer, byte_offset: BufferAddress, data: T,
   ) {
     let bytes = data.read_bytes();
-    self.stage(encoder, target, offset..(bytes.len() as u64)).copy_from_slice(bytes);
+    self.stage(encoder, target, byte_offset..(bytes.len() as u64)).copy_from_slice(bytes);
   }
 
-  fn write_iter<T: ReadBytes, I: ExactSizeIterator<Item=T>>(
+  fn write_iter<T: AsBytes, I: Iterator<Item=T>>(
     &mut self, encoder: &mut CommandEncoder,
-    target: &Buffer, offset: BufferAddress, data: I
-  ) {
-    let size = (data.len() * size_of::<T>()) as u64;
-    let mut staging = self.stage(encoder, target, offset..(offset + size));
-    staging.slice(..).write_data_iter(data);
+    target: &Buffer, byte_offset: BufferAddress, data: I,
+  ) -> usize {
+    let hint = data.size_hint();
+    let byte_size = hint.1.unwrap_or(hint.0) as u64 * size_of::<T>() as u64;
+    let mut staging = self.stage(encoder, target, byte_offset..(byte_offset + byte_size));
+    staging.slice(..).write_data_iter(0, data)
   }
 }
 
@@ -103,8 +126,8 @@ impl StagingEncoder {
     self.staging_belt.write_data(&mut self.encoder, target, offset, data)
   }
 
-  pub fn write_iter<T: ReadBytes, I>(&mut self, target: &Buffer, offset: BufferAddress, data: I)
-    where I: ExactSizeIterator<Item=T>
+  pub fn write_iter<T: AsBytes, I>(&mut self, target: &Buffer, offset: BufferAddress, data: I) -> usize
+    where I: Iterator<Item=T>
   {
     self.staging_belt.write_iter(&mut self.encoder, target, offset, data)
   }

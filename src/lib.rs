@@ -19,6 +19,9 @@ pub use wgpu::{
     util::{StagingBelt, DrawIndirectArgs, DrawIndexedIndirectArgs, DispatchIndirectArgs, RenderEncoder},
 };
 
+pub use bytemuck::{self, *};
+
+
 // macros
 mod macros;
 

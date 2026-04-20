@@ -47,7 +47,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
     // colors
     let color_texture = TextureLot::new_2d_with_data(&gx,
         [2, 2, 1], 1, TexFmt::Rgba8UnormSrgb, None, TexUse::TEXTURE_BINDING,
-        [
+        &[
             Color::GREEN.srgb().u8(), Color::ORANGE.srgb().u8(),
             Color::RED.srgb().u8(), Color::BLUE.srgb().u8(),
         ],
@@ -67,7 +67,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
     let vertices = gx.buffer_from_data(BufUse::VERTEX, &vertex_data[..]);
 
     let tex_coords = [[0, 1], [1, 1], [0, 0], [1, 0]];
-    let draw_tex_coords = gx.buffer_from_data(BufUse::VERTEX, tex_coords.map(pp));
+    let draw_tex_coords = gx.buffer_from_data(BufUse::VERTEX, &tex_coords.map(pp));
 
     let bg_color_draw_target = Color::ORANGE;
     let bg_color_target = Color::ORANGE;
@@ -112,7 +112,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
 
     let display_tex_coords = gx.buffer_from_data(
         BufUse::VERTEX,
-        tex_coords.map(|[x, y]| [x as f32, y as f32]),
+        &tex_coords.map(|[x, y]| [x as f32, y as f32]),
     );
 
     // binding

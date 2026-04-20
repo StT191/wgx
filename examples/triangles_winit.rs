@@ -39,13 +39,12 @@ fn main() {
     // colors
     let texture = TextureLot::new_2d_with_data(&gx,
         [2, 1, 1], 1, TexFmt::Rgba8UnormSrgb, None, /*TexUse::COPY_SRC |*/ TexUse::TEXTURE_BINDING,
-        [[255u8, 0, 0, 255], [0, 0, 255, 50]]
+        &[[255u8, 0, 0, 255], [0, 0, 255, 50]]
     );
 
     #[repr(C)]
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Pod, Zeroable)]
     struct Vtx([f32;3], [f32;2]);
-    unsafe impl wgx::ReadBytes for Vtx {}
 
     // vertices
     let data = [

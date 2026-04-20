@@ -175,7 +175,9 @@ impl_multi!{
 #[cfg(feature = "mint")] use mint::{IntoMint, Vector3, Point3, ColumnMatrix3, RowMatrix3};
 use std::borrow::*;
 
-#[derive(Debug, Default, Clone, Copy, PartialEq)]
+use bytemuck::{Pod, Zeroable};
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Pod, Zeroable)]
 #[repr(C, align(16))]
 pub struct Vec3P { vec3: Vec3, _p: f32 }
 
@@ -218,7 +220,7 @@ mod vec3p_serde_impl {
 }
 
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Pod, Zeroable)]
 #[repr(C)]
 pub struct Mat3P {
     pub x_axis: Vec3P,

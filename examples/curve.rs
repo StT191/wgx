@@ -48,9 +48,8 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
 
 
   #[repr(C)]
-  #[derive(Default, Clone, Copy)]
+  #[derive(Default, Clone, Copy, Pod, Zeroable)]
   struct Vtx(Vec2, u32);
-  unsafe impl ReadBytes for Vtx {}
 
   const LINE_LEN: usize = 2048;
   const VTX_LEN: usize = LINE_LEN + 10;
@@ -101,7 +100,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
     vertices[i] = Vtx(bezier(t), Color::from_value_u8(0x33).u32());
   }
 
-  let vtx_buff = gx.buffer_from_data(BufUse::VERTEX | BufUse::COPY_DST, vertices);
+  let vtx_buff = gx.buffer_from_data(BufUse::VERTEX | BufUse::COPY_DST, &vertices);
   let vtx_size = std::mem::size_of::<Vtx>();
 
   window.set_cursor_visible(false);
@@ -116,7 +115,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
 
       let pos = vec2(position.x as f32, 1000.0 - position.y as f32);
 
-      gx.write_buffer(&vtx_buff, (LINE_LEN * vtx_size) as u64, [
+      gx.write_buffer(&vtx_buff, (LINE_LEN * vtx_size) as u64, &[
         Vtx(pos, Color::RED.u32()),
         Vtx(bezier(closest(pos)), Color::GREEN.u32()),
       ]);

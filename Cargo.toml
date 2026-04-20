@@ -1,5 +1,5 @@
 [workspace.package]
-version = "29.1.0"
+version = "29.2.0"
 authors = ["Stefan Tammer <st.tammer@gmail.com>"]
 edition = "2024"
 license = "MIT"
@@ -35,11 +35,12 @@ wgsl_modules_loader = ["wgsl_modules", "wgsl_modules/loader", "wgpu/naga-ir"]
 
 [dependencies]
 wgpu = { workspace = true, features = ["std", "wgsl", "parking_lot"] }
+bytemuck = { version = "1", features = ["derive"] }
 anyhow = { workspace = true }
 log = "0"
 arrayvec = { version = "0.7", default-features = false }
 
-glam = { version = "0.30", optional = true }
+glam = { version = "0.30", optional = true, features = ["bytemuck"] }
 mint = { version = "0.5", optional = true }
 serde = { version = "1.0", default-features = false, optional = true }
 wgsl_modules = { path = "wgsl_modules", optional = true }

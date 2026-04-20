@@ -57,7 +57,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
   // colors
   let bg_color = Color::from([0x00, 0x00, 0x00, 0xCC]);
 
-  let color_texture = TextureLot::new_2d_with_data(&gx, [1, 1, 1], 1, TexFmt::Rgba8UnormSrgb, None, TexUse::TEXTURE_BINDING, [255u8, 0, 0, 255]);
+  let color_texture = TextureLot::new_2d_with_data(&gx, [1, 1, 1], 1, TexFmt::Rgba8UnormSrgb, None, TexUse::TEXTURE_BINDING, &[255u8, 0, 0, 255]);
   let sampler = gx.sampler(&std_sampler_descriptor());
 
   // compute vertices
@@ -180,7 +180,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
   ];
 
   // buffers
-  let instance_buffer = gx.buffer_from_data(BufUse::VERTEX, instance_data);
+  let instance_buffer = gx.buffer_from_data(BufUse::VERTEX, &instance_data);
 
 
   // world
@@ -201,8 +201,8 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
   let mut staging_belt = StagingBelt::new(gx.device().clone(), 4 * world.clip_buffer.size());
 
   gx.with_encoder(|mut encoder| {
-    staging_belt.write_data(&mut encoder, &world.clip_buffer, 0, world.clip_matrix);
-    staging_belt.write_data(&mut encoder, &world.light_buffer, 0, world.light_matrix);
+    staging_belt.write_data(&mut encoder, &world.clip_buffer, 0, &world.clip_matrix);
+    staging_belt.write_data(&mut encoder, &world.light_buffer, 0, &world.light_matrix);
     staging_belt.finish();
   });
   staging_belt.recall();
@@ -239,8 +239,8 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
       world.light_matrix = light_matrix * world.rotation; // keep light
 
       gx.with_encoder(|mut encoder| {
-        staging_belt.write_data(&mut encoder, &world.clip_buffer, 0, world.clip_matrix);
-        staging_belt.write_data(&mut encoder, &world.light_buffer, 0, world.light_matrix);
+        staging_belt.write_data(&mut encoder, &world.clip_buffer, 0, &world.clip_matrix);
+        staging_belt.write_data(&mut encoder, &world.light_buffer, 0, &world.light_matrix);
         staging_belt.finish();
       });
       staging_belt.recall();
@@ -255,8 +255,8 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
         world.light_matrix = light_matrix * world.rotation; // keep light
 
         gx.with_encoder(|mut encoder| {
-          staging_belt.write_data(&mut encoder, &world.clip_buffer, 0, world.clip_matrix);
-          staging_belt.write_data(&mut encoder, &world.light_buffer, 0, world.light_matrix);
+          staging_belt.write_data(&mut encoder, &world.clip_buffer, 0, &world.clip_matrix);
+          staging_belt.write_data(&mut encoder, &world.light_buffer, 0, &world.light_matrix);
           staging_belt.finish();
         });
         staging_belt.recall();
