@@ -7,7 +7,7 @@ use anyhow::{Result as Res};
 
 pub trait WriteOnlyExtension {
   fn write_data<T: ReadBytes>(&mut self, byte_offset: u64, data: T);
-  fn write_data_iter<T: AsBytes, I: Iterator<Item=T>>(&mut self, byte_offset: u64, data: I) -> usize;
+  fn write_data_iter<T: AsBytes, I: Iterator<Item=T>>(&mut self, byte_offset: u64, data: I) -> Result<usize, usize>;
 }
 
 impl WriteOnlyExtension for WriteOnly<'_, [u8]> {
@@ -22,32 +22,15 @@ impl WriteOnlyExtension for WriteOnly<'_, [u8]> {
     }
   }
 
-  fn write_data_iter<T: AsBytes, I: Iterator<Item=T>>(&mut self, byte_offset: u64, data: I) -> usize {
-
-    let mut ptr = self.as_raw_element_ptr().as_ptr();
-    let mut count = 0;
-
-    // SAFETY: Check that we don't write past dest!
+  fn write_data_iter<T: AsBytes, I: Iterator<Item=T>>(&mut self, byte_offset: u64, data: I) -> Result<usize, usize> {
     unsafe {
+      // SAFETY: self is valid for writes of u8
+      let ptr = self.as_raw_element_ptr().as_ptr();
+      let start = ptr.add(byte_offset as usize);
       let end = ptr.add(self.len());
-      ptr = ptr.add(byte_offset as usize);
 
-      for chunk in data {
-
-        let stop = ptr.add(size_of::<T>());
-        if stop > end { break; }
-
-        ptr.copy_from_nonoverlapping(
-          &chunk as *const T as *const u8,
-          size_of::<T>(),
-        );
-
-        count += 1;
-        ptr = stop;
-      }
+      T::ptr_write_iter(start..end, data)
     }
-
-    count
   }
 }
 
@@ -64,7 +47,7 @@ pub trait StagingBeltExtension {
 
   fn write_iter<T: AsBytes, I: Iterator<Item=T>>(
     &mut self, encoder: &mut CommandEncoder, target: &Buffer, byte_offset: BufferAddress, data: I,
-  ) -> usize;
+  ) -> Result<usize, usize>;
 }
 
 impl StagingBeltExtension for StagingBelt {
@@ -88,7 +71,7 @@ impl StagingBeltExtension for StagingBelt {
   fn write_iter<T: AsBytes, I: Iterator<Item=T>>(
     &mut self, encoder: &mut CommandEncoder,
     target: &Buffer, byte_offset: BufferAddress, data: I,
-  ) -> usize {
+  ) -> Result<usize, usize> {
     let hint = data.size_hint();
     let byte_size = hint.1.unwrap_or(hint.0) as u64 * size_of::<T>() as u64;
     let mut staging = self.stage(encoder, target, byte_offset..(byte_offset + byte_size));
@@ -126,7 +109,7 @@ impl StagingEncoder {
     self.staging_belt.write_data(&mut self.encoder, target, offset, data)
   }
 
-  pub fn write_iter<T: AsBytes, I>(&mut self, target: &Buffer, offset: BufferAddress, data: I) -> usize
+  pub fn write_iter<T: AsBytes, I>(&mut self, target: &Buffer, offset: BufferAddress, data: I) -> Result<usize, usize>
     where I: Iterator<Item=T>
   {
     self.staging_belt.write_iter(&mut self.encoder, target, offset, data)
