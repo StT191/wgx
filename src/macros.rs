@@ -170,11 +170,11 @@ macro_rules! bind {
 #[macro_export]
 macro_rules! vertex_dsc {
     ($step:ident, $($loc:expr => $fmt:ident),*) => {
-        $crate::wgpu::VertexBufferLayout {
+        Some($crate::wgpu::VertexBufferLayout {
             array_stride: ($($crate::wgpu::VertexFormat::$fmt.size() + )* 0) as $crate::wgpu::BufferAddress,
             step_mode: $crate::wgpu::VertexStepMode::$step,
             attributes: &$crate::wgpu::vertex_attr_array!( $($loc => $fmt ,)*),
-        }
+        })
     };
 }
 

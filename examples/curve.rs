@@ -21,7 +21,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
     struct VertexData {
       @builtin(position) position: vec4f,
       @location(0) pos: vec2f,
-      @location(1) col: u32,
+      @location(1) @interpolate(flat) col: u32,
     }
     @vertex
     fn vs_main(@location(0) p: vec2f, @location(1) col: u32) -> VertexData {
@@ -29,8 +29,8 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
       return VertexData(vec4f(pos, 0.0, 1.0), p, col);
     }
     @fragment
-    fn fs_main(@location(0) _pos: vec2f, @location(1) col: u32) -> @location(0) vec4f {
-      return unpack4x8unorm(col);
+    fn fs_main(in: VertexData) -> @location(0) vec4f {
+      return unpack4x8unorm(in.col);
     }
   }));
 
@@ -124,13 +124,14 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
     },
 
     Event::WindowEvent(WindowEvent::RedrawRequested) => {
-      target.with_frame(None, |frame| gx.with_encoder(|encoder| {
-        encoder.with_render_pass(frame.attachments(Some(Color::BLACK), None, None), |rpass| {
+      target.with_frame(&gx, None, |frame| {
+        gx.with_encoder(|en| en.with_render_pass(frame.attachments(Some(Color::BLACK), None, None), |rpass| {
           rpass.set_pipeline(&pipeline);
           rpass.set_vertex_buffer(0, vtx_buff.slice(..));
           rpass.draw(0..vertices.len() as u32, 0..1);
-        });
-      })).unwrap_or_else(|m| log::error!("{m:?}"));
+        }));
+        window.pre_present_notify();
+      }).unwrap_or_else(|m| log::error!("{m:?}"));
     }
 
     _ => {},

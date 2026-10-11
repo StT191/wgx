@@ -65,12 +65,13 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
     },
 
     Event::WindowEvent(WindowEvent::RedrawRequested) => {
-      target.with_frame(None, |frame| gx.with_encoder(|encoder| {
-        encoder.with_render_pass(frame.attachments(None, None, None), |rpass| {
+      target.with_frame(&gx, None, |frame| {
+        gx.with_encoder(|en| en.with_render_pass(frame.attachments(None, None, None), |rpass| {
           rpass.set_pipeline(&pipeline);
           rpass.draw(0..4, 0..1);
-        });
-      })).unwrap_or_else(|m| log::error!("{m:?}"));
+        }));
+        window.pre_present_notify();
+      }).unwrap_or_else(|m| log::error!("{m:?}"));
     }
 
     _ => {},

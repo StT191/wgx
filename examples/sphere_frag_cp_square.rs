@@ -269,9 +269,10 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
 
       // let then = time::Instant::now();
 
-      target.with_frame(None, |frame| gx.with_encoder(|encoder| {
-        encoder.pass_bundles(frame.attachments(Some(bg_color), Some(1.0), None), &bundles);
-      })).expect("frame error");
+      target.with_frame(&gx, None, |frame| {
+        gx.with_encoder(|en| en.pass_bundles(frame.attachments(Some(bg_color), Some(1.0), None), &bundles));
+        window.pre_present_notify();
+      }).expect("frame error");
 
       // log::warn!("{:?}", then.elapsed());
     },

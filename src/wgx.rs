@@ -33,6 +33,7 @@ impl Wgx {
             power_preference: wgpu::PowerPreference::from_env().unwrap_or(wgpu::PowerPreference::HighPerformance),
             force_fallback_adapter: false,
             compatible_surface: surface.as_ref(),
+            apply_limit_buckets: false,
         }).await.context("couldn't get adapter")?;
 
         Ok((adapter, surface))

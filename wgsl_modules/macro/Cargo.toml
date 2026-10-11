@@ -3,8 +3,8 @@ name = "wgsl_modules_macro"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
-rust-version = "1.94"
 
 [lib]
 name = "wgsl_modules_macro"

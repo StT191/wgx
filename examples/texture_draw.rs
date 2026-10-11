@@ -139,8 +139,8 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
 
             let then = Instant::now();
 
-            target.with_frame(None, |frame| gx.with_encoder(|encoder| {
-                encoder.with_render_pass(
+            target.with_frame(&gx, None, |frame| {
+                gx.with_encoder(|en| en.with_render_pass(
                     frame.attachments(Some(bg_color_target), None, None),
                     |rpass| {
                         rpass.set_pipeline(&pipeline);
@@ -149,8 +149,9 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
                         rpass.set_vertex_buffer(1, display_tex_coords.slice(..));
                         rpass.draw(0..vertex_data.len() as u32, 0..1);
                     }
-                );
-            })).expect("frame error");
+                ));
+                window.pre_present_notify();
+            }).expect("frame error");
 
             println!("{:?}", then.elapsed());
         },

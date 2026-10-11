@@ -257,7 +257,7 @@ impl Module {
 
 pub fn naga_module(source: &str, path: impl AsRef<Path>) -> Res<naga::Module> {
     wgsl::parse_str(source)
-    .map_err(|err| anyhow!(err.emit_to_string_with_path(source, path)))
+    .map_err(|err| anyhow!(err.emit_to_string_with_path(source, &path.as_ref().display().to_string())))
 }
 
 pub fn naga_validate(

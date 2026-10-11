@@ -113,15 +113,16 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
     Event::WindowEvent(WindowEvent::RedrawRequested) => {
 
       // draw
-      target.with_frame(None, |frame| gx.with_encoder(|encoder| {
-        encoder.with_render_pass(frame.attachments(Some(Color::BLACK), None, None), |rpass| {
+      target.with_frame(&gx, None, |frame| {
+        gx.with_encoder(|en| en.with_render_pass(frame.attachments(Some(Color::BLACK), None, None), |rpass| {
           rpass.set_pipeline(&pipeline);
           rpass.set_bind_group(0, &binding, &[]);
           rpass.set_vertex_buffer(0, vertices.slice(..));
           rpass.set_immediates(0, &time.elapsed().as_secs_f32().to_ne_bytes());
           rpass.draw(0..vertex_data.len() as u32, 0..1);
-        });
-      })).expect("frame error");
+        }));
+        window.pre_present_notify();
+      }).expect("frame error");
 
       // vsync on
       target.request_frame().expect("frame error");

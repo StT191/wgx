@@ -232,13 +232,13 @@ impl SurfaceTarget {
     }
 
 
-    pub fn present(&mut self) -> Option<()> {
-        self.frame.take().map(|frame| frame.present())
+    pub fn present(&mut self, gx:&impl WgxQueue) -> Option<()> {
+        self.frame.take().map(|frame| gx.queue().present(frame))
     }
 
 
     pub fn with_frame<T: ImplicitControlFlow>(
-        &mut self, dsc: Option<&wgpu::TextureViewDescriptor>, handler: impl FnOnce(&SurfaceFrame) -> T
+        &mut self, gx:&impl WgxQueue, dsc: Option<&wgpu::TextureViewDescriptor>, handler: impl FnOnce(&SurfaceFrame) -> T
     ) -> Res<T>
     {
         if self.frame.is_none() {
@@ -247,10 +247,8 @@ impl SurfaceTarget {
 
         let res = self.handle_surface_frame(dsc, handler).unwrap();
 
-        let frame = self.frame.take().unwrap();
-
         if res.should_continue() {
-            frame.present();
+            self.present(gx);
         }
 
         Ok(res)
