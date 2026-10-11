@@ -195,7 +195,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
         Event::WindowEvent(WindowEvent::RedrawRequested) => {
             let then = Instant::now();
 
-            target.with_frame(None, |frame| gx.with_encoder(|encoder| {
+            target.with_frame(&gx, None, |frame| gx.with_encoder(|encoder| {
                 encoder.pass_bundles(frame.attachments(Some(Color::GREEN), None, None), &bundles);
             })).expect("frame error");
 

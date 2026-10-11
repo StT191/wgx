@@ -113,7 +113,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
     Event::WindowEvent(WindowEvent::RedrawRequested) => {
 
       // draw
-      target.with_frame(None, |frame| gx.with_encoder(|encoder| {
+      target.with_frame(&gx, None, |frame| gx.with_encoder(|encoder| {
         encoder.with_render_pass(frame.attachments(Some(Color::BLACK), None, None), |rpass| {
           rpass.set_pipeline(&pipeline);
           rpass.set_bind_group(0, &binding, &[]);

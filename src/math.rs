@@ -1,11 +1,13 @@
 #![allow(clippy::from_over_into)]
 
-pub use glam::{self, *};
+pub use glam::{self, *, camera::lh::{proj::directx::*, view::*}};
 
 
 // helper macro
 macro_rules! impl_multi {
-    ( $trait:ty => $($type:ty),+ => $tokens:tt) => { $( impl $trait for $type $tokens )+ }
+    ( $trait:ty => $($(#[$atr:meta])? $type:ty),+ => $tokens:tt) => {
+        $( $(#[$atr])? impl $trait for $type $tokens )+
+    }
 }
 
 
@@ -14,7 +16,7 @@ pub trait NormalFromTriangleExtension {
 }
 
 impl_multi!{
-    NormalFromTriangleExtension => Vec3, Vec3A, DVec3 => {
+    NormalFromTriangleExtension => Vec3, Vec3A, #[cfg(feature = "math-f64")] DVec3 => {
         #[inline] fn normal_from_triangle(v0: Self, v1: Self, v2: Self) -> Self {
             (v1 - v0).cross(v2 - v0).normalize()
         }
@@ -22,22 +24,23 @@ impl_multi!{
 }
 
 
-pub trait FlatViewPortLhExtension {
+pub trait FlatViewPortExtension { // left-handed
     type F;
-    fn flat_viewport_lh(width: Self::F, height: Self::F, depth: Self::F) -> Self;
+    fn flat_viewport(width: Self::F, height: Self::F, depth: Self::F) -> Self;
 }
 
-impl FlatViewPortLhExtension for Mat4 {
+impl FlatViewPortExtension for Mat4 {
     type F = f32;
-    #[inline] fn flat_viewport_lh(width: f32, height: f32, depth: f32) -> Self {
+    #[inline] fn flat_viewport(width: f32, height: f32, depth: f32) -> Self {
         Self::from_translation([-1.0, 1.0, 0.0].into()) *
         Self::from_scale([2.0/width, -2.0/height, if depth == 0.0 { 0.0 } else { 1.0/depth }].into())
     }
 }
 
-impl FlatViewPortLhExtension for DMat4 {
+#[cfg(feature = "math-f64")]
+impl FlatViewPortExtension for DMat4 {
     type F = f64;
-    #[inline] fn flat_viewport_lh(width: f64, height: f64, depth: f64) -> Self {
+    #[inline] fn flat_viewport(width: f64, height: f64, depth: f64) -> Self {
         Self::from_translation([-1.0, 1.0, 0.0].into()) *
         Self::from_scale([2.0/width, -2.0/height, if depth == 0.0 { 0.0 } else { 1.0/depth }].into())
     }
@@ -54,6 +57,7 @@ impl FromUniformScaleExtension for Mat4 {
     #[inline] fn from_uniform_scale(f: f32) -> Self { Self::from_scale([f; 3].into()) }
 }
 
+#[cfg(feature = "math-f64")]
 impl FromUniformScaleExtension for DMat4 {
     type F = f64;
     #[inline] fn from_uniform_scale(f: f64) -> Self { Self::from_scale([f; 3].into()) }
@@ -89,6 +93,7 @@ impl FromToAttitudeExtension for Affine3A {
     #[inline] fn to_attitude(&self) -> Vec3 { self.matrix3.to_attitude() }
 }
 
+#[cfg(feature = "math-f64")]
 impl_multi!{
     FromToAttitudeExtension => DMat4, DMat3, DQuat => {
         type A = DVec3;
@@ -102,6 +107,7 @@ impl_multi!{
     }
 }
 
+#[cfg(feature = "math-f64")]
 impl FromToAttitudeExtension for DAffine3 {
     type A = DVec3;
     #[inline] fn from_attitude(attitude: DVec3) -> Self {
@@ -143,28 +149,11 @@ impl_multi!{
     }
 }
 
+#[cfg(feature = "math-f64")]
 impl_multi!{
     AnglesExtension => DVec4, DVec3, DVec2 => {
         #[inline] fn normalize_angles(self) -> Self { self.map(f64::normalize_angle) }
         #[inline] fn norm_angles_as_delta(self) -> Self { self.map(f64::norm_angle_as_delta) }
-    }
-}
-
-
-pub trait HomogenizeExtension {
-    fn homogenize(self) -> Self;
-}
-
-impl_multi!{
-    HomogenizeExtension =>
-        Vec4, DVec4,
-        I16Vec4, IVec4, I64Vec4,
-        U16Vec4, UVec4, U64Vec4
-    => {
-        #[inline] fn homogenize(self) -> Self {
-            let [x, y, z, w] = self.into();
-            Self::new(x/w, y/w, z/w, w)
-        }
     }
 }
 

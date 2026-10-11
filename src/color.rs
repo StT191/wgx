@@ -249,11 +249,11 @@ mod math_color_conversion {
         #[inline] pub const fn from_vec3a(vec3a: Vec3A) -> Self { Self::from_f32_rgb(vec3a.to_array()) }
         #[inline] pub const fn from_vec3p(vec3p: Vec3P) -> Self { Self::from_f32_rgb(vec3p.vec3().to_array()) }
 
-        #[inline] pub const fn dvec4(self) -> DVec4 { DVec4::from_array(self.f64()) }
-        #[inline] pub const fn from_dvec4(dvec4: DVec4) -> Self { Self::from_f64(dvec4.to_array()) }
+        #[cfg(feature = "math-f64")] #[inline] pub const fn dvec4(self) -> DVec4 { DVec4::from_array(self.f64()) }
+        #[cfg(feature = "math-f64")] #[inline] pub const fn from_dvec4(dvec4: DVec4) -> Self { Self::from_f64(dvec4.to_array()) }
 
-        #[inline] pub const fn dvec3(self) -> DVec3 { DVec3::from_array(self.f64_rgb()) }
-        #[inline] pub const fn from_dvec3(dvec3: DVec3) -> Self { Self::from_f64_rgb(dvec3.to_array()) }
+        #[cfg(feature = "math-f64")] #[inline] pub const fn dvec3(self) -> DVec3 { DVec3::from_array(self.f64_rgb()) }
+        #[cfg(feature = "math-f64")] #[inline] pub const fn from_dvec3(dvec3: DVec3) -> Self { Self::from_f64_rgb(dvec3.to_array()) }
 
     }
 
@@ -281,17 +281,17 @@ mod math_color_conversion {
     }
     // from Color is genericly implemented for Vec3P
 
-    impl From<DVec4> for Color {
+    #[cfg(feature = "math-f64")] impl From<DVec4> for Color {
         #[inline] fn from(value: DVec4) -> Color { Color::from_dvec4(value) }
     }
-    impl From<Color> for DVec4 {
+    #[cfg(feature = "math-f64")] impl From<Color> for DVec4 {
         #[inline] fn from(color: Color) -> Self { color.dvec4() }
     }
 
-    impl From<DVec3> for Color {
+    #[cfg(feature = "math-f64")] impl From<DVec3> for Color {
         #[inline] fn from(value: DVec3) -> Color { Color::from_dvec3(value) }
     }
-    impl From<Color> for DVec3 {
+    #[cfg(feature = "math-f64")] impl From<Color> for DVec3 {
         #[inline] fn from(color: Color) -> Self { color.dvec3() }
     }
 

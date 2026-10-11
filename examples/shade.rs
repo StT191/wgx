@@ -65,7 +65,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
     },
 
     Event::WindowEvent(WindowEvent::RedrawRequested) => {
-      target.with_frame(None, |frame| gx.with_encoder(|encoder| {
+      target.with_frame(&gx, None, |frame| gx.with_encoder(|encoder| {
         encoder.with_render_pass(frame.attachments(None, None, None), |rpass| {
           rpass.set_pipeline(&pipeline);
           rpass.draw(0..4, 0..1);

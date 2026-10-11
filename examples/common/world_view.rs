@@ -150,7 +150,7 @@ pub struct FovProjection {
 impl FovProjection {
 
     pub fn update(&mut self) {
-        self.projection = Mat4::perspective_lh(self.fov_deg.to_radians(), self.aspect, self.near, self.far);
+        self.projection = perspective(self.fov_deg.to_radians(), self.aspect, self.near, self.far);
         self.translation = Mat4::from_translation([0.0, 0.0, self.distance].into());
     }
 

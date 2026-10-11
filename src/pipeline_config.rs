@@ -34,7 +34,7 @@ pub struct RenderPipelineConfig<'a, const N: usize> {
 
 impl<'a> RenderPipelineConfig<'a, 0> {
     pub fn new(
-        buffers: &'a [wgpu::VertexBufferLayout],
+        buffers: &'a [Option<wgpu::VertexBufferLayout>],
         module: &'a wgpu::ShaderModule, entry_point: &'a str,
         primitive: wgpu::PrimitiveState,
     ) -> Self {
