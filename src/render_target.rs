@@ -1,7 +1,6 @@
 
 use wgpu::{*, PresentMode as Prs};
 use crate::*;
-use anyhow::{Result as Res, bail};
 
 
 #[derive(Debug, Clone)]
@@ -61,8 +60,9 @@ type Surface = wgpu::Surface<'static>;
 pub struct SurfaceTarget {
     pub config: SurfaceConfiguration,
     pub surface: Surface,
+    pub needs_recreate: bool,
+    pub needs_config: bool,
     pub frame: Option<SurfaceTexture>,
-    pub is_suboptimal: bool,
     pub view_format: TextureFormat,
     pub msaa: u32,
     pub msaa_opt: Option<TextureLot>,
@@ -135,6 +135,60 @@ pub fn configure_surface_defaults(
 }
 
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum FrameState {
+    Success,
+    Suboptimal,
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum FrameError {
+    Discontinued,
+    Timeout,
+    Occluded,
+    Outdated,
+    Lost,
+    Validation,
+}
+
+impl std::fmt::Display for FrameError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use FrameError::*;
+        match self {
+            Discontinued => formatter.write_str("The control flow was broken"),
+            Timeout => formatter.write_str("The frame request timed out"),
+            Occluded => formatter.write_str("The surface is occluded"),
+            Outdated => formatter.write_str("The surface is outdated"),
+            Lost => formatter.write_str("The surface was lost"),
+            Validation => formatter.write_str("A validation error occurred"),
+        }
+    }
+}
+
+impl std::error::Error for FrameError {}
+
+
+pub trait SurfaceState {
+    fn needs_recreate(&self) -> bool;
+    fn needs_config(&self) -> bool;
+    fn inspect_msg(&self, handler: impl FnOnce(std::fmt::Arguments<'_>));
+}
+
+impl SurfaceState for Result<FrameState, FrameError> {
+
+    fn needs_recreate(&self) -> bool { matches!(self, Err(FrameError::Lost) ) }
+    fn needs_config(&self) -> bool { matches!(self, Ok(FrameState::Suboptimal) | Err(FrameError::Outdated) ) }
+
+    fn inspect_msg(&self, handler: impl FnOnce(std::fmt::Arguments<'_>)) {
+        match self {
+            Ok(FrameState::Suboptimal) => handler(format_args!("The surface is suboptimal")),
+            Err(err) => handler(format_args!("{err}")),
+            _ => {},
+        }
+    }
+}
+
+
 impl SurfaceTarget {
 
     pub fn new_with_default_config(gx:&Wgx, surface:Surface, size:impl Into<[u32; 2]>, srgb: bool, msaa:u32, depth_testing:Option<TextureFormat>) -> Self
@@ -162,7 +216,7 @@ impl SurfaceTarget {
         -> Self
     {
         let mut target = Self {
-            config, surface, frame: None, is_suboptimal: false,
+            config, surface, needs_recreate: false, needs_config: true, frame: None,
             view_format, msaa, msaa_opt: None, depth_opt: None,
         };
         target.configure(gx, depth_testing);
@@ -175,7 +229,9 @@ impl SurfaceTarget {
         let [width, height] = self.size();
 
         self.frame = None; // drop current frame
+
         self.surface.configure(gx.device(), &self.config);
+        self.needs_config = false;
 
         self.msaa_opt = (self.msaa > 1).then(||
             TextureLot::new_2d(gx, [width, height, 1], self.msaa, self.format(), Some(self.view_format), TexUse::RENDER_ATTACHMENT)
@@ -195,27 +251,39 @@ impl SurfaceTarget {
     }
 
 
-    pub fn request_frame(&mut self) -> Res<()> {
-
-        use wgpu::CurrentSurfaceTexture::*;
-
-        match self.surface.get_current_texture() {
-            Success(texture) => { self.frame = Some(texture); self.is_suboptimal = false; },
-            Suboptimal(texture) => { self.frame = Some(texture); self.is_suboptimal = true; },
-            Timeout => bail!("SurfaceTexture: Timeout"),
-            Occluded => bail!("SurfaceTexture: Occluded"),
-            Outdated => bail!("SurfaceTexture: Outdated"),
-            Lost => bail!("SurfaceTexture: Lost"),
-            Validation => bail!("SurfaceTexture: Validation"),
-        };
-
-        Ok(())
+    pub fn recreate(&mut self, gx:&impl WgxDevice, surface:Surface, size:impl Into<[u32; 2]>) {
+        self.surface = surface;
+        self.needs_recreate = false;
+        self.update(gx, size);
     }
 
 
-    pub fn handle_surface_frame<T: ImplicitControlFlow>(
-        &mut self, dsc: Option<&wgpu::TextureViewDescriptor>, handler: impl FnOnce(&SurfaceFrame) -> T
-    ) -> Option<T>
+    pub fn request_frame(&mut self) -> Result<FrameState, FrameError> {
+
+        self.frame = None;
+
+        use wgpu::CurrentSurfaceTexture::*;
+
+        let result = match self.surface.get_current_texture() {
+            Success(texture) => { self.frame = Some(texture); Ok(FrameState::Success) },
+            Suboptimal(texture) => { self.frame = Some(texture); Ok(FrameState::Suboptimal) },
+            Timeout => Err(FrameError::Timeout),
+            Occluded => Err(FrameError::Occluded),
+            Outdated => Err(FrameError::Outdated),
+            Lost => Err(FrameError::Lost),
+            Validation => Err(FrameError::Validation),
+        };
+
+        self.needs_recreate = result.needs_recreate();
+        self.needs_config = result.needs_config();
+
+        result
+    }
+
+
+    pub fn handle_surface_frame<C: ImplicitControlFlow>(
+        &mut self, dsc: Option<&wgpu::TextureViewDescriptor>, handler: impl FnOnce(&SurfaceFrame) -> C
+    ) -> Option<C>
     {
         let frame = self.frame.as_ref()?;
 
@@ -237,21 +305,25 @@ impl SurfaceTarget {
     }
 
 
-    pub fn with_frame<T: ImplicitControlFlow>(
-        &mut self, gx:&impl WgxQueue, dsc: Option<&wgpu::TextureViewDescriptor>, handler: impl FnOnce(&SurfaceFrame) -> T
-    ) -> Res<T>
+    pub fn with_frame<C: ImplicitControlFlow>(
+        &mut self, gx:&impl WgxQueue, dsc: Option<&wgpu::TextureViewDescriptor>, handler: impl FnOnce(&SurfaceFrame) -> C
+    ) -> Result<FrameState, FrameError>
     {
         if self.frame.is_none() {
             self.request_frame()?;
         }
 
-        let res = self.handle_surface_frame(dsc, handler).unwrap();
+        let control_flow = self.handle_surface_frame(dsc, handler).unwrap();
 
-        if res.should_continue() {
+        if control_flow.should_continue() {
+
             self.present(gx);
-        }
 
-        Ok(res)
+            if self.needs_config { Ok(FrameState::Suboptimal) }
+            else { Ok(FrameState::Success) }
+        } else {
+            Err(FrameError::Discontinued)
+        }
     }
 }
 

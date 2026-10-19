@@ -198,7 +198,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
             target.with_frame(&gx, None, |frame| {
                 gx.with_encoder(|en| en.pass_bundles(frame.attachments(Some(Color::GREEN), None, None), &bundles));
                 window.pre_present_notify();
-            }).expect("frame error");
+            }).inspect_msg(|m| log::error!("{m:?}"));
 
             println!("{:?}", then.elapsed());
         },

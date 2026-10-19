@@ -131,7 +131,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
           rpass.draw(0..vertices.len() as u32, 0..1);
         }));
         window.pre_present_notify();
-      }).unwrap_or_else(|m| log::error!("{m:?}"));
+      }).inspect_msg(|m| log::error!("{m:?}"));
     }
 
     _ => {},

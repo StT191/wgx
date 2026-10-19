@@ -262,14 +262,13 @@ pub trait WgxDeviceQueue: WgxDevice + WgxQueue {
 
     // with CommandEncoder
 
-    fn with_encoder<T: ImplicitControlFlow>(&self, handler: impl FnOnce(&mut wgpu::CommandEncoder) -> T) -> T
+    fn with_encoder<C: ImplicitControlFlow>(&self, handler: impl FnOnce(&mut wgpu::CommandEncoder) -> C)
     {
         let mut encoder = self.command_encoder();
-        let res = handler(&mut encoder);
-        if res.should_continue() {
+        let control_flow = handler(&mut encoder);
+        if control_flow.should_continue() {
             self.queue().submit([encoder.finish()]);
         }
-        res
     }
 }
 
