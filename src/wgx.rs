@@ -91,6 +91,17 @@ impl Wgx {
         let target = SurfaceTarget::new_with_default_config(&gx, surface.unwrap(), window_size, srgb, msaa, depth_testing);
         Ok((gx, target))
     }
+
+    pub fn recreate_target<W: Into<wgpu::SurfaceTarget<'static>>>(
+        &self, target: &mut SurfaceTarget, window: W, window_size:impl Into<[u32; 2]>
+    )
+        -> Res<()>
+    {
+        target.drop();
+        let surface = self.instance.create_surface(window)?;
+        target.recreate(self, ||surface, window_size);
+        Ok(())
+    }
 }
 
 
@@ -262,14 +273,13 @@ pub trait WgxDeviceQueue: WgxDevice + WgxQueue {
 
     // with CommandEncoder
 
-    fn with_encoder<T: ImplicitControlFlow>(&self, handler: impl FnOnce(&mut wgpu::CommandEncoder) -> T) -> T
+    fn with_encoder<C: ImplicitControlFlow>(&self, handler: impl FnOnce(&mut wgpu::CommandEncoder) -> C)
     {
         let mut encoder = self.command_encoder();
-        let res = handler(&mut encoder);
-        if res.should_continue() {
+        let control_flow = handler(&mut encoder);
+        if control_flow.should_continue() {
             self.queue().submit([encoder.finish()]);
         }
-        res
     }
 }
 

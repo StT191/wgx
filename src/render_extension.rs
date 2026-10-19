@@ -89,6 +89,7 @@ pub trait RenderTarget {
     fn depth_testing(&self) -> Option<TextureFormat>;
     fn format(&self) -> TextureFormat;
 
+    // provided
     fn target_dsc(&self) -> TargetDsc {
         TargetDsc { size: self.size(), msaa: self.msaa(), depth_testing: self.depth_testing(), format: self.format() }
     }
@@ -184,14 +185,14 @@ pub trait EncoderExtension {
 
     fn compute_pass(&mut self) -> wgpu::ComputePass<'_>;
 
-    fn with_compute_pass<'a, T>(&mut self, handler: impl FnOnce(&mut wgpu::ComputePass<'a>) -> T) -> T;
+    fn with_compute_pass<'a>(&mut self, handler: impl FnOnce(&mut wgpu::ComputePass<'a>));
 
     fn render_pass<'a, const S: usize>(&'a mut self, attachments: RenderAttachments<'a, S>) -> wgpu::RenderPass<'a>;
 
-    fn with_render_pass<'a, 'b, const S: usize, T>(
+    fn with_render_pass<'a, 'b, const S: usize>(
         &'a mut self, attachments: RenderAttachments<'a, S>,
-        handler: impl FnOnce(&mut wgpu::RenderPass<'b>) -> T
-    ) -> T;
+        handler: impl FnOnce(&mut wgpu::RenderPass<'b>)
+    );
 
     fn pass_bundles<'a, const S: usize>(
         &'a mut self, attachments: RenderAttachments<'a, S>,
@@ -208,8 +209,8 @@ impl EncoderExtension for wgpu::CommandEncoder {
         })
     }
 
-    fn with_compute_pass<'a, T>(&mut self, handler: impl FnOnce(&mut wgpu::ComputePass<'a>) -> T) -> T {
-        handler(&mut self.compute_pass().forget_lifetime())
+    fn with_compute_pass<'a>(&mut self, handler: impl FnOnce(&mut wgpu::ComputePass<'a>)) {
+        handler(&mut self.compute_pass().forget_lifetime());
     }
 
 
@@ -226,11 +227,11 @@ impl EncoderExtension for wgpu::CommandEncoder {
         })
     }
 
-    fn with_render_pass<'a, 'b, const S: usize, T>(
+    fn with_render_pass<'a, 'b, const S: usize>(
         &'a mut self, attachments: RenderAttachments<'a, S>,
-        handler: impl FnOnce(&mut wgpu::RenderPass<'b>) -> T
-    ) -> T {
-        handler(&mut self.render_pass(attachments).forget_lifetime())
+        handler: impl FnOnce(&mut wgpu::RenderPass<'b>)
+    ) {
+        handler(&mut self.render_pass(attachments).forget_lifetime());
     }
 
 

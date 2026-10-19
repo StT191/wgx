@@ -180,7 +180,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
   move |_ctx, event| match event {
 
     Event::WindowEvent(WindowEvent::Resized(size)) => {
-      target.update(&gx, size);
+      target.update(&gx, size).unwrap();
       world.fov.resize_window(size.width as f32, size.height as f32, true);
       world.calc_clip_matrix();
       world.light_matrix = light_matrix * world.rotation; // keep light
@@ -219,7 +219,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
       target.with_frame(&gx, None, |frame| {
         gx.with_encoder(|en| en.pass_bundles(frame.attachments(Some(bg_color), Some(1.0), None), &bundles));
         window.pre_present_notify();
-      }).expect("frame error");
+      }).inspect_msg(|m| log::error!("{m:?}"));
 
       println!("{:?}", then.elapsed());
     },

@@ -126,7 +126,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
     move |_ctx, event| match event {
 
         Event::WindowEvent(WindowEvent::Resized(size)) => {
-            target.update(&gx, size);
+            target.update(&gx, size).unwrap();
         },
 
         Event::WindowEvent(WindowEvent::KeyboardInput { event: KeyEvent {
@@ -151,7 +151,7 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
                     }
                 ));
                 window.pre_present_notify();
-            }).expect("frame error");
+            }).inspect_msg(|m| log::error!("{m:?}"));
 
             println!("{:?}", then.elapsed());
         },

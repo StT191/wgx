@@ -5,7 +5,7 @@ use platform::winit::{
   window::WindowAttributes, event::{Event, WindowEvent, KeyEvent, ElementState, StartCause},
   keyboard::{PhysicalKey, KeyCode},
 };
-use platform::{timer::*, pollster::FutureExt};
+use platform::{*, timer::*, pollster::FutureExt};
 use wgx::{*};
 
 
@@ -100,7 +100,7 @@ fn main() {
       },
 
       Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
-        target.update(&gx, [size.width, size.height]);
+        target.update(&gx, [size.width, size.height]).unwrap();
       },
 
       Event::WindowEvent { event: WindowEvent::KeyboardInput { event: KeyEvent {
@@ -116,7 +116,7 @@ fn main() {
         target.with_frame(&gx, None, |frame| {
           gx.with_encoder(|en| en.pass_bundles(frame.attachments(Some(Color::GREEN), Some(1.0), None), &bundles));
           window.pre_present_notify();
-        }).expect("frame error");
+        }).inspect_msg(|m| log::error!("{m:?}"));
 
         // println!("{:?}", then.elapsed());
       },
