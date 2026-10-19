@@ -116,7 +116,7 @@ fn main() {
         target.with_frame(&gx, None, |frame| {
           gx.with_encoder(|en| en.pass_bundles(frame.attachments(Some(Color::GREEN), Some(1.0), None), &bundles));
           window.pre_present_notify();
-        }).expect("frame error");
+        }).inspect_msg(|m| log::error!("{m:?}"));
 
         // println!("{:?}", then.elapsed());
       },

@@ -122,10 +122,10 @@ async fn init_app(ctx: &mut AppCtx) -> impl FnMut(&mut AppCtx, Event) + use<> {
           rpass.draw(0..vertex_data.len() as u32, 0..1);
         }));
         window.pre_present_notify();
-      }).expect("frame error");
+      }).inspect_msg(|m| log::error!("{m:?}"));
 
       // vsync on
-      target.request_frame().expect("frame error");
+      target.request_frame().inspect_msg(|m| log::error!("{m:?}"));
       window.request_redraw();
 
       // statistics
